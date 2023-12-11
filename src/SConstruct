@@ -1,0 +1,51 @@
+#!python
+from sys import prefix
+project_name = "_corridors_mcts"
+
+source_files =Glob('*.cpp')
+
+test = ARGUMENTS.get('test',0)
+if int(test):
+    source_files = [f for f in source_files if str(f) != project_name+'.cpp']
+    source_files = [f for f in source_files if str(f) != 'corridors_threaded_api.cpp']
+
+include_path = [prefix + '/include/python3.10']
+lib_path = []
+
+libs = []#['pthread']
+if not int(test):
+    libs.extend(['boost_python310', 'boost_numpy310'])
+
+env = Environment()
+
+debug = ARGUMENTS.get('debug', 0)
+if int(debug):
+    env.Append(CCFLAGS = '-g')
+    env.Append(LINKFLAGS = '-g')
+else:
+    env.Append(CCFLAGS = '-Ofast') # optimization only when not debugging
+
+profile = ARGUMENTS.get('profile', 0)
+if int(profile):
+    env.Append(CCFLAGS = '-pg')
+    env.Append(LINKFLAGS = '-pg')
+
+# to get rid of annoying auto_ptr deprecation warning
+env.Append(CCFLAGS = '-Wno-deprecated-declarations')
+
+if int(test):
+    env.Program(target = project_name, \
+        SHLIBPREFIX='',
+        source = source_files, \
+        LIBS=libs, \
+        LIBPATH=lib_path, \
+        CPPPATH=include_path, \
+        RPATH=lib_path)
+else:
+    env.SharedLibrary(target = project_name, \
+        SHLIBPREFIX='',
+        source = source_files, \
+        LIBS=libs, \
+        LIBPATH=lib_path, \
+        CPPPATH=include_path, \
+        RPATH=lib_path)
