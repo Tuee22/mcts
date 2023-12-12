@@ -1,5 +1,6 @@
 #!python
 from sys import prefix
+from shutil import copyfile
 project_name = "_corridors_mcts"
 boost_libs = ['boost_python310', 'boost_numpy310']
 include_path = [prefix + '/include/python3.10']

@@ -1,8 +1,8 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-runtime-ubuntu22.04
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y build-essential libboost-all-dev git curl wget valgrind cppcheck
-RUN apt install -y python3.11 python3-dev python3-pip
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+RUN apt install -y python3 python3-dev python3-pip
+#RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # update package managers 
 RUN python3 -m pip install --upgrade pip setuptools wheel 

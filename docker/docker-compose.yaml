@@ -9,7 +9,6 @@ services:
     runtime: nvidia
     volumes:
       - ../:/home/mcts
-      - ../src:/home/python/corridors
     ports:
       - "8888:8888"
       - "8786:8786"
