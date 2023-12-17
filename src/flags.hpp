@@ -10,8 +10,8 @@ namespace flags {
             flags() noexcept;
 
             // flip-copy and flip-move constructors
-            flags(const flags & source, const bool _flip) noexcept;
-            flags(const flags && source, const bool _flip) noexcept;
+            //flags(const flags & source, const bool _flip) noexcept;
+            //flags(const flags && source, const bool _flip) noexcept;
 
             // default the big 5
             flags(const flags & source) noexcept = default;
@@ -40,17 +40,21 @@ flags::flags<N>::flags() noexcept
     flipped=false;
 }
 
+/*
 template <size_t N>
-flags::flags<N>::flags(const flags & source, const bool _flip) noexcept : _flags(source)
+flags::flags<N>::flags(const flags & source, const bool _flip) noexcept : _flags(source._flags)
 {
+    flipped=source.flipped;
     if(_flip) flip();
 }
 
 template <size_t N>
-flags::flags<N>::flags(const flags && source, const bool _flip) noexcept : _flags(std::move(source))
+flags::flags<N>::flags(const flags && source, const bool _flip) noexcept : _flags(std::move(source._flags))
 {
+    flipped=source.flipped;
     if(_flip) flip();
 }
+*/
 
 template <size_t N>
 bool flags::flags<N>::test(const size_t pos) const

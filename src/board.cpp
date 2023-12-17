@@ -208,6 +208,13 @@ unsigned short board::get_villains_shortest_distance() const
     return villains_shortest_distance;
 }
 
+// function signature for eval includes the most general case where we have an eval function that returns
+// both a Q value and a policy consisting of a vector of probs corresponding with probs of children 
+void board::eval(const std::vector<board_node_ptr> & children, double & eval_Q, std::vector<double> & eval_probs) const
+{
+    throw std::string("eval not implemented");
+}
+
 // hash caching with lazy evaluation
 size_t board::get_hash() const
 {   
@@ -265,7 +272,7 @@ std::string board::get_action_text(const bool flip) const
         std::string orientation((use_action.wall_is_vertical?"V":"H"));
         return orientation + std::string("(")
             + boost::lexical_cast<std::string>(_wall_x)
-            + std::string(",")
+            + std::string(",")                          
             + boost::lexical_cast<std::string>(_wall_y)
             + std::string(")");
     }
@@ -379,7 +386,7 @@ int board::get_non_terminal_rank() const
 {
     unsigned short villains_shortest_distance = get_villains_shortest_distance();
     unsigned short heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
-    return (int)heros_shortest_distance - (int)villains_shortest_distance;
+    return (int)villains_shortest_distance - (int)heros_shortest_distance;
 }
 
 void board::Deep_Copy(const board & source, bool flip)
