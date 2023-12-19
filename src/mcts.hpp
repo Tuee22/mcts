@@ -41,37 +41,44 @@ public:
     uct_node(uct_node && source) noexcept = default;
     uct_node & operator=(uct_node && source) noexcept = default;
     virtual ~uct_node() noexcept = default;
-    void set_state(const G & input, uct_node_ptr & output);
+
+    // adds a child (should only be called from G)
+    void emplace_back(G && input);
 
     // gameplay actions (for end user)
+    void set_state(const G & input, uct_node_ptr & output);
     const G & get_state() const;
-    bool simulate(const size_t simulations, Rand & rand, const double c);
+    bool simulate(
+        const size_t simulations,
+        Rand & rand,
+        const double c,
+        const bool use_rollout,
+        const bool eval_children,
+        const bool use_puct,
+        const bool use_probs
+    );
     uct_node_ptr choose_best_action(Rand & rand, const double epsilon=0, const bool decide_using_visits=true);
     std::string display(const bool flip);
     uct_node_ptr make_move(const size_t choice);
     uct_node_ptr make_move(const std::string & action_text, const bool flip);
     std::vector<std::tuple<size_t, double, std::string>> get_sorted_actions(const bool flip); // flip==true means we get the move from hero's perspective
-    bool is_explored()  const;
-
-    // adds a child (should only be called from G)
-    void emplace_back(G && input);
+    bool is_evaluated() const;
+    size_t get_visit_count() const;
 
 protected:
-
     void orphan();
-    void select(uct_node_ptr & leaf, const double c) const;
-    std::vector<uct_node_ptr> & get_children();
-    void explore(Rand & rand, bool use_rollout);
+    void select(uct_node_ptr & leaf, const double c, Rand & rand, const bool use_puct, const bool use_probs) const;
+    std::vector<std::shared_ptr<uct_node<G>>> & get_children();
+    void eval(Rand & rand, const bool use_rollout, const bool eval_children);
     double rollout(Rand & rand) const;
-    void backprop(const double eval);
-    size_t get_visit_count() const;
+    void backprop();
     // tuple is (visit count, evaluation, move description)
 
 private:
-    double Q_sum;
-    double eval_Q;
-    size_t visit_count;
-    bool all_children_explored;
+    double Q_sum; // sum of all backprop'd equity values
+    double eval_Q; // stored evaluation from rollout / handmade eval function / NN
+    size_t visit_count; // number of backprops which have contributed to Q_sum (eval_Q always being the first)
+    bool all_children_evaluated; // flag indicating that all children have an eval_Q populated
 
     const G state;
     uct_node * parent;
@@ -86,6 +93,25 @@ template <typename G>
 mcts::uct_node<G>::uct_node()
 {
     Set_Null();
+}
+
+template <typename G>
+mcts::uct_node<G>::uct_node(G && input, mcts::uct_node<G> * _parent) : state(std::move(input))
+{
+    Set_Null();
+    parent = _parent;
+}
+
+template <typename G>
+mcts::uct_node<G>::uct_node(const G & input) : state(input)
+{
+    Set_Null();
+}
+
+template <typename G>
+void mcts::uct_node<G>::emplace_back(G && input)
+{
+    children.emplace_back(uct_node_ptr(new uct_node<G>(std::move(input),this)));
 }
 
 template <typename G>
@@ -113,25 +139,6 @@ void mcts::uct_node<G>::set_state(const G & input, uct_node_ptr & output)
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node(G && input, mcts::uct_node<G> * _parent) : state(std::move(input))
-{
-    Set_Null();
-    parent = _parent;
-}
-
-template <typename G>
-mcts::uct_node<G>::uct_node(const G & input) : state(input)
-{
-    Set_Null();
-}
-
-template <typename G>
-void mcts::uct_node<G>::emplace_back(G && input)
-{
-    children.emplace_back(uct_node_ptr(new uct_node<G>(std::move(input),this)));
-}
-
-template <typename G>
 const G & mcts::uct_node<G>::get_state() const
 {
     return state;
@@ -139,112 +146,38 @@ const G & mcts::uct_node<G>::get_state() const
 
 // returns false if no simulations possible
 template <typename G>
-bool mcts::uct_node<G>::simulate(const size_t simulations, Rand & rand, const double c)
+bool mcts::uct_node<G>::simulate(
+    const size_t simulations,
+    Rand & rand,
+    const double c, 
+    const bool use_rollout,
+    const bool eval_children,
+    const bool use_puct,
+    const bool use_probs)
 {
-    if (children.size()==0) return false;
+    std::vector<uct_node_ptr> & _children = get_children();
+    if (_children.size()==0) return false;
+
+    // evaluate top node if it hasn't been evaluated
+    if (!is_evaluated())
+    {
+        eval(rand,use_rollout,eval_children);
+        backprop();
+    }
 
     uct_node_ptr leaf;
     for(size_t i=0;i<simulations;++i)
     {
         // select node
-        select(leaf,c);
+        select(leaf, c, rand, use_puct, use_probs);
 
-        double eval;
-        // only expand/simulate if no non-terminal evaluation is
-        // available.
-        if (!leaf->state.check_non_terminal_eval(eval))
-        {
-            // if there has already been at lest one simulation for this node,
-            // expand and select one of the new leaves
-            if (leaf->visit_count>0)
-            {
-                leaf->expand();
-                leaf->select(leaf,c);
-            }
+        // evaluate the node (and children if applicable)
+        leaf->eval(rand, use_rollout, eval_children);
 
-            // evaluate
-            eval = leaf->explore(rand);
-        }
-
-        // backup
-        leaf->backprop(eval);
+        // backprop
+        leaf->backprop();
     }
     return true;
-}
-
-template <typename G>
-void mcts::uct_node<G>::select(
-    uct_node_ptr & leaf, 
-    const double c, 
-    Rand & rand, 
-    bool use_puct, // false means use traditional UCT formula
-    bool use_probs, 
-    ) const
-{
-    const uct_node * curr_node_ptr = this;
-
-    while(curr_node_ptr->is_explored()) // stop at the first leaf (ie first unexplored node)
-    {
-        std::vector<uct_node_ptr> & _children = curr_node_ptr->get_children();
-        size_t best_action=0;
-
-        // check if all children are explored-- if not, made a vector of them
-        if (!all_children_explored)
-        {
-            std::vector<size_t> unexplored_children;
-            for (size_t i=0;i<curr_node_ptr->_children.size();++i)
-            {
-                // construct vector of unexplored children -- must choose one randomly
-                if (!curr_node_ptr->_children[i]->is_explored())
-                {
-                    unexplored_children.push_back(i);
-                }
-            }
-            if (unexplored_children.size()==0)
-                all_children_explored=true;
-        }
-
-        if (!all_children_explored)
-        {
-            // if not all children are explored, choose an unexplored node randomly
-            std::uniform_real_distribution<double> unif(0.0,1.0);
-            best_action=(size_t)(unif(Rand)*(double)unexplored_children.size())
-        }
-        else
-        {
-            double max_uct = std::numeric_limits<double>::min();
-            // standard uct formula, see e.g. https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
-            // for a theoretical explanation. the negative sign on the first term
-            // accounts for the fact that evaluations in the child nodes
-            // are from villain's perspective, ergo a sign flip is needed
-            // to get them from hero's.
-            double Q = -curr_node_ptr->children[i]->Q_sum / (double)curr_node_ptr->children[i]->visit_count;
-            double U;
-            if (use_puct)
-            {
-                U = sqrt((double)curr_node_ptr->visit_count-1.0);  // the -1 comes from the fact that the first visit to the parent node did not conincide with a visit to the child node
-                / (1+(double)curr_node_ptr->children[i]->visit_count);
-                if (use_probs)
-                    U *= eval_probs[i];
-            }
-            else
-            {
-                double log_visit_count = std::log((double)curr_node_ptr->visit_count);
-                U=sqrt(log_visit_count / (double)curr_node_ptr->children[i]->visit_count);
-            }
-
-            double curr_uct = Q + c * U;
-            if (curr_uct > max_uct)
-            {
-                max_uct = curr_uct;
-                best_action = i;
-            }
-        }
-
-        // get the node we're choosing
-        leaf = curr_node_ptr->children[best_action];
-        curr_node_ptr = leaf.get();
-    }    
 }
 
 // chooses an action to take from current board position based on epsilon-greedy policy
@@ -252,7 +185,7 @@ template <typename G>
 typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     Rand & rand,
     const double epsilon,
-    const bool decide_using_visits, // false means we decide using equity
+    const bool decide_using_visits // false means we decide using equity
     )
 {
     if(epsilon <0 || epsilon>1)
@@ -261,7 +194,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     std::vector<uct_node_ptr> _children = get_children();
     size_t num_legal_moves = _children.size();
 
-    if (_children.size()==0)
+    if (num_legal_moves==0)
         throw std::string("Error: no legal moves!");
 
     size_t choice=0;
@@ -289,7 +222,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     else
     {
         std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
-        bool greedy = !(epsilon > 0 && unif(rand) < epsilon)
+        bool greedy = !(epsilon > 0 && unif(rand) < epsilon);
 
         if(greedy)
         {
@@ -297,7 +230,6 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
             std::vector<size_t> choices_queue;
             if (decide_using_visits)
             {
-
                 size_t max_visit_count=0;
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
@@ -311,9 +243,22 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                         choices_queue.push_back(i);
                     }
                 }
-            } else if {
-
-
+            } else {
+                // decide using equity
+                double max_Q = std::numeric_limits<double>::min();
+                for (size_t i=0;i<num_legal_moves;++i)
+                {
+                    double curr_Q = _children[i]->Q_sum / (double)_children[i]->visit_count;
+                    if (curr_Q > max_Q)
+                    {
+                        choices_queue.clear();
+                        curr_Q = max_Q;
+                    }
+                    if (curr_Q >= max_Q) // NB: this is always true when the above if is true
+                    {
+                        choices_queue.push_back(i);
+                    }
+                }
             }
 
             // randomly select a value from choices_queue
@@ -331,116 +276,60 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     return make_move(choice);
 }
 
+// don't really need this anymore-- much more elegant
+// to do this in Python
+template <typename G>
+std::string mcts::uct_node<G>::display(const bool flip)
+{
+    auto moves = get_sorted_actions(flip);    
+
+    // display
+    std::string res;
+
+    res += "Total Visits: ";
+    res += boost::lexical_cast<std::string>(visit_count);
+    res += "\n";
+
+    size_t wall_placements = 0;
+    std::for_each(moves.cbegin(), moves.cend(), [&](const auto &mv)
+    {
+        res += "Visit Count: ";
+        res += boost::lexical_cast<std::string>(std::get<0>(mv));
+
+        res += " Equity: ";
+        std::string eq(boost::lexical_cast<std::string>(std::get<1>(mv)));
+        eq.resize(6);
+        res += eq;
+
+        res += " ";
+        res += std::get<2>(mv);
+        res += "\n";
+    });
+
+    res += "\n";
+
+    return std::move(res);
+}
+
 template <typename G>
 typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::make_move(const size_t choice)
 {
-    if (choice>=children.size())
+    std::vector<uct_node_ptr> & _children = get_children();
+    if (choice>=_children.size())
         throw std::string("Error: invalid move chosen.");
-    children[choice]->orphan(); // so that backprop stops when it reaches the top (see while loop condition in backprop())
-    return children[choice];
+    _children[choice]->orphan(); // so that backprop stops when it reaches the top (see while loop condition in backprop())
+    return _children[choice];
 }
-
 
 template <typename G>
 typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::make_move(const std::string & action_text, const bool flip)
 {
-    for (size_t i=0;i<children.size();++i)
-        if(children[i]->state.get_action_text(flip)==action_text)
+    std::vector<uct_node_ptr> & _children = get_children();
+    for (size_t i=0;i<_children.size();++i)
+        if(_children[i]->state.get_action_text(flip)==action_text)
             return make_move(i);
 
     throw std::string("Illegial move.");
-}
-
-template <typename G>
-size_t mcts::uct_node<G>::get_visit_count() const
-{
-    return visit_count;
-}
-
-template <typename G>
-double mcts::uct_node<G>::rollout(Rand & rand) const
-{
-    return rollout<G>()(state,rand);
-}
-
-// releases pointer reference to the parent
-// (stopping backprop at this node, allowing parent
-// to be safely deleted)
-template <typename G>
-void mcts::uct_node<G>::orphan()
-{
-    parent = NULL;
-}
-
-template <typename G>
-std::vector<uct_node_ptr> mcts::uct_node<G>::get_children()
-{
-    // nb: expand can be thought of memoization for a child of a lazy evaluated
-    // (which itself is a lazy tree)
-    if (children.size==0)
-    {
-        children.clear();
-        state.get_legal_moves(*this);
-        children.shrink_to_fit();
-    }
-    return children;
-}
-
-template <typename G>
-void mcts::uct_node<G>::explore(Rand & rand, bool use_rollout)
-{
-    if (!is_explored())
-    {
-        // check if game is over
-        double non_terminal_eval;
-        if (state->is_terminal())
-            eval_Q=get_terminal_eval();
-        // check if a non-terminal exact eval is available
-        else if (state->check_non_termiinal_eval(non_terminal_eval))
-            eval_Q=non_terminal_eval;
-        else if (use_rollout)
-            // use random rollout
-            eval_Q=rollout(rand);
-        else {
-            const std::vector<uct_node_ptr> & _children = get_children();
-            state->eval(eval_Q,_children,eval_probs);
-            // test code
-            assert (eval_probs.size()==0 || eval_probs.size()==_children.size())
-        }
-
-        // set initial explored state
-        visit_count=1;
-        Q_sum=eval_Q;
-        eval_probs.shrink_to_fit();
-        return;
-    }
-
-    throw std::string("Error: exploring when already explored");
-}
-
-template <typename G>
-void mcts::uct_node<G>::Set_Null()
-{
-    parent = NULL;
-    Q_sum = 0;
-    visit_count = 0;
-    eval_Q = 0;
-    all_children_explored = false;
-}
-
-// performs the "backup" phase of the MCTS search
-template <typename G>
-void mcts::uct_node<G>::backprop(const double eval)
-{
-    uct_node * curr_node_ptr = this;
-    bool initial_heros_turn = true;
-    while(curr_node_ptr)
-    {
-        curr_node_ptr->Q_sum+=(initial_heros_turn?1.0:-1.0) * eval;
-        curr_node_ptr->visit_count++;
-        curr_node_ptr=curr_node_ptr->parent;
-        initial_heros_turn = !initial_heros_turn;
-    }
 }
 
 // Returns a vector of sorted actions, from best to worst. each action is represented by a tuple of
@@ -448,11 +337,10 @@ void mcts::uct_node<G>::backprop(const double eval)
 template <typename G>
 std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sorted_actions(const bool flip)
 {
-    // ensure we've populated legal moves for this state
-    if (children.size()==0) expand();
+    std::vector<uct_node_ptr> & _children = get_children();
 
     std::vector<std::tuple<double, double, size_t, std::string>> moves;
-    std::for_each(children.cbegin(),children.cend(),[&](const uct_node_ptr & _child)
+    std::for_each(_children.cbegin(),_children.cend(),[&](const uct_node_ptr & _child)
     {
         // primary sort criteria is equity.
         // secondary sort criteria is non_terminal_rank, which acts
@@ -493,44 +381,192 @@ std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sort
 }
 
 template <typename G>
-bool mcts::uct_node<G>::is_explored() const
+bool mcts::uct_node<G>::is_evaluated() const
 {
-    return visit_count>0;
+    return eval_Q > std::numeric_limits<double>::min();
 }
 
-// don't really need this anymore-- much more elegant
-// to do this in Python
 template <typename G>
-std::string mcts::uct_node<G>::display(const bool flip)
+size_t mcts::uct_node<G>::get_visit_count() const
 {
-    auto moves = get_sorted_actions(flip);    
+    return visit_count;
+}
 
-    // display
-    std::string res;
+// releases pointer reference to the parent
+// (stopping backprop at this node, allowing parent
+// to be safely deleted)
+template <typename G>
+void mcts::uct_node<G>::orphan()
+{
+    parent = NULL;
+}
 
-    res += "Total Visits: ";
-    res += boost::lexical_cast<std::string>(visit_count);
-    res += "\n";
+template <typename G>
+void mcts::uct_node<G>::select(
+    uct_node_ptr & leaf, 
+    const double c, 
+    Rand & rand, 
+    const bool use_puct, // false means use traditional UCT formula
+    const bool use_probs
+    ) const
+{
+    const uct_node * curr_node_ptr = this;
 
-    size_t wall_placements = 0;
-    std::for_each(moves.cbegin(), moves.cend(), [&](const auto &mv)
+    while(curr_node_ptr->is_evaluated()) // stop at the first leaf (ie first unexplored node)
     {
-        res += "Visit Count: ";
-        res += boost::lexical_cast<std::string>(std::get<0>(mv));
+        size_t best_action=0;
+        std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
 
-        res += " Equity: ";
-        std::string eq(boost::lexical_cast<std::string>(std::get<1>(mv)));
-        eq.resize(6);
-        res += eq;
+        // make a vector of any unexplored children, and select one randomly if there are any
+        if (!curr_node_ptr->all_children_evaluated)
+        {
+            std::vector<size_t> unexplored_children;
+            for (size_t i=0;i<curr_children.size();++i)
+            {
+                // construct vector of unexplored children -- must choose one randomly
+                if (!curr_children[i]->is_explored())
+                    unexplored_children.push_back(i);
+            }
+            if (unexplored_children.size()>0)
+            {
+                // if not all children are explored, choose an unexplored node randomly
+                std::uniform_real_distribution<double> unif(0.0,1.0);
+                best_action=unexplored_children[(size_t)(unif(rand) * (double)unexplored_children.size())];
+            }
+            else
+                curr_node_ptr->all_children_explored=true;            
+        }
 
-        res += " ";
-        res += std::get<2>(mv);
-        res += "\n";
-    });
+        if (curr_node_ptr->all_children_explored)
+        {
+            double max_uct = std::numeric_limits<double>::min();
+            for (size_t i=0;i<curr_node_ptr->curr_children.size();++i)
+            {
+                // standard uct formula, see e.g. https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
+                // for a theoretical explanation. the negative sign on the first term
+                // accounts for the fact that evaluations in the child nodes
+                // are from villain's perspective, ergo a sign flip is needed
+                // to get them from hero's.
+                double Q = -curr_children[i]->Q_sum / (double)curr_children[i]->visit_count;
+                double N = (double)curr_node_ptr->visit_count-1.0;
+                double n = (double)curr_children[i]->visit_count;
+                double U;
+                // -1 because we want to count total simulations after parent move (basic UCT); or total visit count to all actions from base state (PUCT)
+                if (use_puct)
+                    // AlphaZero style PUCT formula
+                    U = sqrt(N) / (1.0+n);
+                else
+                    // standard UCT formula
+                    U = sqrt(std::log(N) / n);
 
-    res += "\n";
+                if (use_probs)
+                    U *= curr_node_ptr->eval_probs[i];
 
-    return std::move(res);
+                double curr_uct = Q + c * U;
+
+                if (curr_uct > max_uct)
+                {
+                    max_uct = curr_uct;
+                    best_action = i;
+                }
+            }
+        }
+
+        // get the node we're choosing
+        leaf = curr_children[best_action];
+        curr_node_ptr = leaf.get();
+    }    
+}
+
+template <typename G>
+std::vector<std::shared_ptr<mcts::uct_node<G>>> & mcts::uct_node<G>::get_children()
+{
+    // nb: expand can be thought of memoization for a child of a lazy evaluated
+    // (which itself is a lazy tree)
+    if (children.size==0)
+    {
+        state.get_legal_moves(*this);
+        children.shrink_to_fit();
+    }
+    return children;
+}
+ 
+template <typename G>
+void mcts::uct_node<G>::eval(
+    Rand & rand,
+    const bool use_rollout,
+    const bool eval_children)
+{
+    if (!is_evaluated())
+    {
+        // check if game is over
+        double non_terminal_eval;
+        if (state.is_terminal())
+            eval_Q=state.get_terminal_eval();
+        // check if a non-terminal exact eval is available
+        else if (state.check_non_terminal_eval(non_terminal_eval))
+            eval_Q=non_terminal_eval;
+        else if (use_rollout)
+            // use random rollout
+            eval_Q=rollout(rand);
+        else {
+            const std::vector<uct_node_ptr> & _children = get_children();
+            state.eval(_children,eval_Q,eval_probs);
+            // test code
+            assert (eval_probs.size()==0 || eval_probs.size()==_children.size());
+        }
+
+        eval_probs.shrink_to_fit(); // want to shrink regardless of whether it has content
+
+        if (eval_children)
+        {
+            const std::vector<uct_node_ptr> & _children = get_children();
+            for (size_t i=0;i<_children.size();++i)
+                _children[i]->eval(rand,use_rollout,false);
+        }
+
+        return;
+    }
+
+    throw std::string("Error: calling eval when already evaluated");
+}
+
+template <typename G>
+double mcts::uct_node<G>::rollout(Rand & rand) const
+{
+    // test code
+    return 0;//rollout<G>()(state,rand);
+}
+
+// performs the "backup" phase of the MCTS search
+template <typename G>
+void mcts::uct_node<G>::backprop()
+{
+    // test code
+    if (!is_evaluated())
+        throw std::string("Error: cannot backprop without an evaluation");
+    if (visit_count>0)
+        throw std::string("Error: cannot backprop from a node with visits");
+
+    uct_node * curr_node_ptr = this;
+    bool initial_heros_turn = true;
+    while(curr_node_ptr)
+    {
+        curr_node_ptr->Q_sum+=(initial_heros_turn?1.0:-1.0) * eval_Q;
+        curr_node_ptr->visit_count++;
+        curr_node_ptr=curr_node_ptr->parent;
+        initial_heros_turn = !initial_heros_turn;
+    }
+}
+
+template <typename G>
+void mcts::uct_node<G>::Set_Null()
+{
+    parent = NULL;
+    Q_sum = 0;
+    visit_count = 0;
+    eval_Q = std::numeric_limits<double>::min();
+    all_children_evaluated = false;
 }
 
 // performs naive (completely random) rollout
@@ -538,7 +574,6 @@ template <typename G>
 double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
 {
     std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
-    std::vector<G> actions;
     bool initial_heros_turn = true;
 
     #ifdef LOG_MOVES
@@ -572,7 +607,7 @@ double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
         if (curr_move.check_non_terminal_eval(eval))
             return (initial_heros_turn?1.0:-1.0) * eval;
 
-        actions.clear();
+        std::vector<G> actions;
         curr_move.get_legal_moves(actions);
 
         size_t random_index = unif(rand) * actions.size();
@@ -600,4 +635,4 @@ double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
         // becuse we hit max moves without returning
         throw std::string("Error: mcts::rollout MAX_ITERATIONS reached without end of episode.");
     #endif
-} // namespace mcts
+}

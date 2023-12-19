@@ -10,7 +10,7 @@
 namespace corridors {
     class board
     {
-        typedef std::shared_ptr<uct_node<board>> board_node_ptr;
+        typedef std::shared_ptr<mcts::uct_node<board>> board_node_ptr;
 
         public:
             struct action
