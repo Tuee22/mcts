@@ -67,8 +67,8 @@ public:
 
 protected:
     void orphan();
-    void select(uct_node_ptr & leaf, const double c, Rand & rand, const bool use_puct, const bool use_probs) const;
-    std::vector<std::shared_ptr<uct_node<G>>> & get_children();
+    void select(uct_node_ptr & leaf, const double c, Rand & rand, const bool use_puct, const bool use_probs);
+    std::vector<uct_node_ptr> & get_children();
     void eval(Rand & rand, const bool use_rollout, const bool eval_children);
     double rollout(Rand & rand) const;
     void backprop();
@@ -408,14 +408,14 @@ void mcts::uct_node<G>::select(
     Rand & rand, 
     const bool use_puct, // false means use traditional UCT formula
     const bool use_probs
-    ) const
+    )
 {
-    const uct_node * curr_node_ptr = this;
+    uct_node * curr_node_ptr = this;
 
     while(curr_node_ptr->is_evaluated()) // stop at the first leaf (ie first unexplored node)
     {
         size_t best_action=0;
-        std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
+        const std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
 
         // make a vector of any unexplored children, and select one randomly if there are any
         if (!curr_node_ptr->all_children_evaluated)
@@ -424,7 +424,7 @@ void mcts::uct_node<G>::select(
             for (size_t i=0;i<curr_children.size();++i)
             {
                 // construct vector of unexplored children -- must choose one randomly
-                if (!curr_children[i]->is_explored())
+                if (!curr_children[i]->is_evaluated())
                     unexplored_children.push_back(i);
             }
             if (unexplored_children.size()>0)
@@ -434,13 +434,13 @@ void mcts::uct_node<G>::select(
                 best_action=unexplored_children[(size_t)(unif(rand) * (double)unexplored_children.size())];
             }
             else
-                curr_node_ptr->all_children_explored=true;            
+                curr_node_ptr->all_children_evaluated=true;            
         }
 
-        if (curr_node_ptr->all_children_explored)
+        if (curr_node_ptr->all_children_evaluated)
         {
             double max_uct = std::numeric_limits<double>::min();
-            for (size_t i=0;i<curr_node_ptr->curr_children.size();++i)
+            for (size_t i=0;i<curr_children.size();++i)
             {
                 // standard uct formula, see e.g. https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
                 // for a theoretical explanation. the negative sign on the first term
@@ -479,11 +479,11 @@ void mcts::uct_node<G>::select(
 }
 
 template <typename G>
-std::vector<std::shared_ptr<mcts::uct_node<G>>> & mcts::uct_node<G>::get_children()
+std::vector<typename mcts::uct_node<G>::uct_node_ptr> & mcts::uct_node<G>::get_children()
 {
     // nb: expand can be thought of memoization for a child of a lazy evaluated
     // (which itself is a lazy tree)
-    if (children.size==0)
+    if (children.size()==0)
     {
         state.get_legal_moves(*this);
         children.shrink_to_fit();
@@ -535,7 +535,7 @@ template <typename G>
 double mcts::uct_node<G>::rollout(Rand & rand) const
 {
     // test code
-    return 0;//rollout<G>()(state,rand);
+    return mcts::rollout<G>()(state,rand);
 }
 
 // performs the "backup" phase of the MCTS search
@@ -568,6 +568,7 @@ void mcts::uct_node<G>::Set_Null()
     eval_Q = std::numeric_limits<double>::min();
     all_children_evaluated = false;
 }
+
 
 // performs naive (completely random) rollout
 template <typename G>
