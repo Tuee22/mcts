@@ -10,6 +10,7 @@ lib_path = []
 test = bool(ARGUMENTS.get('test',0))
 debug = bool(ARGUMENTS.get('debug', 0))
 profile = bool(ARGUMENTS.get('profile', 0))
+sanitize = bool(ARGUMENTS.get('sanitize', 0))
 
 # determine which files to build based on test flag
 all_source_files=Glob('*.cpp')
@@ -26,11 +27,12 @@ compiler_always_flags=['-Wno-deprecated-declarations']
 linker_always_flags=[]
 optimization_maybe_flag=[] if debug else ['-Ofast']
 debug_profile_maybe_flag=['-pg'] if profile else ['-g'] if test else []
+fsanitize_maybe_flag=['-fsanitize=address'] if sanitize else []
 
 # determine env dict
 flags={
-    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag,
-    'LINKFLAGS': debug_profile_maybe_flag,
+    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag + fsanitize_maybe_flag,
+    'LINKFLAGS':linker_always_flags + debug_profile_maybe_flag + fsanitize_maybe_flag,
 }
 print('Passing the following compiler and linker flags:',flags)
 

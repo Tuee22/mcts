@@ -64,6 +64,7 @@ public:
     std::vector<std::tuple<size_t, double, std::string>> get_sorted_actions(const bool flip); // flip==true means we get the move from hero's perspective
     bool is_evaluated() const;
     size_t get_visit_count() const;
+    double get_equity() const;
 
 protected:
     void orphan();
@@ -90,7 +91,7 @@ private:
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node()
+mcts::uct_node<G>::uct_node() : state()
 {
     Set_Null();
 }
@@ -165,9 +166,10 @@ bool mcts::uct_node<G>::simulate(
         backprop();
     }
 
-    uct_node_ptr leaf;
     for(size_t i=0;i<simulations;++i)
     {
+        uct_node_ptr leaf;
+
         // select node
         select(leaf, c, rand, use_puct, use_probs);
 
@@ -245,10 +247,10 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                 }
             } else {
                 // decide using equity
-                double max_Q = std::numeric_limits<double>::min();
+                double max_Q = std::numeric_limits<double>::lowest();
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
-                    double curr_Q = _children[i]->Q_sum / (double)_children[i]->visit_count;
+                    double curr_Q = _children[i]->get_equity();
                     if (curr_Q > max_Q)
                     {
                         choices_queue.clear();
@@ -269,7 +271,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         }
         else
         {
-            choice = unif(rand) * (double)num_legal_moves;
+            choice = (size_t)(unif(rand) * (double)num_legal_moves);
         }
     }
 
@@ -347,9 +349,9 @@ std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sort
         // as a meaningful tie-breaker to prevent potentially infinite cycles
         // in an effectively "won" game
 
-        double equity = std::numeric_limits<double>::min();
-        if ((double)_child->visit_count)
-            equity = -_child->Q_sum / (double)_child->visit_count;
+        double equity = _child->is_evaluated()
+            ? -_child->get_equity()
+            : std::numeric_limits<double>::lowest();
 
         moves.emplace_back(
             std::make_tuple(
@@ -383,13 +385,24 @@ std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sort
 template <typename G>
 bool mcts::uct_node<G>::is_evaluated() const
 {
-    return eval_Q > std::numeric_limits<double>::min();
+    return eval_Q > std::numeric_limits<double>::lowest();
 }
 
 template <typename G>
 size_t mcts::uct_node<G>::get_visit_count() const
 {
     return visit_count;
+}
+
+template <typename G>
+double mcts::uct_node<G>::get_equity() const
+{
+    if (!is_evaluated())
+        throw std::string("Error: cannot get equity without evaluation");
+
+    return visit_count > 0
+        ? Q_sum / visit_count
+        : eval_Q;
 }
 
 // releases pointer reference to the parent
@@ -412,11 +425,13 @@ void mcts::uct_node<G>::select(
 {
     uct_node * curr_node_ptr = this;
 
-    while(curr_node_ptr->is_evaluated()) // stop at the first leaf (ie first unexplored node)
+    size_t while_loop_iteration=0; // test code
+    do
     {
         size_t best_action=0;
         const std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
-
+        if (curr_children.size()==0)
+            throw std::string("Error: select encountered empty child vector, this shouldn't happen. Check continuation condition")
         // make a vector of any unexplored children, and select one randomly if there are any
         if (!curr_node_ptr->all_children_evaluated)
         {
@@ -439,7 +454,7 @@ void mcts::uct_node<G>::select(
 
         if (curr_node_ptr->all_children_evaluated)
         {
-            double max_uct = std::numeric_limits<double>::min();
+            double max_uct = std::numeric_limits<double>::lowest();
             for (size_t i=0;i<curr_children.size();++i)
             {
                 // standard uct formula, see e.g. https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
@@ -447,7 +462,7 @@ void mcts::uct_node<G>::select(
                 // accounts for the fact that evaluations in the child nodes
                 // are from villain's perspective, ergo a sign flip is needed
                 // to get them from hero's.
-                double Q = -curr_children[i]->Q_sum / (double)curr_children[i]->visit_count;
+                double Q = -curr_children[i]->get_equity();
                 double N = (double)curr_node_ptr->visit_count-1.0;
                 double n = (double)curr_children[i]->visit_count;
                 double U;
@@ -457,7 +472,9 @@ void mcts::uct_node<G>::select(
                     U = sqrt(N) / (1.0+n);
                 else
                     // standard UCT formula
-                    U = sqrt(std::log(N) / n);
+                    U = (n==0)
+                        ? 0
+                        : sqrt(std::log(N) / n);
 
                 if (use_probs)
                     U *= curr_node_ptr->eval_probs[i];
@@ -471,17 +488,42 @@ void mcts::uct_node<G>::select(
                 }
             }
         }
+        // test code
+
+        if (best_action<0 || best_action >= curr_children.size())
+            throw std::string(
+                "error: bounds violation on curr_children. best_action=")
+                + boost::lexical_cast<std::string>(best_action)
+                + " when curr_children.size()=="
+                + boost::lexical_cast<std::string>(curr_children.size())
+                + " with while_loop_iteration=="
+                + boost::lexical_cast<std::string>(while_loop_iteration)
+            );
+
+        if (!curr_children[best_action].get())
+            throw std::string("error: null pointer!");
 
         // get the node we're choosing
         leaf = curr_children[best_action];
         curr_node_ptr = leaf.get();
-    }    
+
+    }
+    while (
+        // continue search if this node is evaluated (otherwise must stop and eval)
+        curr_node_ptr->is_evaluated()
+        // and if this position is not terminal (or it has no children)
+        && !curr_node_ptr->get_state().is_terminal()
+        // and check that there isn't a non-terminal eval
+        && !curr_node_ptr->get_state().check_non_terminal_eval(double());
+    );  
+
+    
 }
 
 template <typename G>
 std::vector<typename mcts::uct_node<G>::uct_node_ptr> & mcts::uct_node<G>::get_children()
 {
-    // nb: expand can be thought of memoization for a child of a lazy evaluated
+    // nb: get_children can be thought of memoization for a child of a lazy evaluated
     // (which itself is a lazy tree)
     if (children.size()==0)
     {
@@ -523,6 +565,7 @@ void mcts::uct_node<G>::eval(
             const std::vector<uct_node_ptr> & _children = get_children();
             for (size_t i=0;i<_children.size();++i)
                 _children[i]->eval(rand,use_rollout,false);
+            all_children_evaluated=true;
         }
 
         return;
@@ -534,7 +577,6 @@ void mcts::uct_node<G>::eval(
 template <typename G>
 double mcts::uct_node<G>::rollout(Rand & rand) const
 {
-    // test code
     return mcts::rollout<G>()(state,rand);
 }
 
@@ -562,11 +604,11 @@ void mcts::uct_node<G>::backprop()
 template <typename G>
 void mcts::uct_node<G>::Set_Null()
 {
-    parent = NULL;
     Q_sum = 0;
+    eval_Q = std::numeric_limits<double>::lowest();
     visit_count = 0;
-    eval_Q = std::numeric_limits<double>::min();
     all_children_evaluated = false;
+    parent = NULL;
 }
 
 
