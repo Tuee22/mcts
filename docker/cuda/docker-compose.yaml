@@ -2,13 +2,16 @@ version: '3.8'
 services:
   mcts:
     build:
-      context: ..
+      context: ../..
       dockerfile: ./docker/Dockerfile
-    image: mcts
+      args:
+        BASE_IMAGE: nvidia/cuda:12.2.2-runtime-ubuntu22.04
+        REQUIREMENTS: ./docker/cuda/requirements.txt
+    image: mcts_cuda
     platform: linux/amd64
     runtime: nvidia
     volumes:
-      - ../:/home/mcts
+      - ../..:/home/mcts
     ports:
       - "8888:8888"
       - "8786:8786"
