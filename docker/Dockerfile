@@ -1,4 +1,6 @@
-FROM nvidia/cuda:12.2.2-runtime-ubuntu22.04
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG REQUIREMENTS
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install -y build-essential libboost-all-dev git curl wget valgrind cppcheck
 RUN apt install -y python3 python3-dev python3-pip
@@ -10,7 +12,7 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 # install python packages
 WORKDIR /home
 #RUN python3 -m pip install dask[complete] numba scipy scons cupy-cuda12x jupyterlab==3.6.6 plotly ipywidgets jupyter-dash torch pytorch-lightning tables pyarrow s3fs mypy pandas-stubs torchvision
-COPY ./docker/requirements.txt /home
+COPY ${REQUIREMENTS} /home
 RUN python3 -m pip install -r requirements.txt
 
 # set up python libs
