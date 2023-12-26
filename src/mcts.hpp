@@ -65,6 +65,7 @@ public:
     bool is_evaluated() const;
     size_t get_visit_count() const;
     double get_equity() const;
+    bool check_non_terminal_eval() const;
 
 protected:
     void orphan();
@@ -211,8 +212,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         int min_non_terminal_rank = std::numeric_limits<int>::min();
         for (size_t i=0;i<num_legal_moves;++i)
         {
-            double _;
-            bool curr_flag = _children[i]->state.check_non_terminal_eval(_); // never choose a child action which lacks a non-terminal eval !
+            bool curr_flag = _children[i]->check_non_terminal_eval(); // never choose a child action which lacks a non-terminal eval !
             int curr_rank = _children[i]->state.get_non_terminal_rank();
             if (curr_flag && curr_rank > min_non_terminal_rank)
             {
@@ -405,6 +405,13 @@ double mcts::uct_node<G>::get_equity() const
         : eval_Q;
 }
 
+template <typename G>
+bool mcts::uct_node<G>::check_non_terminal_eval() const
+{
+    double _;
+    return state.check_non_terminal_eval(_);
+}
+
 // releases pointer reference to the parent
 // (stopping backprop at this node, allowing parent
 // to be safely deleted)
@@ -431,7 +438,7 @@ void mcts::uct_node<G>::select(
         size_t best_action=0;
         const std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
         if (curr_children.size()==0)
-            throw std::string("Error: select encountered empty child vector, this shouldn't happen. Check continuation condition")
+            throw std::string("Error: select encountered empty child vector, this shouldn't happen. Check continuation condition");
         // make a vector of any unexplored children, and select one randomly if there are any
         if (!curr_node_ptr->all_children_evaluated)
         {
@@ -492,7 +499,7 @@ void mcts::uct_node<G>::select(
 
         if (best_action<0 || best_action >= curr_children.size())
             throw std::string(
-                "error: bounds violation on curr_children. best_action=")
+                "error: bounds violation on curr_children. best_action="
                 + boost::lexical_cast<std::string>(best_action)
                 + " when curr_children.size()=="
                 + boost::lexical_cast<std::string>(curr_children.size())
@@ -514,7 +521,7 @@ void mcts::uct_node<G>::select(
         // and if this position is not terminal (or it has no children)
         && !curr_node_ptr->get_state().is_terminal()
         // and check that there isn't a non-terminal eval
-        && !curr_node_ptr->get_state().check_non_terminal_eval(double());
+        && !curr_node_ptr->check_non_terminal_eval()
     );  
 
     
