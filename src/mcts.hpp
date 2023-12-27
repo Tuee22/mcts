@@ -74,7 +74,7 @@ protected:
     void eval(Rand & rand, const bool use_rollout, const bool eval_children);
     double rollout(Rand & rand) const;
     void backprop();
-    // tuple is (visit count, evaluation, move description)
+        // tuple is (visit count, evaluation, move description)
 
 private:
     double Q_sum; // sum of all backprop'd equity values
@@ -206,8 +206,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         throw std::string("Error: no legal moves!");
 
     size_t choice=0;
-    double eval=0;
-    if (state.check_non_terminal_eval(eval))
+    if (check_non_terminal_eval())
     {
         // if it's possible to get a (heuristic), non-terminal
         // evaluation for this state, we will make our move decision
@@ -225,6 +224,8 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                 choice=i;
             }
         }
+        if (!(min_non_terminal_rank>std::numeric_limits<int>::min()))
+            throw std::string("error: choose best action encountered a non-terminal eval state where no children had non-terminal evals");
     }
     else
     {
@@ -240,29 +241,31 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                 size_t max_visit_count=0;
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
-                    if (_children[i]->visit_count > max_visit_count)
+                    if (_children[i]->visit_count >= max_visit_count)
                     {
-                        choices_queue.clear();
-                        max_visit_count = _children[i]->visit_count;
-                    }
-                    if (_children[i]->visit_count >= max_visit_count) // NB: this is always true when the above if is true
-                    {
+                        if (_children[i]->visit_count > max_visit_count)
+                        {
+                            choices_queue.clear();
+                            max_visit_count = _children[i]->visit_count;
+                        }
                         choices_queue.push_back(i);
                     }
                 }
-            } else {
+            }
+            else 
+            {
                 // decide using equity
                 double max_Q = std::numeric_limits<double>::lowest();
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
                     double curr_Q = _children[i]->get_equity();
-                    if (curr_Q > max_Q)
+                    if (curr_Q >= max_Q)
                     {
-                        choices_queue.clear();
-                        curr_Q = max_Q;
-                    }
-                    if (curr_Q >= max_Q) // NB: this is always true when the above if is true
-                    {
+                        if (curr_Q > max_Q)
+                        {
+                            choices_queue.clear();
+                            curr_Q = max_Q;
+                        }
                         choices_queue.push_back(i);
                     }
                 }
@@ -467,6 +470,7 @@ void mcts::uct_node<G>::select(
         if (curr_node_ptr->all_children_evaluated)
         {
             double max_uct = std::numeric_limits<double>::lowest();
+            std::vector<size_t> best_actions;
             for (size_t i=0;i<curr_children.size();++i)
             {
                 // standard uct formula, see e.g. https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
@@ -475,10 +479,10 @@ void mcts::uct_node<G>::select(
                 // are from villain's perspective, ergo a sign flip is needed
                 // to get them from hero's.
                 double Q = -curr_children[i]->get_equity();
-                double N = (double)curr_node_ptr->visit_count-1.0;
+                double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
                 double n = (double)curr_children[i]->visit_count;
                 double U;
-                // -1 because we want to count total simulations after parent move (basic UCT); or total visit count to all actions from base state (PUCT)
+                
                 if (use_puct)
                     // AlphaZero style PUCT formula
                     U = sqrt(N) / (1.0+n);
@@ -493,12 +497,27 @@ void mcts::uct_node<G>::select(
 
                 double curr_uct = Q + c * U;
 
-                if (curr_uct > max_uct)
+                if (curr_uct >= max_uct)
                 {
-                    max_uct = curr_uct;
-                    best_action = i;
+                    if (curr_uct > max_uct)
+                    {
+                        // reset if we have set a new high
+                        best_actions.clear();
+                        max_uct = curr_uct;
+                    }
+                    best_actions.push_back(i);
                 }
             }
+        
+            size_t num_best_actions=best_actions.size();
+            if (num_best_actions>1)
+            {
+                // if there were ties for best action, choose that action randomly
+                std::uniform_real_distribution<double> unif(0.0,1.0);
+                best_action=best_actions[(size_t)(unif(rand) * (double)num_best_actions)];
+            }
+            else
+                best_action=best_actions[0];
         }
         // test code
 
