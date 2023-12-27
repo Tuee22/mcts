@@ -175,7 +175,12 @@ bool mcts::uct_node<G>::simulate(
         select(leaf, c, rand, use_puct, use_probs);
 
         // evaluate the node (and children if applicable)
-        leaf->eval(rand, use_rollout, eval_children);
+        if (!leaf->is_evaluated())
+            leaf->eval(rand, use_rollout, eval_children);
+        else
+            // test code
+            if (!leaf->get_state().is_terminal() && !leaf->check_non_terminal_eval())
+                throw std::string("Error: we have selected a node that is already evaluated, and is not terminal or nte");
 
         // backprop
         leaf->backprop();
@@ -563,17 +568,17 @@ void mcts::uct_node<G>::eval(
             state.eval(_children,eval_Q,eval_probs);
             // test code
             assert (eval_probs.size()==0 || eval_probs.size()==_children.size());
+
+            if (eval_children)
+            {
+                const std::vector<uct_node_ptr> & _children = get_children();
+                for (size_t i=0;i<_children.size();++i)
+                    _children[i]->eval(rand,use_rollout,false);
+                all_children_evaluated=true;
+            }
         }
 
         eval_probs.shrink_to_fit(); // want to shrink regardless of whether it has content
-
-        if (eval_children)
-        {
-            const std::vector<uct_node_ptr> & _children = get_children();
-            for (size_t i=0;i<_children.size();++i)
-                _children[i]->eval(rand,use_rollout,false);
-            all_children_evaluated=true;
-        }
 
         return;
     }
