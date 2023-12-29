@@ -30,7 +30,7 @@ void board::action::flip()
     wall_middle = (BOARD_SIZE-1)*(BOARD_SIZE-1)-1-wall_middle;
 }
 
-board::board() noexcept : _action()
+board::board() noexcept
 {
     // set game to starting position
     hero_x = BOARD_SIZE / 2;
@@ -54,7 +54,6 @@ board::board(
     const flags::flags<(BOARD_SIZE-1)*BOARD_SIZE> & _horizontal_walls,
     const flags::flags<(BOARD_SIZE-1)*BOARD_SIZE> & _vertical_walls
 ) noexcept
-: _action()
 {
     hero_x=_hero_x;
     hero_y=_hero_y;
@@ -82,7 +81,7 @@ bool board::operator==(const board & source) const noexcept
     return get_hash() == source.get_hash();
 }
 
-board::~board()
+board::~board() noexcept
 {}
 
 board::board(const board & source) noexcept
@@ -369,14 +368,14 @@ bool board::check_non_terminal_eval(double & eval) const
     int _non_terminal_rank = get_non_terminal_rank();
     if (_non_terminal_rank<=-2)
     {
-        // hero guaranteed to win as they're 2 moves ahead in a straight race
-        eval = 1.0;
+        // villain guaranteed to win as they're 2 moves ahead in a straight race
+        eval = -1.0;
         return true;
     }
     if (_non_terminal_rank>=2)
     {
-        // villain guaranteed to win as they're 2 moves ahead in a straight race
-        eval = -1.0;
+        // hero guaranteed to win as they're 2 moves ahead in a straight race
+        eval = 1.0;
         return true;
     }
     return false;
@@ -384,6 +383,7 @@ bool board::check_non_terminal_eval(double & eval) const
 
 int board::get_non_terminal_rank() const
 {
+    // high rank is better for hero
     unsigned short villains_shortest_distance = get_villains_shortest_distance();
     unsigned short heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
     return (int)villains_shortest_distance - (int)heros_shortest_distance;

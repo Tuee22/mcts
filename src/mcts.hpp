@@ -31,9 +31,9 @@ class uct_node
 {
     typedef std::shared_ptr<uct_node<G>> uct_node_ptr;
 public:
-    uct_node();
-    uct_node(G && input, uct_node * _parent = NULL);
-    uct_node(const G & input);
+    uct_node() noexcept;
+    uct_node(G && input, uct_node * _parent = NULL) noexcept;
+    uct_node(const G & input) noexcept;
 
     // not copyable, but movable
     uct_node(const uct_node & source) noexcept = delete;
@@ -57,7 +57,7 @@ public:
         const bool use_puct,
         const bool use_probs
     );
-    uct_node_ptr choose_best_action(Rand & rand, const double epsilon=0, const bool decide_using_visits=true);
+    uct_node_ptr choose_best_action(Rand & rand, const double epsilon, const bool decide_using_visits);
     std::string display(const bool flip);
     uct_node_ptr make_move(const size_t choice);
     uct_node_ptr make_move(const std::string & action_text, const bool flip);
@@ -92,20 +92,20 @@ private:
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node() : state()
+mcts::uct_node<G>::uct_node() noexcept : state()
 {
     Set_Null();
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node(G && input, mcts::uct_node<G> * _parent) : state(std::move(input))
+mcts::uct_node<G>::uct_node(G && input, mcts::uct_node<G> * _parent) noexcept : state(std::move(input))
 {
     Set_Null();
     parent = _parent;
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node(const G & input) : state(input)
+mcts::uct_node<G>::uct_node(const G & input) noexcept : state(input)
 {
     Set_Null();
 }
@@ -205,31 +205,46 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     if (num_legal_moves==0)
         throw std::string("Error: no legal moves!");
 
-    size_t choice=0;
-    if (check_non_terminal_eval())
+    std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
+    size_t choice=std::numeric_limits<size_t>::max();
+
+    // determine if there are any winning moves
+    std::vector<size_t> winning_moves;
+    
+    for (size_t i=0;i<num_legal_moves;++i)
+    {
+        if (_children[i]->get_state().is_terminal() && _children[i]->get_equity()<0) // we use < because child equity is from villain's perspective, signifying a win for hero
+            winning_moves.push_back(i);
+    }
+    
+    if (winning_moves.size()>0)
+    {
+        // if there are multiple winning moves, choose one randomly
+        if (winning_moves.size()>1)
+            choice=winning_moves[(size_t)(unif(rand)+(double)winning_moves.size())];
+        else
+            choice=winning_moves[0];
+    }
+    else if (check_non_terminal_eval())
     {
         // if it's possible to get a (heuristic), non-terminal
         // evaluation for this state, we will make our move decision
         // according to that criteria rather than uct.
         // this basically signifies that we're now in the territory
         // of domain-specific knowledge and no longer need the tree
-        int min_non_terminal_rank = std::numeric_limits<int>::min();
+        int min_non_terminal_rank = std::numeric_limits<int>::max();
         for (size_t i=0;i<num_legal_moves;++i)
         {
-            bool curr_flag = _children[i]->check_non_terminal_eval(); // never choose a child action which lacks a non-terminal eval !
-            int curr_rank = _children[i]->state.get_non_terminal_rank();
-            if (curr_flag && curr_rank > min_non_terminal_rank)
+            int curr_rank = _children[i]->state.get_non_terminal_rank(); // minimize this because get_non_terminal_rank returns rank from villain's perspective (ie high is good for villain)
+            if (curr_rank < min_non_terminal_rank)
             {
                 min_non_terminal_rank = curr_rank;
                 choice=i;
             }
         }
-        if (!(min_non_terminal_rank>std::numeric_limits<int>::min()))
-            throw std::string("error: choose best action encountered a non-terminal eval state where no children had non-terminal evals");
     }
     else
     {
-        std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
         bool greedy = !(epsilon > 0 && unif(rand) < epsilon);
 
         if(greedy)
@@ -241,12 +256,13 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                 size_t max_visit_count=0;
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
-                    if (_children[i]->visit_count >= max_visit_count)
+                    size_t curr_visit_count = _children[i]->visit_count; // no negation needed (as with equity below) because visit count always looks from parent node's perspective
+                    if (curr_visit_count >= max_visit_count)
                     {
-                        if (_children[i]->visit_count > max_visit_count)
+                        if (curr_visit_count > max_visit_count)
                         {
                             choices_queue.clear();
-                            max_visit_count = _children[i]->visit_count;
+                            max_visit_count = curr_visit_count;
                         }
                         choices_queue.push_back(i);
                     }
@@ -258,7 +274,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                 double max_Q = std::numeric_limits<double>::lowest();
                 for (size_t i=0;i<num_legal_moves;++i)
                 {
-                    double curr_Q = _children[i]->get_equity();
+                    double curr_Q = -_children[i]->get_equity(); // negative because equity is from villain's perspective
                     if (curr_Q >= max_Q)
                     {
                         if (curr_Q > max_Q)
@@ -282,6 +298,15 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
             choice = (size_t)(unif(rand) * (double)num_legal_moves);
         }
     }
+
+    if (choice==std::numeric_limits<size_t>::max())
+        throw std::string("Error: unable to find a choice");
+
+    // test code
+    uct_node_ptr ret = make_move(choice);
+    if (ret->get_children().size()==0 && !ret->get_state().is_terminal())
+        throw std::string("Error: position is not marked as terminal, but there are no children");
+    return ret;
 
     return make_move(choice);
 }
@@ -307,7 +332,12 @@ std::string mcts::uct_node<G>::display(const bool flip)
         res += boost::lexical_cast<std::string>(std::get<0>(mv));
 
         res += " Equity: ";
-        std::string eq(boost::lexical_cast<std::string>(std::get<1>(mv)));
+        double equity=std::get<1>(mv);
+        std::string eq(
+            equity > std::numeric_limits<double>::lowest()
+            ? boost::lexical_cast<std::string>(equity)
+            : "NA"
+        );
         eq.resize(6);
         res += eq;
 
@@ -387,6 +417,7 @@ std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sort
             )
         );
     });
+
     return std::move(moves_display);
 }
 
@@ -408,8 +439,24 @@ double mcts::uct_node<G>::get_equity() const
     if (!is_evaluated())
         throw std::string("Error: cannot get equity without evaluation");
 
+    // test code
+    double equity = visit_count > 0
+        ? Q_sum / (double)visit_count
+        : eval_Q;
+
+    if (equity < -1 || equity > 1)
+        throw std::string(
+            "Q_sum is " 
+            + boost::lexical_cast<std::string>(Q_sum) + "\n"
+            + "and visit count is "
+            + boost::lexical_cast<std::string>(double(visit_count)) + "\n"
+            + "and eval_Q is "
+            + boost::lexical_cast<std::string>(eval_Q) + "\n"
+        );
+    return equity;
+
     return visit_count > 0
-        ? Q_sum / visit_count
+        ? Q_sum / (double)visit_count
         : eval_Q;
 }
 
@@ -574,30 +621,38 @@ void mcts::uct_node<G>::eval(
     {
         // check if game is over
         double non_terminal_eval;
+        bool truncate=false;
         if (state.is_terminal())
+        {
             eval_Q=state.get_terminal_eval();
+            truncate=true;
+        }
         // check if a non-terminal exact eval is available
         else if (state.check_non_terminal_eval(non_terminal_eval))
+        {
             eval_Q=non_terminal_eval;
+            truncate=true;
+        }
         else if (use_rollout)
             // use random rollout
             eval_Q=rollout(rand);
         else {
+            // use bespoke evaluation function (which may or may not provide action probs)
             const std::vector<uct_node_ptr> & _children = get_children();
             state.eval(_children,eval_Q,eval_probs);
             // test code
             assert (eval_probs.size()==0 || eval_probs.size()==_children.size());
-
-            if (eval_children)
-            {
-                const std::vector<uct_node_ptr> & _children = get_children();
-                for (size_t i=0;i<_children.size();++i)
-                    _children[i]->eval(rand,use_rollout,false);
-                all_children_evaluated=true;
-            }
         }
 
         eval_probs.shrink_to_fit(); // want to shrink regardless of whether it has content
+
+        if (eval_children && !truncate)
+        {
+            const std::vector<uct_node_ptr> & _children = get_children();
+            for (size_t i=0;i<_children.size();++i)
+                _children[i]->eval(rand,use_rollout,false);
+            all_children_evaluated=true;
+        }
 
         return;
     }
@@ -618,8 +673,8 @@ void mcts::uct_node<G>::backprop()
     // test code
     if (!is_evaluated())
         throw std::string("Error: cannot backprop without an evaluation");
-    if (visit_count>0)
-        throw std::string("Error: cannot backprop from a node with visits");
+    if (visit_count>0 && !get_state().is_terminal() && !check_non_terminal_eval())
+        throw std::string("Error: cannot backprop from a node with visits that is not terminal");
 
     uct_node * curr_node_ptr = this;
     bool initial_heros_turn = true;

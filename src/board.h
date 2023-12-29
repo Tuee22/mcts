@@ -37,7 +37,7 @@ namespace corridors {
             ) noexcept;
             board(const board & source) noexcept;
             board(const board & source, bool flip) noexcept;
-            virtual ~board();
+            virtual ~board() noexcept;
             board& operator=(const board & source) noexcept;
             bool operator==(const board & source) const noexcept;
 

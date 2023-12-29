@@ -25,7 +25,7 @@ int main()
     {
         corridors::board sb;
         mcts::Rand rand(42);
-        size_t evals = 10000;
+        size_t evals = 1;
         double sum=0;
         std::cout << "Pure rollouts:" << std::endl;
         clock_t begin = clock();
@@ -41,7 +41,7 @@ int main()
     // self-play testing loop
     {   
         // hyperparameters
-        mcts::Rand rand(63); // 63 segfaults; 66 infinite cycle at end 
+        mcts::Rand rand(66); // 63 segfaults; 66 infinite cycle at end 
         double c = std::sqrt(0.25);
         size_t initial_sims = 1000;
         size_t per_move_sims = 1000;
@@ -49,13 +49,16 @@ int main()
         bool eval_children = true;
         bool use_puct = false;
         bool use_probs = false;
+        bool decide_using_visits = true;
+        bool terminate_early = false; // true means we terminate when there's a non-terminal eval
+        bool getch_each_move = false; // true means pauses for user input
 
 
         try {
 
             std::shared_ptr<mcts::uct_node<corridors::board>> my_mcts(new mcts::uct_node<corridors::board>());
             clock_t begin, end;
-            double elapsed_secs, eval;
+            double elapsed_secs; // eval
             size_t move_number = 0;
             std::cout << "***Self play simulation***" << std::endl;
             begin = clock();
@@ -66,33 +69,59 @@ int main()
             std::cout << std::endl;
 
             bool initial_heros_turn = true;
-
-            //while(!my_mcts->get_state()->is_terminal())
-            while(!my_mcts->get_state().check_non_terminal_eval(eval))
+            do
             {
                 // flip board (if necessary) then display
                 std::cout << "Move number: " << move_number++ << std::endl;
-                std::cout << (initial_heros_turn?"Hero to play":"Villain to play")<<std::endl;
-                corridors::board curr_move_flipped(my_mcts->get_state(), !initial_heros_turn);
-                std::cout << curr_move_flipped.display();
+                std::cout << (initial_heros_turn?"Hero to play":"Villain to play") << std::endl;
+                corridors::board curr_move_heros_perspective(my_mcts->get_state(), !initial_heros_turn);
+                std::cout << curr_move_heros_perspective.display();
 
                 // simulate
+                double pre_sim_equity = my_mcts->get_equity();
                 begin = clock();
                 my_mcts->simulate(per_move_sims,rand,c,use_rollout,eval_children,use_puct,use_probs);
                 end = clock();
                 elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
                 std::cout << "Move sims took " << elapsed_secs/(double)per_move_sims << " per simulation, or " << (double)per_move_sims / elapsed_secs << " per second."<< std::endl;
+                double post_sim_equity = my_mcts->get_equity();
+                std::cout << "Pre sim Q value: " << pre_sim_equity << std::endl;
+                std::cout << "Post sim Q value: " << post_sim_equity << std::endl;
                 std::cout << my_mcts->display(initial_heros_turn);
 
-                //getch();
+                if (getch_each_move)
+                    getch();
 
                 // make move
-                my_mcts = my_mcts->choose_best_action(rand,0.00);
+                my_mcts = my_mcts->choose_best_action(rand,0.00,decide_using_visits);
                 initial_heros_turn = !initial_heros_turn;
             }
-            corridors::board curr_move_flipped(my_mcts->get_state(), !initial_heros_turn);
-            std::cout << (curr_move_flipped.hero_wins()?"Hero wins!":"Villain wins!")<<std::endl;
-            std::cout << curr_move_flipped.display();
+            while (
+                !my_mcts->get_state().is_terminal()
+                && (terminate_early
+                    ? !my_mcts->check_non_terminal_eval()
+                    : true)
+            );
+
+            corridors::board final_state_heros_perspective(my_mcts->get_state(), !initial_heros_turn);
+            double heros_final_eval;
+            if (final_state_heros_perspective.is_terminal())
+            {
+                heros_final_eval=(double)final_state_heros_perspective.hero_wins();
+            }
+            else if(!final_state_heros_perspective.check_non_terminal_eval(heros_final_eval))
+            {
+                throw std::string("Error: could not determine who won"); 
+            }
+
+            std::string win_text(
+                heros_final_eval>0
+                    ? "Hero wins!"
+                    : "Villain wins!"
+            );
+
+            std::cout << win_text <<std::endl;
+            std::cout << final_state_heros_perspective.display();
         }
         catch (std::string err)
         {
