@@ -29,7 +29,7 @@ namespace mcts {
             void make_move(const size_t mv_number);
             void make_move(const std::string & action_text, const bool flip);
             std::string display(const bool flip);
-            void choose_best_action(const double epsilon);
+            //void choose_best_action(Rand rand, const double epsilon, const bool use_visit_count);
             void ensure_sims(const size_t sims);
             std::string set_state_and_make_best_move(const G & board, const bool flip);
             double get_evaluation();
@@ -78,9 +78,13 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
                 {
                     std::unique_lock<std::mutex> lk(_node_mut); // obtain a lock
                     _cv.wait(lk, [&]{return !_pause_loop;}); // _pause_loop signals that the main thread wants access
-                    bool sims_got_done = _node->simulate(_sim_increment,_rand,_c,true,false,false,false); // simulate returns false when no sims were done (e.g. when the game is done)
-                    if (sims_got_done && _node->get_visit_count()<_max_simulations)
-                        _sem.post(); // post if we want to keep looping (so we don't block on _sem.wait())
+                    
+                    if (!_node->get_state().is_terminal())
+                    {
+                        _node->simulate(_sim_increment,_rand,_c,true,false,false,false); // simulate returns false when no sims were done (e.g. when the game is done)
+                        if (_node->get_visit_count()<_max_simulations)
+                            _sem.post(); // post if we want to keep looping (so we don't block on _sem.wait())
+                    }
                 }
             }
         }
@@ -126,7 +130,7 @@ std::shared_ptr<std::lock_guard<std::mutex>> mcts::threaded_tree<G,TREE>::get_lo
     _cv.notify_one(); 
 
     // ensure we have performed the minimum number of simulations (if applicible)
-    if (enforce_min_sims && _node->get_visit_count()<_min_simulations)
+    if (enforce_min_sims && !_node->get_state().is_terminal() && _node->get_visit_count()<_min_simulations)
         _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c, true, false, false, false);
 
     // give ownership of the lock to the user-- the loop will now remain blocked
@@ -164,20 +168,20 @@ std::string mcts::threaded_tree<G,TREE>::display(const bool flip)
     G state_to_display(_node->get_state(),flip);
     return state_to_display.display();
 }
-
+/*
 template <typename G, typename TREE>
-void mcts::threaded_tree<G,TREE>::choose_best_action(const double epsilon)
+void mcts::threaded_tree<G,TREE>::choose_best_action(Rand rand, const double epsilon, const bool use_visit_count)
 {
     auto _lock = get_lock(true);
-    _node = _node->choose_best_action(_rand, epsilon);
+    _node = _node->choose_best_action(rand,epsilon,use_visit_count);
     _sem.post();
-}
+}*/
 
 template <typename G, typename TREE>
 void mcts::threaded_tree<G,TREE>::ensure_sims(const size_t sims)
 {
     auto _lock = get_lock(true);
-    if (_node->get_visit_count()<sims)
+    if (!_node->get_state().is_terminal() && _node->get_visit_count()<sims)
         _node->simulate(sims -_node->get_visit_count()+1,_rand,_c,true,false,false,false);
 }
 
@@ -190,7 +194,7 @@ std::string mcts::threaded_tree<G,TREE>::set_state_and_make_best_move(const G & 
     _sem.post();
 
     // ensure we have performed the minimum number of simulations on the current state
-    if (_node->get_visit_count()<_min_simulations)
+    if (!_node->get_state().is_terminal() && _node->get_visit_count()<_min_simulations)
         _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c,true,false,false,false);
 
     // get the best move

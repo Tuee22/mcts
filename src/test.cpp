@@ -78,14 +78,18 @@ int main()
                 std::cout << curr_move_heros_perspective.display();
 
                 // simulate
-                double pre_sim_equity = my_mcts->get_equity();
+                std::string pre_sim_equity = my_mcts->is_evaluated()
+                    ? boost::lexical_cast<std::string>(my_mcts->get_equity())
+                    : "NA";
                 begin = clock();
                 my_mcts->simulate(per_move_sims,rand,c,use_rollout,eval_children,use_puct,use_probs);
                 end = clock();
                 elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
                 std::cout << "Move sims took " << elapsed_secs/(double)per_move_sims << " per simulation, or " << (double)per_move_sims / elapsed_secs << " per second."<< std::endl;
-                double post_sim_equity = my_mcts->get_equity();
-                std::cout << "Pre sim Q value: " << pre_sim_equity << std::endl;
+                std::string post_sim_equity = my_mcts->is_evaluated()
+                    ? boost::lexical_cast<std::string>(my_mcts->get_equity())
+                    : "NA";
+                std::cout << "Pre sim Q value: " << pre_sim_equity  << std::endl;
                 std::cout << "Post sim Q value: " << post_sim_equity << std::endl;
                 std::cout << my_mcts->display(initial_heros_turn);
 

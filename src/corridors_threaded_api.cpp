@@ -38,10 +38,12 @@ p::list corridors_threaded_api::get_sorted_actions(const bool flip)
     return ret;
 }
 
-void corridors_threaded_api::choose_best_action(const double epsilon)
+/*
+void corridors_threaded_api::choose_best_action(Rand rand, const double epsilon, const bool decide_using_visits)
 {
-    corridors_base::choose_best_action(epsilon);
+    corridors_base::choose_best_action(rand,epsilon,decide_using_visits);
 }
+*/
 
 void corridors_threaded_api::ensure_sims(const size_t sims)
 {

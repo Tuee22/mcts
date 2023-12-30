@@ -48,7 +48,7 @@ public:
     // gameplay actions (for end user)
     void set_state(const G & input, uct_node_ptr & output);
     const G & get_state() const;
-    bool simulate(
+    void simulate(
         const size_t simulations,
         Rand & rand,
         const double c,
@@ -148,7 +148,7 @@ const G & mcts::uct_node<G>::get_state() const
 
 // returns false if no simulations possible
 template <typename G>
-bool mcts::uct_node<G>::simulate(
+void mcts::uct_node<G>::simulate(
     const size_t simulations,
     Rand & rand,
     const double c, 
@@ -158,14 +158,12 @@ bool mcts::uct_node<G>::simulate(
     const bool use_probs)
 {
     std::vector<uct_node_ptr> & _children = get_children();
-    if (_children.size()==0) return false;
+    if (_children.size()==0 || state.is_terminal())
+        throw std::string("Error: cannot simulate from a terminal state");
 
     // evaluate top node if it hasn't been evaluated
     if (!is_evaluated())
-    {
         eval(rand,use_rollout,eval_children);
-        backprop();
-    }
 
     for(size_t i=0;i<simulations;++i)
     {
@@ -185,7 +183,6 @@ bool mcts::uct_node<G>::simulate(
         // backprop
         leaf->backprop();
     }
-    return true;
 }
 
 // chooses an action to take from current board position based on epsilon-greedy policy
@@ -210,7 +207,6 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
 
     // determine if there are any winning moves
     std::vector<size_t> winning_moves;
-    
     for (size_t i=0;i<num_legal_moves;++i)
     {
         if (_children[i]->get_state().is_terminal() && _children[i]->get_equity()<0) // we use < because child equity is from villain's perspective, signifying a win for hero
@@ -227,8 +223,8 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     }
     else if (check_non_terminal_eval())
     {
+        // evaluation for this state, we will make our move decis[ion
         // if it's possible to get a (heuristic), non-terminal
-        // evaluation for this state, we will make our move decision
         // according to that criteria rather than uct.
         // this basically signifies that we're now in the territory
         // of domain-specific knowledge and no longer need the tree
@@ -490,7 +486,7 @@ void mcts::uct_node<G>::select(
     size_t while_loop_iteration=0; // test code
     do
     {
-        size_t best_action=0;
+        size_t best_action=std::numeric_limits<size_t>::max();
         const std::vector<uct_node_ptr> & curr_children = curr_node_ptr->get_children();
         if (curr_children.size()==0)
             throw std::string("Error: select encountered empty child vector, this shouldn't happen. Check continuation condition");
@@ -565,6 +561,9 @@ void mcts::uct_node<G>::select(
             }
             else
                 best_action=best_actions[0];
+
+            if (best_action==std::numeric_limits<size_t>::max())
+                throw std::string("Error: failed to select node");
         }
         // test code
 
@@ -593,9 +592,7 @@ void mcts::uct_node<G>::select(
         && !curr_node_ptr->get_state().is_terminal()
         // and check that there isn't a non-terminal eval
         && !curr_node_ptr->check_non_terminal_eval()
-    );  
-
-    
+    );    
 }
 
 template <typename G>
@@ -696,7 +693,6 @@ void mcts::uct_node<G>::Set_Null()
     all_children_evaluated = false;
     parent = NULL;
 }
-
 
 // performs naive (completely random) rollout
 template <typename G>

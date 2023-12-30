@@ -30,7 +30,7 @@ public:
     std::string display(const bool flip);
     void make_move(const std::string & action_text, const bool flip);
     p::list get_sorted_actions(const bool flip);
-    void choose_best_action(const double epsilon);
+    //void choose_best_action(Rand rand, const double epsilon, const bool decide_using_visits);
     void ensure_sims(const size_t sims);
     double get_evaluation();
     std::string set_state_and_make_best_move(const p::dict & board);
