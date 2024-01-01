@@ -21,7 +21,12 @@ namespace mcts {
                 const Seed seed,
                 const size_t min_simulations,
                 const size_t max_simulations,
-                const size_t sim_increment) noexcept; // start threaded event loop        
+                const size_t sim_increment,
+                const bool use_rollout,
+                const bool eval_children,
+                const bool use_puct,
+                const bool use_probs,
+                const bool decide_using_visits) noexcept; // start threaded event loop        
             virtual ~threaded_tree();
 
             void set_state(const G & state);
@@ -46,6 +51,7 @@ namespace mcts {
             Rand _rand;
             size_t _min_simulations, _max_simulations, _sim_increment;
             double _c;
+            bool _use_rollout, _eval_children, _use_puct, _use_probs, _decide_using_visits;
 
             std::shared_ptr<std::lock_guard<std::mutex>> get_lock(const bool enforce_min_sims=false); // use auto get_lock(); at the beginning of any function interacting with _node
     };
@@ -57,7 +63,12 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
     const Seed seed,
     const size_t min_simulations,
     const size_t max_simulations,
-    const size_t sim_increment) noexcept
+    const size_t sim_increment,
+    const bool use_rollout,
+    const bool eval_children,
+    const bool use_puct,
+    const bool use_probs,
+    const bool decide_using_visits) noexcept
     : _sem(1), _rand(seed), _node(new TREE())
 {
     // initialize everything
@@ -67,6 +78,11 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
     _min_simulations=min_simulations;
     _max_simulations=max_simulations;
     _sim_increment=sim_increment;
+    _use_rollout=use_rollout;
+    _eval_children=eval_children;
+    _use_puct=use_puct;
+    _use_probs=use_probs;
+    _decide_using_visits=decide_using_visits;
 
     // start the simulation loop in a separate thread
     _thread = std::thread([&](){
@@ -81,7 +97,7 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
                     
                     if (!_node->get_state().is_terminal())
                     {
-                        _node->simulate(_sim_increment,_rand,_c,true,false,false,false); // simulate returns false when no sims were done (e.g. when the game is done)
+                        _node->simulate(_sim_increment,_rand,_c,_use_rollout,_eval_children,_use_puct,_use_probs); // simulate returns false when no sims were done (e.g. when the game is done)
                         if (_node->get_visit_count()<_max_simulations)
                             _sem.post(); // post if we want to keep looping (so we don't block on _sem.wait())
                     }

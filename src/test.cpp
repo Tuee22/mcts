@@ -25,7 +25,7 @@ int main()
     {
         corridors::board sb;
         mcts::Rand rand(42);
-        size_t evals = 1;
+        size_t evals = 10000;
         double sum=0;
         std::cout << "Pure rollouts:" << std::endl;
         clock_t begin = clock();
@@ -47,7 +47,7 @@ int main()
         size_t per_move_sims = 1000;
         bool use_rollout = true;
         bool eval_children = true;
-        bool use_puct = false;
+        bool use_puct = true;
         bool use_probs = false;
         bool decide_using_visits = true;
         bool terminate_early = false; // true means we terminate when there's a non-terminal eval

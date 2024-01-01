@@ -29,10 +29,53 @@ class Corridors_MCTS(_corridors_mcts):
     sim_increment - the number of simulations performed on 
         each iteration of the event loop. reduce it if the
         API is being too slow.
+
+    use_rollout - evaluate using randomly chosen moves till the
+        game ends. False means use corridors::board::eval.
+
+    eval_children - when a leaf is slected, immediately perform
+        an evaluation on all children. select from the leaf is then
+        done with the benefit of this initial evaluation (ie ranked selection).
+        if eval_children==false children will be chosen randomly (unranked selection)
+        and ranked selection will occur once each child has an evaluation.
+
+    use_puct - use the alpha-zero style puct formula. false means use traditional uct
+
+    use_probs - means the U term in the selection formula is scaled by the eval probability
+        of each action. note that thse probablilites won't be set by use_rollout, and may or 
+        may not be set by corridors::board::eval. if probs are absent when use_probs==true,
+        there will be a runtime exception.
+
+    decide_using_visits - choose_best_action makes greedy choices based on number of visits
+        in the tree. False means using equity (which has the potential to be biased towards
+        under-explored nodes)
     """
 
-    def __init__(self, c=sqrt(2), seed=42, min_simulations=10000, max_simulations=100000, sim_increment=250):
-        super().__init__(c, seed, min_simulations, max_simulations, sim_increment)
+    def __init__(
+        self,
+        c=sqrt(2),
+        seed=42,
+        min_simulations=1000,
+        max_simulations=10000,
+        sim_increment=250,
+        use_rollout=True,
+        eval_children=True,
+        use_puct=False,
+        use_probs=False,
+        decide_using_visits=True,
+    ):
+        super().__init__(
+            c,
+            seed,
+            min_simulations,
+            max_simulations,
+            sim_increment,
+            use_rollout,
+            eval_children,
+            use_puct,
+            use_probs,
+            decide_using_visits,
+        )
     
     def __json__(self):
         return {"type": str(type(self)), "name": getattr(self, "name", "unnamed")}

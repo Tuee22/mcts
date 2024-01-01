@@ -6,8 +6,24 @@ corridors_threaded_api::corridors_threaded_api(
     const Seed seed,
     const size_t min_simulations,
     const size_t max_simulations,
-    const size_t sim_increment)
-    : corridors_base(c,seed, min_simulations, max_simulations, sim_increment)
+    const size_t sim_increment,
+    const bool use_rollout,
+    const bool eval_children,
+    const bool use_puct,
+    const bool use_probs,
+    const bool decide_using_visits
+) : corridors_base(
+        c,
+        seed,
+        min_simulations,
+        max_simulations,
+        sim_increment,
+        use_rollout,
+        eval_children,
+        use_puct,
+        use_probs,
+        decide_using_visits
+)
 {
 }
 

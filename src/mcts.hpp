@@ -223,7 +223,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     }
     else if (check_non_terminal_eval())
     {
-        // evaluation for this state, we will make our move decis[ion
+        // evaluation for this state, we will make our move decision
         // if it's possible to get a (heuristic), non-terminal
         // according to that criteria rather than uct.
         // this basically signifies that we're now in the territory
@@ -503,8 +503,13 @@ void mcts::uct_node<G>::select(
             if (unexplored_children.size()>0)
             {
                 // if not all children are explored, choose an unexplored node randomly
-                std::uniform_real_distribution<double> unif(0.0,1.0);
-                best_action=unexplored_children[(size_t)(unif(rand) * (double)unexplored_children.size())];
+                if (unexplored_children.size()>1)
+                {
+                    std::uniform_real_distribution<double> unif(0.0,1.0);
+                    best_action=unexplored_children[(size_t)(unif(rand) * (double)unexplored_children.size())];
+                }
+                else
+                    best_action=unexplored_children[0];
             }
             else
                 curr_node_ptr->all_children_evaluated=true;            
@@ -531,9 +536,7 @@ void mcts::uct_node<G>::select(
                     U = sqrt(N) / (1.0+n);
                 else
                     // standard UCT formula
-                    U = (n==0)
-                        ? 0
-                        : sqrt(std::log(N) / n);
+                    U = sqrt(std::log(N) / std::max(n,1.0));
 
                 if (use_probs)
                     U *= curr_node_ptr->eval_probs[i];
