@@ -295,7 +295,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         }
     }
 
-    if (choice==std::numeric_limits<size_t>::max())
+    if (!(choice<std::numeric_limits<size_t>::max()))
         throw std::string("Error: unable to find a choice");
 
     // test code
@@ -568,7 +568,7 @@ void mcts::uct_node<G>::select(
                     best_action=best_actions[0];
             }
 
-            if (best_action==std::numeric_limits<size_t>::max())
+            if (!(best_action<std::numeric_limits<size_t>::max()))
                 throw std::string("Error: failed to select node");
         }
         // test code
