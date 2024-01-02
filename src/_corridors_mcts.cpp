@@ -28,7 +28,12 @@ BOOST_PYTHON_MODULE(_corridors_mcts) {
         const Seed, 
         const size_t, 
         const size_t, 
-        const size_t>())
+        const size_t,
+        const bool,
+        const bool,
+        const bool,
+        const bool,
+        const bool>())
     .def("display", &corridors_threaded_api::display)
     .def("make_move", &corridors_threaded_api::make_move)
     .def("get_sorted_actions", &corridors_threaded_api::get_sorted_actions)

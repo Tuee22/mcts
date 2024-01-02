@@ -1,10 +1,8 @@
 #pragma once
-
-//#include <bitset>
 #include <vector>
 #include <string>
-
 #include "flags.hpp"
+#include "mcts.hpp"
 
 #define BOARD_SIZE 9
 #define STARTING_WALLS 10
@@ -12,6 +10,8 @@
 namespace corridors {
     class board
     {
+        typedef std::shared_ptr<mcts::uct_node<board>> board_node_ptr;
+
         public:
             struct action
             {
@@ -37,7 +37,7 @@ namespace corridors {
             ) noexcept;
             board(const board & source) noexcept;
             board(const board & source, bool flip) noexcept;
-            virtual ~board();
+            virtual ~board() noexcept;
             board& operator=(const board & source) noexcept;
             bool operator==(const board & source) const noexcept;
 
@@ -47,6 +47,7 @@ namespace corridors {
 
             template <typename SOMETHING_EMPLACABLE>
             void get_legal_moves(SOMETHING_EMPLACABLE & output) const;
+            void eval(const std::vector<board_node_ptr> & children, double & eval_Q, std::vector<double> & eval_probs) const;
             size_t get_hash() const;
             bool is_terminal() const;
             double get_terminal_eval() const; // eval from hero's perspective
@@ -58,6 +59,7 @@ namespace corridors {
             bool villain_wins() const;
             bool villain_is_escapable() const;
             unsigned short get_villains_shortest_distance() const;
+
 
         protected:
             unsigned short hero_x, hero_y, villain_x, villain_y, hero_walls_remaining, villain_walls_remaining;

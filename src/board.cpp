@@ -30,7 +30,7 @@ void board::action::flip()
     wall_middle = (BOARD_SIZE-1)*(BOARD_SIZE-1)-1-wall_middle;
 }
 
-board::board() noexcept : _action()
+board::board() noexcept
 {
     // set game to starting position
     hero_x = BOARD_SIZE / 2;
@@ -54,7 +54,6 @@ board::board(
     const flags::flags<(BOARD_SIZE-1)*BOARD_SIZE> & _horizontal_walls,
     const flags::flags<(BOARD_SIZE-1)*BOARD_SIZE> & _vertical_walls
 ) noexcept
-: _action()
 {
     hero_x=_hero_x;
     hero_y=_hero_y;
@@ -82,7 +81,7 @@ bool board::operator==(const board & source) const noexcept
     return get_hash() == source.get_hash();
 }
 
-board::~board()
+board::~board() noexcept
 {}
 
 board::board(const board & source) noexcept
@@ -208,6 +207,13 @@ unsigned short board::get_villains_shortest_distance() const
     return villains_shortest_distance;
 }
 
+// function signature for eval includes the most general case where we have an eval function that returns
+// both a Q value and a policy consisting of a vector of probs corresponding with probs of children 
+void board::eval(const std::vector<board_node_ptr> & children, double & eval_Q, std::vector<double> & eval_probs) const
+{
+    throw std::string("eval not implemented");
+}
+
 // hash caching with lazy evaluation
 size_t board::get_hash() const
 {   
@@ -265,7 +271,7 @@ std::string board::get_action_text(const bool flip) const
         std::string orientation((use_action.wall_is_vertical?"V":"H"));
         return orientation + std::string("(")
             + boost::lexical_cast<std::string>(_wall_x)
-            + std::string(",")
+            + std::string(",")                          
             + boost::lexical_cast<std::string>(_wall_y)
             + std::string(")");
     }
@@ -362,14 +368,14 @@ bool board::check_non_terminal_eval(double & eval) const
     int _non_terminal_rank = get_non_terminal_rank();
     if (_non_terminal_rank<=-2)
     {
-        // hero guaranteed to win as they're 2 moves ahead in a straight race
-        eval = 1.0;
+        // villain guaranteed to win as they're 2 moves ahead in a straight race
+        eval = -1.0;
         return true;
     }
     if (_non_terminal_rank>=2)
     {
-        // villain guaranteed to win as they're 2 moves ahead in a straight race
-        eval = -1.0;
+        // hero guaranteed to win as they're 2 moves ahead in a straight race
+        eval = 1.0;
         return true;
     }
     return false;
@@ -377,9 +383,10 @@ bool board::check_non_terminal_eval(double & eval) const
 
 int board::get_non_terminal_rank() const
 {
+    // high rank is better for hero
     unsigned short villains_shortest_distance = get_villains_shortest_distance();
     unsigned short heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
-    return (int)heros_shortest_distance - (int)villains_shortest_distance;
+    return (int)villains_shortest_distance - (int)heros_shortest_distance;
 }
 
 void board::Deep_Copy(const board & source, bool flip)

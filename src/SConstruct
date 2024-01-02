@@ -3,13 +3,14 @@ from sys import prefix
 from shutil import copyfile
 project_name = "_corridors_mcts"
 boost_libs = ['boost_python310', 'boost_numpy310']
-include_path = [prefix + '/include/python3.10']
+python_include_path = [prefix + '/include/python3.10']
 lib_path = []
 
 # get argument flags
 test = bool(ARGUMENTS.get('test',0))
 debug = bool(ARGUMENTS.get('debug', 0))
 profile = bool(ARGUMENTS.get('profile', 0))
+sanitize = bool(ARGUMENTS.get('sanitize', 0))
 
 # determine which files to build based on test flag
 all_source_files=Glob('*.cpp')
@@ -20,17 +21,19 @@ source_files=[f for f in all_source_files if str(f) not in exclude]
 
 # don't need python libs if we're testing in C++
 libs = [] if test else boost_libs
+include_path = [] if test else python_include_path
 
 # determine compiler and linker flags
 compiler_always_flags=['-Wno-deprecated-declarations']
 linker_always_flags=[]
 optimization_maybe_flag=[] if debug else ['-Ofast']
 debug_profile_maybe_flag=['-pg'] if profile else ['-g'] if test else []
+fsanitize_maybe_flag=['-fsanitize=address'] if sanitize else []
 
 # determine env dict
 flags={
-    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag,
-    'LINKFLAGS': debug_profile_maybe_flag,
+    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag + fsanitize_maybe_flag,
+    'LINKFLAGS':linker_always_flags + debug_profile_maybe_flag + fsanitize_maybe_flag,
 }
 print('Passing the following compiler and linker flags:',flags)
 

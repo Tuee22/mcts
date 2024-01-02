@@ -21,7 +21,12 @@ namespace mcts {
                 const Seed seed,
                 const size_t min_simulations,
                 const size_t max_simulations,
-                const size_t sim_increment) noexcept; // start threaded event loop        
+                const size_t sim_increment,
+                const bool use_rollout,
+                const bool eval_children,
+                const bool use_puct,
+                const bool use_probs,
+                const bool decide_using_visits) noexcept; // start threaded event loop        
             virtual ~threaded_tree();
 
             void set_state(const G & state);
@@ -29,7 +34,7 @@ namespace mcts {
             void make_move(const size_t mv_number);
             void make_move(const std::string & action_text, const bool flip);
             std::string display(const bool flip);
-            void choose_best_action(const double epsilon);
+            //void choose_best_action(Rand rand, const double epsilon, const bool use_visit_count);
             void ensure_sims(const size_t sims);
             std::string set_state_and_make_best_move(const G & board, const bool flip);
             double get_evaluation();
@@ -46,6 +51,7 @@ namespace mcts {
             Rand _rand;
             size_t _min_simulations, _max_simulations, _sim_increment;
             double _c;
+            bool _use_rollout, _eval_children, _use_puct, _use_probs, _decide_using_visits;
 
             std::shared_ptr<std::lock_guard<std::mutex>> get_lock(const bool enforce_min_sims=false); // use auto get_lock(); at the beginning of any function interacting with _node
     };
@@ -57,7 +63,12 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
     const Seed seed,
     const size_t min_simulations,
     const size_t max_simulations,
-    const size_t sim_increment) noexcept
+    const size_t sim_increment,
+    const bool use_rollout,
+    const bool eval_children,
+    const bool use_puct,
+    const bool use_probs,
+    const bool decide_using_visits) noexcept
     : _sem(1), _rand(seed), _node(new TREE())
 {
     // initialize everything
@@ -67,6 +78,11 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
     _min_simulations=min_simulations;
     _max_simulations=max_simulations;
     _sim_increment=sim_increment;
+    _use_rollout=use_rollout;
+    _eval_children=eval_children;
+    _use_puct=use_puct;
+    _use_probs=use_probs;
+    _decide_using_visits=decide_using_visits;
 
     // start the simulation loop in a separate thread
     _thread = std::thread([&](){
@@ -78,9 +94,13 @@ mcts::threaded_tree<G,TREE>::threaded_tree(
                 {
                     std::unique_lock<std::mutex> lk(_node_mut); // obtain a lock
                     _cv.wait(lk, [&]{return !_pause_loop;}); // _pause_loop signals that the main thread wants access
-                    bool sims_got_done = _node->simulate(_sim_increment,_rand,_c); // simulate returns false when no sims were done (e.g. when the game is done)
-                    if (sims_got_done && _node->get_visit_count()<_max_simulations)
-                        _sem.post(); // post if we want to keep looping (so we don't block on _sem.wait())
+                    
+                    if (!_node->get_state().is_terminal())
+                    {
+                        _node->simulate(_sim_increment,_rand,_c,_use_rollout,_eval_children,_use_puct,_use_probs); // simulate returns false when no sims were done (e.g. when the game is done)
+                        if (_node->get_visit_count()<_max_simulations)
+                            _sem.post(); // post if we want to keep looping (so we don't block on _sem.wait())
+                    }
                 }
             }
         }
@@ -126,8 +146,8 @@ std::shared_ptr<std::lock_guard<std::mutex>> mcts::threaded_tree<G,TREE>::get_lo
     _cv.notify_one(); 
 
     // ensure we have performed the minimum number of simulations (if applicible)
-    if (enforce_min_sims && _node->get_visit_count()<_min_simulations)
-        _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c);
+    if (enforce_min_sims && !_node->get_state().is_terminal() && _node->get_visit_count()<_min_simulations)
+        _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c, true, false, false, false);
 
     // give ownership of the lock to the user-- the loop will now remain blocked
     // until they release it, and the user can safely alter state
@@ -164,21 +184,21 @@ std::string mcts::threaded_tree<G,TREE>::display(const bool flip)
     G state_to_display(_node->get_state(),flip);
     return state_to_display.display();
 }
-
+/*
 template <typename G, typename TREE>
-void mcts::threaded_tree<G,TREE>::choose_best_action(const double epsilon)
+void mcts::threaded_tree<G,TREE>::choose_best_action(Rand rand, const double epsilon, const bool use_visit_count)
 {
     auto _lock = get_lock(true);
-    _node = _node->choose_best_action(_rand, epsilon);
+    _node = _node->choose_best_action(rand,epsilon,use_visit_count);
     _sem.post();
-}
+}*/
 
 template <typename G, typename TREE>
 void mcts::threaded_tree<G,TREE>::ensure_sims(const size_t sims)
 {
     auto _lock = get_lock(true);
-    if (_node->get_visit_count()<sims)
-        _node->simulate(sims -_node->get_visit_count()+1,_rand,_c);
+    if (!_node->get_state().is_terminal() && _node->get_visit_count()<sims)
+        _node->simulate(sims -_node->get_visit_count()+1,_rand,_c,true,false,false,false);
 }
 
 template <typename G, typename TREE>
@@ -190,8 +210,8 @@ std::string mcts::threaded_tree<G,TREE>::set_state_and_make_best_move(const G & 
     _sem.post();
 
     // ensure we have performed the minimum number of simulations on the current state
-    if (_node->get_visit_count()<_min_simulations)
-        _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c);
+    if (!_node->get_state().is_terminal() && _node->get_visit_count()<_min_simulations)
+        _node->simulate(_min_simulations -_node->get_visit_count()+1,_rand,_c,true,false,false,false);
 
     // get the best move
     std::vector<std::tuple<size_t, double, std::string>> move_vect = _node->get_sorted_actions(flip);
