@@ -48,8 +48,9 @@ docs/_build/
 # scons db
 .sconsign.dblite
 
-# executable
+# executables
 _corridors_mcts
+_numeric_limits
 
 # callgrind
 callgrind*
