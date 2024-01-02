@@ -42,7 +42,7 @@ class numeric_test_max_init
 
 int main() {
     
-    size_t inner_size = 1000000;
+    size_t inner_size = 10000000;
     size_t outer_size = 1000;
     clock_t begin, end;
     double elapsed_secs;
