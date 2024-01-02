@@ -25,14 +25,15 @@ libs = [] if test else boost_libs
 # determine compiler and linker flags
 compiler_always_flags=['-Wno-deprecated-declarations']
 linker_always_flags=[]
-optimization_maybe_flag=[] if debug else ['-Ofast']
-debug_profile_maybe_flag=['-pg'] if profile else ['-g'] if test else []
+optimization_maybe_flag=[] if (debug and not profile) else ['-Ofast']
+debug_maybe_flag=['-g'] if debug else []
+profile_maybe_flag=['-pg'] if profile else []
 fsanitize_maybe_flag=['-fsanitize=address'] if sanitize else []
 
 # determine env dict
 flags={
-    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag + fsanitize_maybe_flag,
-    'LINKFLAGS':linker_always_flags + debug_profile_maybe_flag + fsanitize_maybe_flag,
+    'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_maybe_flag + profile_maybe_flag + fsanitize_maybe_flag,
+    'LINKFLAGS':linker_always_flags + debug_maybe_flag + profile_maybe_flag + fsanitize_maybe_flag,
 }
 print('Passing the following compiler and linker flags:',flags)
 
