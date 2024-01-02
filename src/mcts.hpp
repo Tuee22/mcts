@@ -163,7 +163,10 @@ void mcts::uct_node<G>::simulate(
 
     // evaluate top node if it hasn't been evaluated
     if (!is_evaluated())
+    {
         eval(rand,use_rollout,eval_children);
+        backprop(); // so that parent node has at least one visit
+    }
 
     for(size_t i=0;i<simulations;++i)
     {
@@ -527,9 +530,16 @@ void mcts::uct_node<G>::select(
                 // are from villain's perspective, ergo a sign flip is needed
                 // to get them from hero's.
                 double Q = -curr_children[i]->get_equity();
+
+                if (curr_node_ptr->visit_count==0)
+                    throw std::string("Error: cannot select, parent node must have at least one visit");
+
                 double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
                 double n = (double)curr_children[i]->visit_count;
                 double U;
+
+                if (N<0)
+                    throw std::string("Error");
                 
                 if (use_puct)
                     // AlphaZero style PUCT formula
