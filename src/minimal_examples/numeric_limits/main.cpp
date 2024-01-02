@@ -5,7 +5,7 @@
 #include <limits>
 
 #define TYPE unsigned short
-#define max 65535
+const TYPE max = 65535; // value returned by std::numeric_limits<unsigned short>::max();
 
 class numeric_test_no_init
 {
