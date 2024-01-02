@@ -14,9 +14,9 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # install python packages
 WORKDIR /home
-RUN python3 -m pip install dask[complete] numba scipy scons cupy-cuda12x jupyterlab==3.6.6 plotly ipywidgets jupyter-dash torch pytorch-lightning tables pyarrow s3fs mypy pandas-stubs torchvision
-#COPY ${REQUIREMENTS} /home
-#RUN python3 -m pip install -r requirements.txt
+#RUN python3 -m pip install dask[complete] numba scipy scons cupy-cuda12x jupyterlab==3.6.6 plotly ipywidgets jupyter-dash torch pytorch-lightning tables pyarrow s3fs mypy pandas-stubs torchvision
+COPY ${REQUIREMENTS} /home
+RUN python3 -m pip install -r requirements.txt
 
 # set up python libs
 ENV PYTHONPATH "${PYTHONPATH}:/home/python/"
