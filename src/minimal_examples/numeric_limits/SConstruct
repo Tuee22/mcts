@@ -5,9 +5,9 @@ project_name = "_numeric_limits"
 source_files=['main.cpp']
 
 # determine compiler and linker flags
-compiler_always_flags=['-Wno-deprecated-declarations','-g']
-linker_always_flags=['-g']
-optimization_flag=['-Ofast']
+compiler_always_flags=['-Wno-deprecated-declarations']
+linker_always_flags=['']
+optimization_flag=['-O3']
 
 # determine env dict
 flags={

@@ -24,9 +24,9 @@ libs = [] if test else boost_libs
 include_path = [] if test else python_include_path
 
 # determine compiler and linker flags
-compiler_always_flags=['-Wno-deprecated-declarations']
-linker_always_flags=[]
-optimization_maybe_flag=[] if debug else ['-Ofast']
+compiler_always_flags=['-Wno-deprecated-declarations',f'-flto={num_parallel_jobs}']
+linker_always_flags=['-fuse-ld=gold']
+optimization_maybe_flag=[] if debug else ['-Ofast','-flto']
 debug_profile_maybe_flag=['-pg'] if profile else ['-g'] if test else []
 fsanitize_maybe_flag=['-fsanitize=address'] if sanitize else []
 
