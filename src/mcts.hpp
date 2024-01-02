@@ -556,14 +556,17 @@ void mcts::uct_node<G>::select(
             }
         
             size_t num_best_actions=best_actions.size();
-            if (num_best_actions>1)
+            if (num_best_actions>0)
             {
-                // if there were ties for best action, choose that action randomly
-                std::uniform_real_distribution<double> unif(0.0,1.0);
-                best_action=best_actions[(size_t)(unif(rand) * (double)num_best_actions)];
+                if (num_best_actions>1)
+                {
+                    // if there were ties for best action, choose that action randomly
+                    std::uniform_real_distribution<double> unif(0.0,1.0);
+                    best_action=best_actions[(size_t)(unif(rand) * (double)num_best_actions)];
+                }
+                else
+                    best_action=best_actions[0];
             }
-            else
-                best_action=best_actions[0];
 
             if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");

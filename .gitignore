@@ -50,3 +50,7 @@ docs/_build/
 
 # executable
 _corridors_mcts
+
+# callgrind
+callgrind*
+gmon.out

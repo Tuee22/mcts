@@ -21,6 +21,7 @@ int main()
         std::cout << my_mcts->display();
     }*/
 
+    /*
     // rollout timing loop
     {
         corridors::board sb;
@@ -36,15 +37,16 @@ int main()
         std::cout << "It took " << elapsed_secs/(double)evals << " per rollout, or " << (double)evals / elapsed_secs << " per second."<< std::endl;
         std::cout << "Mean value: " << sum / (double) evals << std::endl;
         std::cout << std::endl;
-    }
+    }*/
 
+    
     // self-play testing loop
     {   
         // hyperparameters
         mcts::Rand rand(66); // 63 segfaults; 66 infinite cycle at end 
         double c = std::sqrt(0.25);
-        size_t initial_sims = 1000;
-        size_t per_move_sims = 1000;
+        size_t initial_sims = 10;
+        size_t per_move_sims = 10;
         bool use_rollout = true;
         bool eval_children = true;
         bool use_puct = true;
@@ -144,6 +146,6 @@ int main()
             }
         }
     }
-
+    
     return 0;
 }
