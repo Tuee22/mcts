@@ -535,14 +535,14 @@ void mcts::uct_node<G>::select(
                 double Q = -curr_children[i]->get_equity();
 
                 if (curr_node_ptr->visit_count==0)
-                    throw std::string("Error: cannot select, parent node must have at least one visit");
+                throw std::string("Error: cannot select, parent node must have at least one visit");
 
                 double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
                 double n = (double)curr_children[i]->visit_count;
                 double U;
 
                 if (N<0)
-                    throw std::string("Error");
+                throw std::string("Error");
                 
                 if (use_puct)
                     // AlphaZero style PUCT formula
@@ -584,7 +584,7 @@ void mcts::uct_node<G>::select(
             if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");
 
-            if (!(choice<std::numeric_limits<size_t>::max()))
+             if (!(best_action<std::numeric_limits<size_t>::max()))
                 throw std::string("Error: select experienced limit compare failure");
 
         }
