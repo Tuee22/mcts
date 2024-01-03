@@ -45,8 +45,8 @@ int main()
         // hyperparameters
         mcts::Rand rand(66); // 63 segfaults; 66 infinite cycle at end 
         double c = std::sqrt(0.25);
-        size_t initial_sims = 100;
-        size_t per_move_sims = 100;
+        size_t initial_sims = 1000;
+        size_t per_move_sims = 1000;
         bool use_rollout = true;
         bool eval_children = true;
         bool use_puct = true;

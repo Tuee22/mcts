@@ -41,7 +41,7 @@ board::board() noexcept
     villain_walls_remaining = STARTING_WALLS;
     // to ensure the hash gets calculated when called
     _stored_hash = 0;
-    _villains_shortest_distance=std::numeric_limits<unsigned short>::max();
+    //_villains_shortest_distance=std::numeric_limits<unsigned short>::max();
 }
 
 board::board(
@@ -67,7 +67,7 @@ board::board(
     vertical_walls=_vertical_walls;
     // to ensure the hash gets calculated when called
     _stored_hash = 0;
-    _villains_shortest_distance=std::numeric_limits<unsigned short>::max();
+    //_villains_shortest_distance=std::numeric_limits<unsigned short>::max();
 }
 
 board& board::operator=(const board & source) noexcept
@@ -133,8 +133,8 @@ bool board::check_local_escapable (
 
 unsigned short board::get_villains_shortest_distance() const
 {
-    if (!(_villains_shortest_distance < std::numeric_limits<unsigned short>::min()))
-    {
+    //if (!(_villains_shortest_distance < std::numeric_limits<unsigned short>::min()))
+    //{
         // get a BOARD_SIZE x BOARD_SIZE array where, for each square,
         // we will populate the minimum possible number of moves required
         // to get from villain to the given square.
@@ -204,12 +204,13 @@ unsigned short board::get_villains_shortest_distance() const
 
         // find minimum value on first row (i.e. villain's terminal row)
         // to get villains shortest overall distance 
+        unsigned short villains_shortest_distance = std::numeric_limits<unsigned short>::max();
         for (size_t i=0;i<BOARD_SIZE;++i)
-            if (shortest_distance[i]<_villains_shortest_distance)
-                _villains_shortest_distance = shortest_distance[i];
-    }
+            if (shortest_distance[i]<villains_shortest_distance)
+                villains_shortest_distance = shortest_distance[i];
+    //}
 
-    return _villains_shortest_distance;
+    return villains_shortest_distance;
 }
 
 // function signature for eval includes the most general case where we have an eval function that returns
