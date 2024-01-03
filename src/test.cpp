@@ -21,7 +21,7 @@ int main()
         std::cout << my_mcts->display();
     }*/
 
-    /*
+    
     // rollout timing loop
     {
         corridors::board sb;
@@ -37,7 +37,7 @@ int main()
         std::cout << "It took " << elapsed_secs/(double)evals << " per rollout, or " << (double)evals / elapsed_secs << " per second."<< std::endl;
         std::cout << "Mean value: " << sum / (double) evals << std::endl;
         std::cout << std::endl;
-    }*/
+    }
 
     
     // self-play testing loop
