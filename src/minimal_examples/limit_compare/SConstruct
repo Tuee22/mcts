@@ -1,0 +1,25 @@
+#!python
+from sys import prefix
+from shutil import copyfile
+project_name = "_limit_compare"
+source_files=['main.cpp']
+
+# determine compiler and linker flags
+compiler_always_flags=['-Wno-deprecated-declarations']
+linker_always_flags=['']
+optimization_flag=['-O3']
+
+# determine env dict
+flags={
+    'CCFLAGS': compiler_always_flags + optimization_flag,
+    'LINKFLAGS':linker_always_flags,
+}
+print('Passing the following compiler and linker flags:',flags)
+
+env=Environment(**flags)
+
+env.Program(
+    target = project_name,
+    SHLIBPREFIX='',
+    source = source_files,
+)

@@ -51,6 +51,7 @@ docs/_build/
 # executables
 _corridors_mcts
 _numeric_limits
+_limit_compare
 
 # callgrind
 callgrind*
