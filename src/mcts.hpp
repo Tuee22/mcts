@@ -298,8 +298,11 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         }
     }
 
-    if (!(choice<std::numeric_limits<size_t>::max()))
+    if (choice==std::numeric_limits<size_t>::max())
         throw std::string("Error: unable to find a choice");
+
+    if (!(choice<std::numeric_limits<size_t>::max()))
+        throw std::string("Error: choose_best_action experienced limit compare failure");
 
     // test code
     uct_node_ptr ret = make_move(choice);
@@ -578,8 +581,12 @@ void mcts::uct_node<G>::select(
                     best_action=best_actions[0];
             }
 
-            if (!(best_action<std::numeric_limits<size_t>::max()))
+            if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");
+
+            if (!(choice<std::numeric_limits<size_t>::max()))
+                throw std::string("Error: select experienced limit compare failure");
+
         }
         // test code
 
