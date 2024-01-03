@@ -10,13 +10,14 @@ RUN apt install -y python3 python3-dev python3-pip
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 1 --slave /usr/bin/g++ g++ /usr/bin/g++-13
 
 # update package managers 
-RUN python3 -m pip install --upgrade pip setuptools wheel 
+RUN python3 -m pip install --upgrade pip setuptools wheel
+RUN python3 -m pip install --ignore-installed blinker
 
 # install python packages
 WORKDIR /home
-#RUN python3 -m pip install dask[complete] numba scipy scons cupy-cuda12x jupyterlab==3.6.6 plotly ipywidgets jupyter-dash torch pytorch-lightning tables pyarrow s3fs mypy pandas-stubs torchvision
-COPY ${REQUIREMENTS} /home
-RUN python3 -m pip install -r requirements.txt
+RUN python3 -m pip install dask[complete] numba scipy scons cupy-cuda12x jupyterlab==3.6.6 plotly ipywidgets jupyter-dash torch pytorch-lightning tables pyarrow s3fs mypy pandas-stubs torchvision
+#COPY ${REQUIREMENTS} /home
+#RUN python3 -m pip install -r requirements.txt
 
 # set up python libs
 ENV PYTHONPATH "${PYTHONPATH}:/home/python/"
