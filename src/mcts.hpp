@@ -178,10 +178,20 @@ void mcts::uct_node<G>::simulate(
         // evaluate the node (and children if applicable)
         if (!leaf->is_evaluated())
             leaf->eval(rand, use_rollout, eval_children);
+        /*
+        // nb : this check is not appropriate as, in full generality (ie outside corridors)
+        // it's possible our exact evaluation function will not always return 1.0/-1.0,
+        // and therefore optimal actions may not always remain within the domain of the exact eval 
+        // funciton. moreover even in the corridors context, even when we're in a straight race,
+        // some legal moves may step out of the doman of the eval funciton without any loss
+        // of equity.
         else
             // test code
             if (!leaf->get_state().is_terminal() && !leaf->check_non_terminal_eval())
+            {
                 throw std::string("Error: we have selected a node that is already evaluated, and is not terminal or nte");
+            }
+        */
 
         // backprop
         leaf->backprop();
@@ -542,7 +552,7 @@ void mcts::uct_node<G>::select(
                 double U;
 
                 if (N<0)
-                throw std::string("Error");
+                    throw std::string("Error: no visits to parent node");
                 
                 if (use_puct)
                     // AlphaZero style PUCT formula

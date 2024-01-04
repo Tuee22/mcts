@@ -133,7 +133,14 @@ bool board::check_local_escapable (
 
 unsigned short board::get_villains_shortest_distance() const
 {
-    if (!(_villains_shortest_distance < std::numeric_limits<unsigned short>::min()))
+    // test code
+    bool equal = _villains_shortest_distance == std::numeric_limits<unsigned short>::max();
+    bool not_less_than = !(_villains_shortest_distance < std::numeric_limits<unsigned short>::max());
+
+    if (equal != not_less_than)
+        throw std::string("get_villains_shortest_distance has limit comparison error");
+
+    if (equal)
     {
         // get a BOARD_SIZE x BOARD_SIZE array where, for each square,
         // we will populate the minimum possible number of moves required
@@ -211,6 +218,22 @@ unsigned short board::get_villains_shortest_distance() const
     }
 
     return _villains_shortest_distance;
+}
+
+unsigned short board::get_heros_shortest_distance() const
+{
+
+    // test code
+    bool equal = _heros_shortest_distance == std::numeric_limits<unsigned short>::max();
+    bool not_less_than = !(_heros_shortest_distance < std::numeric_limits<unsigned short>::max());
+
+    if (equal != not_less_than)
+        throw std::string("get_heros_shortest_distance has limit comparison error");
+
+    if (equal)
+        _heros_shortest_distance=board(*this,true).get_villains_shortest_distance();
+
+    return _heros_shortest_distance;
 }
 
 // function signature for eval includes the most general case where we have an eval function that returns
@@ -346,7 +369,7 @@ std::string board::display() const
     }
 
     unsigned short _villains_shortest_distance = get_villains_shortest_distance();
-    unsigned short _heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
+    unsigned short _heros_shortest_distance = get_heros_shortest_distance();
 
     std::string output;
     output += std::string("Hero distance from end: ") + boost::lexical_cast<std::string>(_heros_shortest_distance) + std::string("\n");
@@ -391,7 +414,7 @@ int board::get_non_terminal_rank() const
 {
     // high rank is better for hero
     unsigned short villains_shortest_distance = get_villains_shortest_distance();
-    unsigned short heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
+    unsigned short heros_shortest_distance = get_heros_shortest_distance();
     return (int)villains_shortest_distance - (int)heros_shortest_distance;
 }
 
