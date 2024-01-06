@@ -533,6 +533,10 @@ void mcts::uct_node<G>::select(
 
         if (curr_node_ptr->all_children_evaluated)
         {
+            if (curr_node_ptr->visit_count==0)
+                throw std::string("Error: cannot select, parent node must have at least one visit");
+            double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
+
             double max_uct = std::numeric_limits<double>::lowest();
             std::vector<size_t> best_actions;
             for (size_t i=0;i<curr_children.size();++i)
@@ -543,26 +547,24 @@ void mcts::uct_node<G>::select(
                 // are from villain's perspective, ergo a sign flip is needed
                 // to get them from hero's.
                 double Q = -curr_children[i]->get_equity();
-
-                if (curr_node_ptr->visit_count==0)
-                throw std::string("Error: cannot select, parent node must have at least one visit");
-
-                double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
                 double n = (double)curr_children[i]->visit_count;
                 double U;
 
                 if (N<0)
                     throw std::string("Error: no visits to parent node");
-                
-                if (use_puct)
-                    // AlphaZero style PUCT formula
-                    U = sqrt(N) / (1.0+n);
+                else if (N==0)
+                    U = 0;
                 else
-                    // standard UCT formula
-                    U = sqrt(std::log(N) / std::max(n,1.0));
-
-                if (use_probs)
-                    U *= curr_node_ptr->eval_probs[i];
+                {                
+                    if (use_puct)
+                        // AlphaZero style PUCT formula
+                        U = sqrt(N) / (1.0+n);
+                    else
+                        // standard UCT formula
+                        U = sqrt(std::log(N) / std::max(n,1.0));
+                    if (use_probs)
+                        U *= curr_node_ptr->eval_probs[i];
+                }
 
                 double curr_uct = Q + c * U;
 
