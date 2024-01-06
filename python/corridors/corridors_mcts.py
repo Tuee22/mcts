@@ -212,6 +212,6 @@ if __name__ == '__main__':
         human_computer_play(p1)
     else:
         p2 = Corridors_MCTS(seed=75)
-        p1.ensure_sims(100000)
-        p2.ensure_sims(100000)
+        p1.ensure_sims(1000)
+        p2.ensure_sims(1000)
         computer_self_play(p1,p2,stop_on_eval=True)
