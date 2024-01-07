@@ -66,8 +66,6 @@ namespace corridors {
 
             // memoized values
             mutable size_t _stored_hash;
-            mutable unsigned short _villains_shortest_distance;
-            mutable unsigned short _heros_shortest_distance;
 
             // For all wall positions, indices start in the lower-left corner (from hero's perspective)
             // and move right, then up one row then right again, etc, ending in the upper right corner.

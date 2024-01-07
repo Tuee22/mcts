@@ -41,7 +41,6 @@ board::board() noexcept
     villain_walls_remaining = STARTING_WALLS;
     // to ensure the hash gets calculated when called
     _stored_hash = 0;
-    _villains_shortest_distance=std::numeric_limits<unsigned short>::max();
 }
 
 board::board(
@@ -66,8 +65,6 @@ board::board(
     horizontal_walls=_horizontal_walls;
     vertical_walls=_vertical_walls;
     // to ensure the hash gets calculated when called
-    _stored_hash = 0;
-    _villains_shortest_distance=std::numeric_limits<unsigned short>::max();
 }
 
 board& board::operator=(const board & source) noexcept
@@ -133,107 +130,86 @@ bool board::check_local_escapable (
 
 unsigned short board::get_villains_shortest_distance() const
 {
-    // test code
-    bool equal = _villains_shortest_distance == std::numeric_limits<unsigned short>::max();
-    bool not_less_than = !(_villains_shortest_distance < std::numeric_limits<unsigned short>::max());
+    // get a BOARD_SIZE x BOARD_SIZE array where, for each square,
+    // we will populate the minimum possible number of moves required
+    // to get from villain to the given square.
+    // The algorithm starts at villains current square (which we will give a value of zero)
+    // and iterates outwards.
+    // Values are all initialized to the maximum unsigned short value, which represents infinity.
+    // (This ensures that the check shortest_distance[sd_index]>curr_num_moves
+    // below is always true so that unexplored squares are always set) 
+    unsigned short shortest_distance[BOARD_SIZE*BOARD_SIZE];
+    for (size_t i=0;i<BOARD_SIZE*BOARD_SIZE;++i)
+        shortest_distance[i] = std::numeric_limits<unsigned short>::max();
 
-    if (equal != not_less_than)
-        throw std::string("get_villains_shortest_distance has limit comparison error");
+    // set villain's location to 0
+    // (if only finding yourself was that easy in real life)
+    shortest_distance[villain_y * BOARD_SIZE + villain_x] = 0;
 
-    if (equal)
+    // filled_points stores coordinates of squares filled on the last loop
+    // iteration. We initialize this to villain's current location 
+    std::vector<std::pair<unsigned short, unsigned short>> filled_points;
+    filled_points.emplace_back(std::make_pair(villain_x, villain_y));
+
+    // pairs of directional movement (down, left, right, up respectively)
+    // for looping convenience
+    const static short directions[8]={0,-1,-1,0,1,0,0,1};
+
+    // main while-like loop that keeps going until there are no remaining squares to visit
+    // (occurs when filled_points is empty). We put it in a for loop
+    // for convenience just to get the counter for the cumulative number
+    // of moves villain has made
+    for (unsigned short cumulative_moves=1;filled_points.size()>0;++cumulative_moves)
     {
-        // get a BOARD_SIZE x BOARD_SIZE array where, for each square,
-        // we will populate the minimum possible number of moves required
-        // to get from villain to the given square.
-        // The algorithm starts at villains current square (which we will give a value of zero)
-        // and iterates outwards.
-        // Values are all initialized to the maximum unsigned short value, which represents infinity.
-        // (This ensures that the check shortest_distance[sd_index]>curr_num_moves
-        // below is always true so that unexplored squares are always set) 
-        unsigned short shortest_distance[BOARD_SIZE*BOARD_SIZE];
-        for (size_t i=0;i<BOARD_SIZE*BOARD_SIZE;++i)
-            shortest_distance[i] = std::numeric_limits<unsigned short>::max();
-
-        // set villain's location to 0
-        // (if only finding yourself was that easy in real life)
-        shortest_distance[villain_y * BOARD_SIZE + villain_x] = 0;
-
-        // filled_points stores coordinates of squares filled on the last loop
-        // iteration. We initialize this to villain's current location 
-        std::vector<std::pair<unsigned short, unsigned short>> filled_points;
-        filled_points.emplace_back(std::make_pair(villain_x, villain_y));
-
-        // pairs of directional movement (down, left, right, up respectively)
-        // for looping convenience
-        const static short directions[8]={0,-1,-1,0,1,0,0,1};
-
-        // main while-like loop that keeps going until there are no remaining squares to visit
-        // (occurs when filled_points is empty). We put it in a for loop
-        // for convenience just to get the counter for the cumulative number
-        // of moves villain has made
-        for (unsigned short cumulative_moves=1;filled_points.size()>0;++cumulative_moves)
+        std::vector<std::pair<unsigned short, unsigned short>> next_filled_points;
+        std::for_each(
+            filled_points.cbegin(),
+            filled_points.cend(),
+            [&](const std::pair<unsigned short, unsigned short> & pr)
         {
-            std::vector<std::pair<unsigned short, unsigned short>> next_filled_points;
-            std::for_each(
-                filled_points.cbegin(),
-                filled_points.cend(),
-                [&](const std::pair<unsigned short, unsigned short> & pr)
+            // iterate once for each direction (down, left, right, up)
+            for (size_t i=0;i<4;++i)
             {
-                // iterate once for each direction (down, left, right, up)
-                for (size_t i=0;i<4;++i)
+                short x_diff = directions[2*i];
+                short y_diff = directions[2*i+1];
+                // check if a given directional move would be legal (i.e. no walls)
+                if (try_positional_move(pr.first, pr.second, x_diff, y_diff))
                 {
-                    short x_diff = directions[2*i];
-                    short y_diff = directions[2*i+1];
-                    // check if a given directional move would be legal (i.e. no walls)
-                    if (try_positional_move(pr.first, pr.second, x_diff, y_diff))
-                    {
-                        // get the position, and compute its index in the array
-                        unsigned short x = (unsigned short)((short)pr.first + x_diff);
-                        unsigned short y = (unsigned short)((short)pr.second + y_diff);
-                        unsigned short sd_index = y * BOARD_SIZE + x;
+                    // get the position, and compute its index in the array
+                    unsigned short x = (unsigned short)((short)pr.first + x_diff);
+                    unsigned short y = (unsigned short)((short)pr.second + y_diff);
+                    unsigned short sd_index = y * BOARD_SIZE + x;
 
-                        // check if there's a shorter route than what's currently stored
-                        // (always true for a yet-unvisited square)
-                        if (shortest_distance[sd_index]>cumulative_moves)
-                        {
-                            // store the move count in this square, and
-                            // add put it in the vector of squares to be
-                            // expanded next iteration. We keep doing this till
-                            // there are no new squares!
-                            shortest_distance[sd_index] = cumulative_moves;
-                            next_filled_points.emplace_back(std::make_pair(x,y));
-                        }
+                    // check if there's a shorter route than what's currently stored
+                    // (always true for a yet-unvisited square)
+                    if (shortest_distance[sd_index]>cumulative_moves)
+                    {
+                        // store the move count in this square, and
+                        // add put it in the vector of squares to be
+                        // expanded next iteration. We keep doing this till
+                        // there are no new squares!
+                        shortest_distance[sd_index] = cumulative_moves;
+                        next_filled_points.emplace_back(std::make_pair(x,y));
                     }
                 }
-            });
-            filled_points = std::move(next_filled_points);
-        }
-
-        // find minimum value on first row (i.e. villain's terminal row)
-        // to get villains shortest overall distance 
-        //unsigned short villains_shortest_distance = std::numeric_limits<unsigned short>::max();
-        for (size_t i=0;i<BOARD_SIZE;++i)
-            if (shortest_distance[i]<_villains_shortest_distance)
-                _villains_shortest_distance = shortest_distance[i];
+            }
+        });
+        filled_points = std::move(next_filled_points);
     }
 
-    return _villains_shortest_distance;
+    // find minimum value on first row (i.e. villain's terminal row)
+    // to get villains shortest overall distance 
+    unsigned short villains_shortest_distance = std::numeric_limits<unsigned short>::max();
+    for (size_t i=0;i<BOARD_SIZE;++i)
+        if (shortest_distance[i]<villains_shortest_distance)
+            villains_shortest_distance = shortest_distance[i];
+
+    return villains_shortest_distance;
 }
 
 unsigned short board::get_heros_shortest_distance() const
 {
-
-    // test code
-    bool equal = _heros_shortest_distance == std::numeric_limits<unsigned short>::max();
-    bool not_less_than = !(_heros_shortest_distance < std::numeric_limits<unsigned short>::max());
-
-    if (equal != not_less_than)
-        throw std::string("get_heros_shortest_distance has limit comparison error");
-
-    if (equal)
-        _heros_shortest_distance=board(*this,true).get_villains_shortest_distance();
-
-    return _heros_shortest_distance;
+    return board(*this,true).get_villains_shortest_distance();
 }
 
 // function signature for eval includes the most general case where we have an eval function that returns
