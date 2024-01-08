@@ -178,7 +178,7 @@ void mcts::uct_node<G>::simulate(
         // evaluate the node (and children if applicable)
         if (!leaf->is_evaluated())
             leaf->eval(rand, use_rollout, eval_children);
-        /*
+        
         // nb : this check is not appropriate as, in full generality (ie outside corridors)
         // it's possible our exact evaluation function will not always return 1.0/-1.0,
         // and therefore optimal actions may not always remain within the domain of the exact eval 
@@ -191,8 +191,7 @@ void mcts::uct_node<G>::simulate(
             {
                 throw std::string("Error: we have selected a node that is already evaluated, and is not terminal or nte");
             }
-        */
-
+        
         // backprop
         leaf->backprop();
     }
