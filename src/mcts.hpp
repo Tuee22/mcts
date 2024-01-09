@@ -595,7 +595,7 @@ void mcts::uct_node<G>::select(
             if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");
 
-             if (!(best_action<std::numeric_limits<size_t>::max()))
+            if (!(best_action<std::numeric_limits<size_t>::max()))
                 throw std::string("Error: select experienced limit compare failure");
 
         }
