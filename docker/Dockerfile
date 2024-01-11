@@ -31,5 +31,5 @@ RUN cp _corridors_mcts.so /home/python/corridors/
 WORKDIR /home
 RUN rm -rf src/
 
-EXPOSE 8889 8786 8787
-CMD jupyter lab --ip=0.0.0.0 --port=8889 --LabApp.token="" --notebook-dir='/home' --no-browser --allow-root
+EXPOSE 8888 8786 8787
+CMD jupyter lab --ip=0.0.0.0 --port=8888 --LabApp.token="" --notebook-dir='/home' --no-browser --allow-root
