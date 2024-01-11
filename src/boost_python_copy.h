@@ -1,5 +1,5 @@
 #pragma once
-
+#include <cstdint>
 // code taken from https://mail.python.org/pipermail/cplusplus-sig/2009-May/014505.html
 
 namespace boost_python_utils{

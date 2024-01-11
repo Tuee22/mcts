@@ -59,11 +59,14 @@ namespace corridors {
             bool villain_wins() const;
             bool villain_is_escapable() const;
             unsigned short get_villains_shortest_distance() const;
-
+            unsigned short get_heros_shortest_distance() const;
 
         protected:
             unsigned short hero_x, hero_y, villain_x, villain_y, hero_walls_remaining, villain_walls_remaining;
+
+            // memoized values
             mutable size_t _stored_hash;
+
             // For all wall positions, indices start in the lower-left corner (from hero's perspective)
             // and move right, then up one row then right again, etc, ending in the upper right corner.
             // Therefore in order to flip these indices from 

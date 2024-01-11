@@ -65,7 +65,6 @@ board::board(
     horizontal_walls=_horizontal_walls;
     vertical_walls=_vertical_walls;
     // to ensure the hash gets calculated when called
-    _stored_hash = 0;
 }
 
 board& board::operator=(const board & source) noexcept
@@ -204,7 +203,13 @@ unsigned short board::get_villains_shortest_distance() const
     for (size_t i=0;i<BOARD_SIZE;++i)
         if (shortest_distance[i]<villains_shortest_distance)
             villains_shortest_distance = shortest_distance[i];
+
     return villains_shortest_distance;
+}
+
+unsigned short board::get_heros_shortest_distance() const
+{
+    return board(*this,true).get_villains_shortest_distance();
 }
 
 // function signature for eval includes the most general case where we have an eval function that returns
@@ -340,7 +345,7 @@ std::string board::display() const
     }
 
     unsigned short _villains_shortest_distance = get_villains_shortest_distance();
-    unsigned short _heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
+    unsigned short _heros_shortest_distance = get_heros_shortest_distance();
 
     std::string output;
     output += std::string("Hero distance from end: ") + boost::lexical_cast<std::string>(_heros_shortest_distance) + std::string("\n");
@@ -385,7 +390,7 @@ int board::get_non_terminal_rank() const
 {
     // high rank is better for hero
     unsigned short villains_shortest_distance = get_villains_shortest_distance();
-    unsigned short heros_shortest_distance = board(*this,true).get_villains_shortest_distance();
+    unsigned short heros_shortest_distance = get_heros_shortest_distance();
     return (int)villains_shortest_distance - (int)heros_shortest_distance;
 }
 

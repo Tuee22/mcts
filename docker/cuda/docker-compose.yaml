@@ -13,7 +13,7 @@ services:
     volumes:
       - ../..:/home/mcts
     ports:
-      - "8888:8888"
-      - "8786:8786"
-      - "8787:8787"
+      - "9888:8888"
+      - "9786:8786"
+      - "9787:8787"
     restart: unless-stopped

@@ -178,11 +178,20 @@ void mcts::uct_node<G>::simulate(
         // evaluate the node (and children if applicable)
         if (!leaf->is_evaluated())
             leaf->eval(rand, use_rollout, eval_children);
+        
+        // nb : this check is not appropriate as, in full generality (ie outside corridors)
+        // it's possible our exact evaluation function will not always return 1.0/-1.0,
+        // and therefore optimal actions may not always remain within the domain of the exact eval 
+        // funciton. moreover even in the corridors context, even when we're in a straight race,
+        // some legal moves may step out of the doman of the eval funciton without any loss
+        // of equity.
         else
             // test code
             if (!leaf->get_state().is_terminal() && !leaf->check_non_terminal_eval())
+            {
                 throw std::string("Error: we have selected a node that is already evaluated, and is not terminal or nte");
-
+            }
+        
         // backprop
         leaf->backprop();
     }
@@ -298,8 +307,11 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
         }
     }
 
-    if (!(choice<std::numeric_limits<size_t>::max()))
+    if (choice==std::numeric_limits<size_t>::max())
         throw std::string("Error: unable to find a choice");
+
+    if (!(choice<std::numeric_limits<size_t>::max()))
+        throw std::string("Error: choose_best_action experienced limit compare failure");
 
     // test code
     uct_node_ptr ret = make_move(choice);
@@ -520,6 +532,10 @@ void mcts::uct_node<G>::select(
 
         if (curr_node_ptr->all_children_evaluated)
         {
+            if (curr_node_ptr->visit_count==0)
+                throw std::string("Error: cannot select, parent node must have at least one visit");
+            double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
+
             double max_uct = std::numeric_limits<double>::lowest();
             std::vector<size_t> best_actions;
             for (size_t i=0;i<curr_children.size();++i)
@@ -530,26 +546,24 @@ void mcts::uct_node<G>::select(
                 // are from villain's perspective, ergo a sign flip is needed
                 // to get them from hero's.
                 double Q = -curr_children[i]->get_equity();
-
-                if (curr_node_ptr->visit_count==0)
-                    throw std::string("Error: cannot select, parent node must have at least one visit");
-
-                double N = (double)curr_node_ptr->visit_count-1.0; // -1 because we want to count total simulations after parent move (traditional UCT); or total visit count to all actions from base state (PUCT)
                 double n = (double)curr_children[i]->visit_count;
                 double U;
 
                 if (N<0)
-                    throw std::string("Error");
-                
-                if (use_puct)
-                    // AlphaZero style PUCT formula
-                    U = sqrt(N) / (1.0+n);
+                    throw std::string("Error: no visits to parent node");
+                else if (N==0)
+                    U = 0;
                 else
-                    // standard UCT formula
-                    U = sqrt(std::log(N) / std::max(n,1.0));
-
-                if (use_probs)
-                    U *= curr_node_ptr->eval_probs[i];
+                {                
+                    if (use_puct)
+                        // AlphaZero style PUCT formula
+                        U = sqrt(N) / (1.0+n);
+                    else
+                        // standard UCT formula
+                        U = sqrt(std::log(N) / std::max(n,1.0));
+                    if (use_probs)
+                        U *= curr_node_ptr->eval_probs[i];
+                }
 
                 double curr_uct = Q + c * U;
 
@@ -578,8 +592,12 @@ void mcts::uct_node<G>::select(
                     best_action=best_actions[0];
             }
 
-            if (!(best_action<std::numeric_limits<size_t>::max()))
+            if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");
+
+            if (!(best_action<std::numeric_limits<size_t>::max()))
+                throw std::string("Error: select experienced limit compare failure");
+
         }
         // test code
 
