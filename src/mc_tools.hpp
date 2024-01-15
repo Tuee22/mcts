@@ -3,7 +3,8 @@
 #include <limits>
 #include <vector>
 
-typedef std::mt19937_64 Rand; 
+namespace mcts{
+
 typedef uint_fast64_t Seed;
 
 template <typename RAND>
@@ -24,5 +25,14 @@ size_t select_random_index(const std::vector<T> & vec, RAND & rand) noexcept
         ? std::numeric_limits<size_t>::max()
         : sze==1
             ? 0
-            : sze * unif(rand);
+            : (size_t)((double)sze * unif(rand));
 }
+
+template <typename T, typename RAND>
+T select_random_value(const std::vector<T> & vec, RAND & rand )
+{
+    size_t random_index=select_random_index(vec,rand);
+    assert (random_index < vec.size());
+    return vec[random_index];
+}
+} // namespace mcts
