@@ -5,6 +5,7 @@
 #include <limits>
 #include "boost/lexical_cast.hpp"
 #include <algorithm>
+#include "mc_tools.hpp"
 
 // test code
 //#define PRINT_OUTPUT
@@ -17,8 +18,8 @@
 #define MAX_ROLLOUT_ITERS 10000
 
 namespace mcts {
-typedef std::mt19937_64 Rand; 
-typedef uint_fast64_t Seed;
+
+typedef std::mt19937_64 Rand;
 
 template <typename G>
 struct rollout
@@ -214,7 +215,6 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     if (num_legal_moves==0)
         throw std::string("Error: no legal moves!");
 
-    std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
     size_t choice=std::numeric_limits<size_t>::max();
 
     // determine if there are any winning moves
@@ -226,13 +226,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     }
     
     if (winning_moves.size()>0)
-    {
-        // if there are multiple winning moves, choose one randomly
-        if (winning_moves.size()>1)
-            choice=winning_moves[(size_t)(unif(rand)+(double)winning_moves.size())];
-        else
-            choice=winning_moves[0];
-    }
+        choice=select_random_value(winning_moves,rand);
     else if (check_non_terminal_eval())
     {
         // evaluation for this state, we will make our move decision
@@ -296,14 +290,11 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
             }
 
             // randomly select a value from choices_queue
-            if (choices_queue.size()>1)
-                choice = choices_queue[(size_t)(unif(rand) * (double)choices_queue.size())];
-            else
-                choice = choices_queue[0];
+            choice = select_random_value(choices_queue,rand);
         }
         else
         {
-            choice = (size_t)(unif(rand) * (double)num_legal_moves);
+            choice = select_random_index(_children, rand);
         }
     }
 
@@ -516,16 +507,8 @@ void mcts::uct_node<G>::select(
                     unexplored_children.push_back(i);
             }
             if (unexplored_children.size()>0)
-            {
                 // if not all children are explored, choose an unexplored node randomly
-                if (unexplored_children.size()>1)
-                {
-                    std::uniform_real_distribution<double> unif(0.0,1.0);
-                    best_action=unexplored_children[(size_t)(unif(rand) * (double)unexplored_children.size())];
-                }
-                else
-                    best_action=unexplored_children[0];
-            }
+                best_action=select_random_index(unexplored_children,rand);
             else
                 curr_node_ptr->all_children_evaluated=true;            
         }
@@ -579,18 +562,9 @@ void mcts::uct_node<G>::select(
                 }
             }
         
-            size_t num_best_actions=best_actions.size();
-            if (num_best_actions>0)
-            {
-                if (num_best_actions>1)
-                {
-                    // if there were ties for best action, choose that action randomly
-                    std::uniform_real_distribution<double> unif(0.0,1.0);
-                    best_action=best_actions[(size_t)(unif(rand) * (double)num_best_actions)];
-                }
-                else
-                    best_action=best_actions[0];
-            }
+            //size_t num_best_actions=best_actions.size();
+            if (best_actions.size()>0)
+                best_action=select_random_value(best_actions,rand);
 
             if (best_action==std::numeric_limits<size_t>::max())
                 throw std::string("Error: failed to select node");
@@ -732,7 +706,6 @@ void mcts::uct_node<G>::Set_Null()
 template <typename G>
 double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
 {
-    std::uniform_real_distribution<double> unif(0.0,1.0); // call unif(rand)
     bool initial_heros_turn = true;
 
     #ifdef LOG_MOVES
@@ -769,8 +742,7 @@ double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
         std::vector<G> actions;
         curr_move.get_legal_moves(actions);
 
-        size_t random_index = unif(rand) * actions.size();
-        curr_move = std::move(actions[random_index]);
+        curr_move = select_random_value(actions,rand);
 
         #ifdef LOG_MOVES
             moves.push_back(curr_move);

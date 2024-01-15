@@ -44,12 +44,12 @@ int main()
     {   
         // hyperparameters
         mcts::Rand rand(66); // 63 segfaults; 66 infinite cycle at end 
-        double c = std::sqrt(0.25);
-        size_t initial_sims = 1000;
-        size_t per_move_sims = 1000;
+        double c = std::sqrt(0.025);
+        size_t initial_sims = 10000;
+        size_t per_move_sims = 10000;
         bool use_rollout = true;
-        bool eval_children = true;
-        bool use_puct = true;
+        bool eval_children = false;
+        bool use_puct = false;
         bool use_probs = false;
         bool decide_using_visits = true;
         bool terminate_early = false; // true means we terminate when there's a non-terminal eval

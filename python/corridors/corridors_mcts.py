@@ -53,13 +53,13 @@ class Corridors_MCTS(_corridors_mcts):
 
     def __init__(
         self,
-        c=sqrt(2),
+        c=sqrt(0.025),
         seed=42,
-        min_simulations=1000,
+        min_simulations=10000,
         max_simulations=10000,
         sim_increment=250,
         use_rollout=True,
-        eval_children=True,
+        eval_children=False,
         use_puct=False,
         use_probs=False,
         decide_using_visits=True,
