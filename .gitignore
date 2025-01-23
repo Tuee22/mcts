@@ -56,3 +56,6 @@ _limit_compare
 # callgrind
 callgrind*
 gmon.out
+
+# vscode
+.vscode
