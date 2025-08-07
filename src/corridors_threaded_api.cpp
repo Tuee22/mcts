@@ -54,12 +54,24 @@ p::list corridors_threaded_api::get_sorted_actions(const bool flip)
     return ret;
 }
 
-/*
-void corridors_threaded_api::choose_best_action(Rand rand, const double epsilon, const bool decide_using_visits)
+std::string corridors_threaded_api::choose_best_action(const double epsilon)
 {
-    corridors_base::choose_best_action(rand,epsilon,decide_using_visits);
+    auto actions = corridors_base::get_sorted_actions(true);
+    if (actions.empty()) {
+        throw std::string("No legal actions available");
+    }
+    
+    // Simple epsilon-greedy selection
+    Rand rand;
+    if (epsilon > 0 && std::uniform_real_distribution<double>(0.0, 1.0)(rand) < epsilon) {
+        // Choose random action
+        std::uniform_int_distribution<size_t> dist(0, actions.size() - 1);
+        return std::get<2>(actions[dist(rand)]);
+    } else {
+        // Choose best action (first in sorted list)
+        return std::get<2>(actions[0]);
+    }
 }
-*/
 
 void corridors_threaded_api::ensure_sims(const size_t sims)
 {

@@ -32,6 +32,7 @@ htmlcov/
 .tox/
 .coverage
 .cache
+.pytest_cache
 nosetests.xml
 coverage.xml
 
@@ -39,7 +40,7 @@ coverage.xml
 *.mo
 *.pot
 
-# Django stuff:
+# Logs
 *.log
 
 # Sphinx documentation
@@ -57,5 +58,34 @@ _limit_compare
 callgrind*
 gmon.out
 
-# vscode
+# IDE and editor files
 .vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Claude AI
+.claude
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Benchmark results
+.benchmarks

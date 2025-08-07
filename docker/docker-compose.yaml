@@ -1,0 +1,26 @@
+services:
+  mcts:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
+      args:
+        TARGETARCH: ${TARGET:-cpu}
+    image: mcts:${TARGET:-cpu}
+    runtime: ${RUNTIME:-}
+    volumes:
+      - type: bind
+        source: ..
+        target: /home/mcts
+    ports:
+      - target: 8888
+        published: ${PORT_JUPYTER:-8888}
+        protocol: tcp
+      - target: 8786
+        published: ${PORT_DASK_SCHEDULER:-8786}
+        protocol: tcp
+      - target: 8787
+        published: ${PORT_DASK_DASHBOARD:-8787}
+        protocol: tcp
+    restart: unless-stopped
+    environment:
+      PYTHONPATH: /home/python/:/home/mcts/python/
