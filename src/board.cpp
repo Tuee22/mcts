@@ -1,12 +1,18 @@
 #include "board.h"
 
-#include "boost/functional/hash.hpp"
+#include <functional>
 #include <string>
 #include <algorithm>
 #include <limits>
-#include "boost/lexical_cast.hpp"
 
 using namespace corridors;
+
+// Hash combine function to replace hash_combine
+template <typename T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
 
 // don't use this approach-- it's super slow!!
 /*template<std::size_t N>
@@ -224,15 +230,15 @@ size_t board::get_hash() const
 {   
     if(!_stored_hash)
     {
-        boost::hash_combine(_stored_hash,hero_x);
-        boost::hash_combine(_stored_hash,hero_y);
-        boost::hash_combine(_stored_hash,villain_x);
-        boost::hash_combine(_stored_hash,villain_y);
-        boost::hash_combine(_stored_hash,hero_walls_remaining);
-        boost::hash_combine(_stored_hash,villain_walls_remaining);
-        boost::hash_combine(_stored_hash,wall_middles.get_hash());
-        boost::hash_combine(_stored_hash,horizontal_walls.get_hash());
-        boost::hash_combine(_stored_hash,vertical_walls.get_hash());
+        hash_combine(_stored_hash,hero_x);
+        hash_combine(_stored_hash,hero_y);
+        hash_combine(_stored_hash,villain_x);
+        hash_combine(_stored_hash,villain_y);
+        hash_combine(_stored_hash,hero_walls_remaining);
+        hash_combine(_stored_hash,villain_walls_remaining);
+        hash_combine(_stored_hash,wall_middles.get_hash());
+        hash_combine(_stored_hash,horizontal_walls.get_hash());
+        hash_combine(_stored_hash,vertical_walls.get_hash());
     }
     return _stored_hash;
     // NB: we intentionally leave _action out of the hash as the hash is only for the position
@@ -264,9 +270,9 @@ std::string board::get_action_text(const bool flip) const
         unsigned short _hero_x = use_action.token_position % BOARD_SIZE;
         unsigned short _hero_y = use_action.token_position / BOARD_SIZE;
         return std::string("*(")
-            + boost::lexical_cast<std::string>(_hero_x)
+            + lexical_cast<std::string>(_hero_x)
             + std::string(",")
-            + boost::lexical_cast<std::string>(_hero_y)
+            + lexical_cast<std::string>(_hero_y)
             + std::string(")");
     }
     else
@@ -275,9 +281,9 @@ std::string board::get_action_text(const bool flip) const
         unsigned short _wall_y = use_action.wall_middle / (BOARD_SIZE-1);
         std::string orientation((use_action.wall_is_vertical?"V":"H"));
         return orientation + std::string("(")
-            + boost::lexical_cast<std::string>(_wall_x)
+            + lexical_cast<std::string>(_wall_x)
             + std::string(",")                          
-            + boost::lexical_cast<std::string>(_wall_y)
+            + lexical_cast<std::string>(_wall_y)
             + std::string(")");
     }
 }
@@ -348,10 +354,10 @@ std::string board::display() const
     unsigned short _heros_shortest_distance = get_heros_shortest_distance();
 
     std::string output;
-    output += std::string("Hero distance from end: ") + boost::lexical_cast<std::string>(_heros_shortest_distance) + std::string("\n");
-    output += std::string("Villain distance from end: ") + boost::lexical_cast<std::string>(_villains_shortest_distance) + std::string("\n");
-    output += std::string("Hero walls remaining: ") + boost::lexical_cast<std::string>(hero_walls_remaining) + std::string("\n");
-    output += std::string("Villain walls remaining: ") + boost::lexical_cast<std::string>(villain_walls_remaining) + std::string("\n");
+    output += std::string("Hero distance from end: ") + lexical_cast<std::string>(_heros_shortest_distance) + std::string("\n");
+    output += std::string("Villain distance from end: ") + lexical_cast<std::string>(_villains_shortest_distance) + std::string("\n");
+    output += std::string("Hero walls remaining: ") + lexical_cast<std::string>(hero_walls_remaining) + std::string("\n");
+    output += std::string("Villain walls remaining: ") + lexical_cast<std::string>(villain_walls_remaining) + std::string("\n");
 
     std::for_each(rows.cbegin(), rows.cend(),[&](const std::string & str){
         output += str;

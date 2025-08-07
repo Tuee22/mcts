@@ -1,10 +1,8 @@
 #!python
-from sys import prefix
-from shutil import copyfile
+import subprocess
+import os
+
 project_name = "_corridors_mcts"
-boost_libs = ['boost_python310', 'boost_numpy310']
-python_include_path = [prefix + '/include/python3.10']
-lib_path = []
 
 # get argument flags
 test = bool(ARGUMENTS.get('test',0))
@@ -13,40 +11,88 @@ profile = bool(ARGUMENTS.get('profile', 0))
 sanitize = bool(ARGUMENTS.get('sanitize', 0))
 
 # determine which files to build based on test flag
-all_source_files=Glob('*.cpp')
-exclude_from_test=[project_name+'.cpp','corridors_threaded_api.cpp']
-exclude_from_prod=['test.cpp']
-exclude = exclude_from_test if test else exclude_from_prod
-source_files=[f for f in all_source_files if str(f) not in exclude]
+all_source_files = Glob('*.cpp')
+exclude_from_test = [project_name + '.cpp', 'corridors_threaded_api.cpp']
+exclude_from_prod = ['test.cpp', '_corridors_mcts.cpp', 'corridors_threaded_api.cpp']  # Exclude old boost version and threaded API
 
-# don't need python libs if we're testing in C++
-libs = [] if test else boost_libs
-include_path = [] if test else python_include_path
+if test:
+    exclude = exclude_from_test
+    source_files = [f for f in all_source_files if str(f) not in exclude]
+else:
+    # For production, use specific files
+    source_files = [f for f in all_source_files if str(f) not in exclude_from_prod]
+
+# Python include and library configuration
+python_includes = []
+python_libs = []
+
+if not test:
+    # Try to get python config
+    try:
+        # Try python3-config first
+        python_includes = subprocess.check_output(['python3-config', '--includes'], 
+                                                 universal_newlines=True).strip().split()
+        python_includes = [flag[2:] for flag in python_includes if flag.startswith('-I')]
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback configuration
+        python_includes = [
+            '/usr/include/python3.12',
+            '/usr/local/include/python3.12',
+            '/usr/include/python3.12m'
+        ]
+    
+    # Add pybind11 includes if available
+    try:
+        import pybind11
+        python_includes.append(pybind11.get_include())
+    except ImportError:
+        # Fallback pybind11 paths
+        python_includes.extend([
+            '/usr/local/include',
+            '/usr/include'
+        ])
 
 # determine compiler and linker flags
-compiler_always_flags=['-Wno-deprecated-declarations']
-linker_always_flags=[]
-optimization_maybe_flag=[] if debug else ['-Ofast']
-debug_profile_maybe_flag=['-pg'] if profile else ['-g'] if (test or debug) else []
-fsanitize_maybe_flag=['-fsanitize=address'] if sanitize else []
+compiler_always_flags = [
+    '-Wno-deprecated-declarations',
+    '-std=c++17',  # Required for pybind11
+    '-fPIC'
+]
+
+linker_always_flags = []
+optimization_maybe_flag = [] if debug else ['-O3']
+debug_profile_maybe_flag = ['-pg'] if profile else ['-g'] if (test or debug) else []
+fsanitize_maybe_flag = ['-fsanitize=address'] if sanitize else []
 
 # determine env dict
-flags={
+flags = {
     'CCFLAGS': compiler_always_flags + optimization_maybe_flag + debug_profile_maybe_flag + fsanitize_maybe_flag,
-    'LINKFLAGS':linker_always_flags + debug_profile_maybe_flag + fsanitize_maybe_flag,
+    'LINKFLAGS': linker_always_flags + debug_profile_maybe_flag + fsanitize_maybe_flag,
 }
-print('Passing the following compiler and linker flags:',flags)
 
-env=Environment(**flags)
-# build an executable if we're testing, otherwise build 
-build_method=env.Program if test else env.SharedLibrary
+print('Building pybind11 version (no Boost dependencies)')
+print('Source files:', [str(f) for f in source_files])
+print('Python includes:', python_includes)
+print('Compiler flags:', flags)
+
+env = Environment(**flags)
+
+# build an executable if we're testing, otherwise build shared library
+if test:
+    build_method = env.Program
+    target_name = project_name
+    extra_args = {}
+else:
+    build_method = env.SharedLibrary
+    target_name = project_name
+    extra_args = {
+        'SHLIBPREFIX': '',
+        'CPPPATH': python_includes,
+        'LIBS': python_libs
+    }
 
 build_method(
-    target = project_name,
-    SHLIBPREFIX='',
-    source = source_files,
-    LIBS=libs,
-    LIBPATH=lib_path,
-    CPPPATH=include_path,
-    RPATH=lib_path,
+    target=target_name,
+    source=source_files,
+    **extra_args
 )

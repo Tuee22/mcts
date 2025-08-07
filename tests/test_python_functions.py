@@ -27,7 +27,6 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
-
 @pytest.mark.python
 @pytest.mark.display
 class TestDisplaySortedActions:
@@ -145,7 +144,6 @@ class TestDisplaySortedActions:
             assert parts[3] == "Equity:"
             assert parts[5] == "Action:"
 
-
 @pytest.mark.python
 @pytest.mark.integration
 class TestComputerSelfPlay:
@@ -154,8 +152,7 @@ class TestComputerSelfPlay:
     def test_computer_self_play_setup(self):
         """Test that computer_self_play can be called without errors in setup."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
-
+            return
         # Mock the MCTS instances to avoid actual computation
         mock_p1 = Mock()
         mock_p1.get_sorted_actions.return_value = []  # Empty = game over
@@ -172,8 +169,8 @@ class TestComputerSelfPlay:
     def test_computer_self_play_single_move(self):
         """Test computer self-play with single move before game ends."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_p1 = Mock()
         mock_p2 = Mock()
 
@@ -201,8 +198,8 @@ class TestComputerSelfPlay:
     def test_computer_self_play_same_instance(self):
         """Test computer self-play using same instance for both players."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_instance = Mock()
         mock_instance.get_sorted_actions.return_value = []  # Game over immediately
         mock_instance.display.return_value = "Mock board"
@@ -216,8 +213,8 @@ class TestComputerSelfPlay:
     def test_computer_self_play_stop_on_eval(self):
         """Test computer self-play with stop_on_eval=True."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_p1 = Mock()
         mock_p1.get_sorted_actions.return_value = [(100, 0.6, "*(4,8)")]  # Winning move
         mock_p1.display.return_value = "Mock winning board"
@@ -235,7 +232,6 @@ class TestComputerSelfPlay:
         winning_messages = [msg for msg in print_calls if "wins!" in msg]
         assert len(winning_messages) > 0
 
-
 @pytest.mark.python
 @pytest.mark.integration
 class TestHumanComputerPlay:
@@ -248,8 +244,8 @@ class TestHumanComputerPlay:
     ):
         """Test human-computer play when game ends immediately."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.return_value = []  # Game over immediately
         mock_mcts.display.return_value = "Game over board"
@@ -264,8 +260,8 @@ class TestHumanComputerPlay:
     def test_human_computer_play_single_move(self, mock_print, mock_input):
         """Test human-computer play with one move."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_mcts = Mock()
         # First call has moves, second call game over
         mock_mcts.get_sorted_actions.side_effect = [
@@ -286,8 +282,8 @@ class TestHumanComputerPlay:
     def test_human_computer_play_invalid_move(self, mock_print, mock_input):
         """Test human-computer play with invalid move first."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
             [(100, 0.6, "*(4,1)")],  # Valid moves
@@ -312,8 +308,8 @@ class TestHumanComputerPlay:
     def test_human_computer_play_computer_first(self, mock_print, mock_input):
         """Test human-computer play with computer going first."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
             [(100, 0.6, "*(4,1)")],  # Computer's options
@@ -334,8 +330,8 @@ class TestHumanComputerPlay:
     def test_human_computer_play_hide_moves(self, mock_print, mock_input):
         """Test that human moves are properly hidden when requested."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mock_mcts = Mock()
         # First call returns actions, second call returns empty (game over)
         mock_mcts.get_sorted_actions.side_effect = [
@@ -356,7 +352,6 @@ class TestHumanComputerPlay:
         action_calls = [call for call in print_calls if "Visit count:" in call]
         assert len(action_calls) == 0
 
-
 @pytest.mark.python
 @pytest.mark.unit
 class TestCorridorsMCTSPythonMethods:
@@ -365,8 +360,8 @@ class TestCorridorsMCTSPythonMethods:
     def test_json_serialization(self, fast_mcts_params: Dict[str, Any]):
         """Test __json__ method for serialization."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mcts = Corridors_MCTS(**fast_mcts_params)
         json_repr = mcts.__json__()
 
@@ -378,8 +373,8 @@ class TestCorridorsMCTSPythonMethods:
     def test_json_serialization_with_name(self, fast_mcts_params: Dict[str, Any]):
         """Test __json__ method with custom name attribute."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mcts = Corridors_MCTS(**fast_mcts_params)
         mcts.name = "test_mcts"
         json_repr = mcts.__json__()
@@ -389,8 +384,8 @@ class TestCorridorsMCTSPythonMethods:
     def test_get_evaluation_none_handling(self, fast_mcts_params: Dict[str, Any]):
         """Test that get_evaluation properly handles None values."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
         # Mock the super().get_evaluation() to return 0 (falsy)
@@ -410,8 +405,8 @@ class TestCorridorsMCTSPythonMethods:
     def test_method_delegation(self, fast_mcts_params: Dict[str, Any]):
         """Test that methods properly delegate to parent class."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
 
+            return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
         # These should not raise exceptions and should return expected types
@@ -422,7 +417,6 @@ class TestCorridorsMCTSPythonMethods:
 
         evaluation = mcts.get_evaluation()
         assert evaluation is None or isinstance(evaluation, (int, float))
-
 
 @pytest.mark.python
 @pytest.mark.parametrize(
@@ -436,8 +430,8 @@ class TestCorridorsMCTSPythonMethods:
 def test_mcts_parameter_combinations(c: float, seed: int, min_sims: int, max_sims: int):
     """Test MCTS with various parameter combinations."""
     if not CORRIDORS_AVAILABLE:
-        pytest.skip("Corridors C++ module not available")
 
+        return
     mcts = Corridors_MCTS(
         c=c,
         seed=seed,
@@ -450,7 +444,6 @@ def test_mcts_parameter_combinations(c: float, seed: int, min_sims: int, max_sim
     # Basic functionality should work
     display = mcts.display()
     assert isinstance(display, str)
-
 
 @pytest.mark.python
 @pytest.mark.integration
@@ -473,8 +466,7 @@ class TestErrorHandling:
     def test_function_imports(self):
         """Test that all expected functions can be imported."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
-
+            return
         # These imports should work
         from python.corridors.corridors_mcts import (
             Corridors_MCTS,

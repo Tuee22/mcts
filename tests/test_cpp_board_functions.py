@@ -14,8 +14,6 @@ import pytest
 from typing import Dict, Any, List, Tuple
 from unittest.mock import Mock
 
-from tests.conftest import skip_if_no_corridors
-
 try:
     from python.corridors.corridors_mcts import Corridors_MCTS
 
@@ -23,14 +21,13 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
-
 @pytest.mark.cpp
 @pytest.mark.board
 class TestCorridorsMCTSBasicFunctionality:
     """Test basic MCTS functionality exposed from C++."""
 
     def test_mcts_initialization_basic(
-        self, basic_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, basic_mcts_params: Dict[str, Any]
     ):
         """Test MCTS instance can be created with basic parameters."""
         mcts = Corridors_MCTS(**basic_mcts_params)
@@ -40,14 +37,14 @@ class TestCorridorsMCTSBasicFunctionality:
         assert hasattr(mcts, "get_sorted_actions")
 
     def test_mcts_initialization_fast(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test MCTS instance with fast parameters."""
         mcts = Corridors_MCTS(**fast_mcts_params)
         assert mcts is not None
 
     @pytest.mark.parametrize("c_value", [0.1, 1.0, 2.0, 10.0])
-    def test_mcts_initialization_c_values(self, c_value: float, skip_if_no_corridors):
+    def test_mcts_initialization_c_values(self, c_value: float):
         """Test MCTS initialization with different exploration parameters."""
         mcts = Corridors_MCTS(
             c=c_value, seed=42, min_simulations=10, max_simulations=50, sim_increment=5
@@ -55,7 +52,7 @@ class TestCorridorsMCTSBasicFunctionality:
         assert mcts is not None
 
     @pytest.mark.parametrize("seed", [1, 42, 123, 999, 12345])
-    def test_mcts_initialization_seeds(self, seed: int, skip_if_no_corridors):
+    def test_mcts_initialization_seeds(self, seed: int):
         """Test MCTS initialization with different random seeds."""
         mcts = Corridors_MCTS(
             seed=seed, min_simulations=10, max_simulations=50, sim_increment=5
@@ -76,8 +73,7 @@ class TestCorridorsMCTSBasicFunctionality:
         use_rollout: bool,
         eval_children: bool,
         use_puct: bool,
-        use_probs: bool,
-        skip_if_no_corridors,
+        use_probs: bool
     ):
         """Test different MCTS algorithm configurations."""
         mcts = Corridors_MCTS(
@@ -93,14 +89,13 @@ class TestCorridorsMCTSBasicFunctionality:
         )
         assert mcts is not None
 
-
 @pytest.mark.cpp
 @pytest.mark.board
 class TestBoardDisplay:
     """Test board display functionality."""
 
     def test_display_initial_state(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test displaying initial board state."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -115,7 +110,7 @@ class TestBoardDisplay:
         assert "walls remaining:" in display.lower()
 
     def test_display_flipped(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test displaying board from villain's perspective."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -140,7 +135,7 @@ class TestBoardDisplay:
         assert "v" in display_flipped.lower()
 
     def test_display_after_moves(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test board display changes after making moves."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -157,14 +152,13 @@ class TestBoardDisplay:
             new_display = mcts.display(flip=False)
             assert new_display != initial_display
 
-
 @pytest.mark.cpp
 @pytest.mark.mcts
 class TestMCTSActions:
     """Test MCTS action generation and selection."""
 
     def test_get_sorted_actions_initial(
-        self, fast_mcts_params: Dict[str, Any], mcts_helper, skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any], mcts_helper
     ):
         """Test getting sorted actions from initial position."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -176,7 +170,7 @@ class TestMCTSActions:
         assert mcts_helper.validate_sorted_actions(actions)
 
     def test_get_sorted_actions_structure(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test structure of sorted actions."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -193,7 +187,7 @@ class TestMCTSActions:
             assert len(action_str) > 0
 
     def test_action_string_formats(
-        self, fast_mcts_params: Dict[str, Any], mcts_helper, skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any], mcts_helper
     ):
         """Test that action strings follow expected formats."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -204,7 +198,7 @@ class TestMCTSActions:
             assert mcts_helper.validate_action_format(action_str)
 
     def test_choose_best_action(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test choosing best action."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -223,7 +217,7 @@ class TestMCTSActions:
 
     @pytest.mark.parametrize("epsilon", [0.0, 0.1, 0.5, 1.0])
     def test_choose_best_action_epsilon(
-        self, epsilon: float, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, epsilon: float, fast_mcts_params: Dict[str, Any]
     ):
         """Test epsilon-greedy action selection."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -233,14 +227,13 @@ class TestMCTSActions:
         assert isinstance(best_action, str)
         assert len(best_action) > 0
 
-
 @pytest.mark.cpp
 @pytest.mark.board
 class TestMoveValidation:
     """Test move validation and execution."""
 
     def test_make_valid_moves(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test making valid positional moves."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -269,7 +262,7 @@ class TestMoveValidation:
         ],
     )
     def test_make_specific_moves(
-        self, move_str: str, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, move_str: str, fast_mcts_params: Dict[str, Any]
     ):
         """Test making specific moves if they're legal."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -286,7 +279,7 @@ class TestMoveValidation:
             assert isinstance(new_actions, list)
 
     def test_wall_placement_moves(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test wall placement moves."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -306,14 +299,13 @@ class TestMoveValidation:
             display = mcts.display(flip=False)
             assert isinstance(display, str)
 
-
 @pytest.mark.cpp
 @pytest.mark.board
 class TestGameEvaluation:
     """Test game state evaluation functions."""
 
     def test_get_evaluation_initial(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test evaluation on initial position."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -323,7 +315,7 @@ class TestGameEvaluation:
         assert evaluation is None or evaluation == 0.0
 
     def test_ensure_simulations(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test ensuring minimum simulations are performed."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -342,7 +334,7 @@ class TestGameEvaluation:
 
     @pytest.mark.slow
     def test_longer_simulation(
-        self, basic_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, basic_mcts_params: Dict[str, Any]
     ):
         """Test longer simulation run."""
         # Increase simulation count for this test
@@ -363,14 +355,13 @@ class TestGameEvaluation:
             assert top_action_visits >= 2  # Top action should have multiple visits
             assert total_visits >= 200  # Should have done the requested simulations
 
-
 @pytest.mark.cpp
 @pytest.mark.integration
 class TestGameFlow:
     """Test complete game flow scenarios."""
 
     def test_make_several_moves(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test making several moves in sequence."""
         mcts = Corridors_MCTS(**fast_mcts_params)
@@ -399,7 +390,7 @@ class TestGameFlow:
 
     @pytest.mark.slow
     def test_play_to_completion(
-        self, fast_mcts_params: Dict[str, Any], skip_if_no_corridors
+        self, fast_mcts_params: Dict[str, Any]
     ):
         """Test playing a game to completion."""
         params = fast_mcts_params.copy()

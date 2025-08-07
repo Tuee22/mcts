@@ -3,19 +3,48 @@
 #include <vector>
 #include <memory>
 #include <limits>
-#include "boost/lexical_cast.hpp"
 #include <algorithm>
+#include <string>
+#include <sstream>
+#include <stdexcept>
+#include <type_traits>
+#include <cassert>
 #include "mc_tools.hpp"
 
-// test code
-//#define PRINT_OUTPUT
-//#define LOG_MOVES
-#ifdef PRINT_OUTPUT
-#include "conio.h"
-#include <iostream>
-#endif
-
 #define MAX_ROLLOUT_ITERS 10000
+
+// Boost replacement lexical_cast
+template<typename Target, typename Source>
+Target lexical_cast(const Source& source) {
+    if constexpr (std::is_same_v<Target, std::string>) {
+        if constexpr (std::is_arithmetic_v<Source>) {
+            return std::to_string(source);
+        } else {
+            std::ostringstream oss;
+            oss << source;
+            return oss.str();
+        }
+    } else if constexpr (std::is_arithmetic_v<Target>) {
+        if constexpr (std::is_same_v<Source, std::string>) {
+            std::istringstream iss(source);
+            Target result;
+            if (!(iss >> result)) {
+                throw std::runtime_error("lexical_cast conversion failed");
+            }
+            return result;
+        }
+    }
+    
+    // Fallback for other conversions
+    std::ostringstream oss;
+    oss << source;
+    std::istringstream iss(oss.str());
+    Target result;
+    if (!(iss >> result)) {
+        throw std::runtime_error("lexical_cast conversion failed");
+    }
+    return result;
+}
 
 namespace mcts {
 
@@ -75,7 +104,6 @@ protected:
     void eval(Rand & rand, const bool use_rollout, const bool eval_children);
     double rollout(Rand & rand) const;
     void backprop();
-        // tuple is (visit count, evaluation, move description)
 
 private:
     double Q_sum; // sum of all backprop'd equity values
@@ -90,35 +118,35 @@ private:
 
     void Set_Null();        
 };
-}
 
+// Implementation
 template <typename G>
-mcts::uct_node<G>::uct_node() noexcept : state()
+uct_node<G>::uct_node() noexcept : state()
 {
     Set_Null();
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node(G && input, mcts::uct_node<G> * _parent) noexcept : state(std::move(input))
+uct_node<G>::uct_node(G && input, uct_node<G> * _parent) noexcept : state(std::move(input))
 {
     Set_Null();
     parent = _parent;
 }
 
 template <typename G>
-mcts::uct_node<G>::uct_node(const G & input) noexcept : state(input)
+uct_node<G>::uct_node(const G & input) noexcept : state(input)
 {
     Set_Null();
 }
 
 template <typename G>
-void mcts::uct_node<G>::emplace_back(G && input)
+void uct_node<G>::emplace_back(G && input)
 {
     children.emplace_back(uct_node_ptr(new uct_node<G>(std::move(input),this)));
 }
 
 template <typename G>
-void mcts::uct_node<G>::set_state(const G & input, uct_node_ptr & output)
+void uct_node<G>::set_state(const G & input, uct_node_ptr & output)
 {
     // if we're setting the same session, do nothing
     if (input==state) return;
@@ -142,14 +170,14 @@ void mcts::uct_node<G>::set_state(const G & input, uct_node_ptr & output)
 }
 
 template <typename G>
-const G & mcts::uct_node<G>::get_state() const
+const G & uct_node<G>::get_state() const
 {
     return state;
 }
 
 // returns false if no simulations possible
 template <typename G>
-void mcts::uct_node<G>::simulate(
+void uct_node<G>::simulate(
     const size_t simulations,
     Rand & rand,
     const double c, 
@@ -179,13 +207,6 @@ void mcts::uct_node<G>::simulate(
         // evaluate the node (and children if applicable)
         if (!leaf->is_evaluated())
             leaf->eval(rand, use_rollout, eval_children);
-        
-        // nb : this check is not appropriate as, in full generality (ie outside corridors)
-        // it's possible our exact evaluation function will not always return 1.0/-1.0,
-        // and therefore optimal actions may not always remain within the domain of the exact eval 
-        // funciton. moreover even in the corridors context, even when we're in a straight race,
-        // some legal moves may step out of the doman of the eval funciton without any loss
-        // of equity.
         else
             // test code
             if (!leaf->get_state().is_terminal() && !leaf->check_non_terminal_eval())
@@ -200,7 +221,7 @@ void mcts::uct_node<G>::simulate(
 
 // chooses an action to take from current board position based on epsilon-greedy policy
 template <typename G>
-typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
+typename uct_node<G>::uct_node_ptr uct_node<G>::choose_best_action(
     Rand & rand,
     const double epsilon,
     const bool decide_using_visits // false means we decide using equity
@@ -282,7 +303,7 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
                         if (curr_Q > max_Q)
                         {
                             choices_queue.clear();
-                            curr_Q = max_Q;
+                            max_Q = curr_Q;
                         }
                         choices_queue.push_back(i);
                     }
@@ -309,14 +330,10 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::choose_best_action(
     if (ret->get_children().size()==0 && !ret->get_state().is_terminal())
         throw std::string("Error: position is not marked as terminal, but there are no children");
     return ret;
-
-    return make_move(choice);
 }
 
-// don't really need this anymore-- much more elegant
-// to do this in Python
 template <typename G>
-std::string mcts::uct_node<G>::display(const bool flip)
+std::string uct_node<G>::display(const bool flip)
 {
     auto moves = get_sorted_actions(flip);    
 
@@ -324,23 +341,22 @@ std::string mcts::uct_node<G>::display(const bool flip)
     std::string res;
 
     res += "Total Visits: ";
-    res += boost::lexical_cast<std::string>(visit_count);
+    res += lexical_cast<std::string>(visit_count);
     res += "\n";
 
-    size_t wall_placements = 0;
     std::for_each(moves.cbegin(), moves.cend(), [&](const auto &mv)
     {
         res += "Visit Count: ";
-        res += boost::lexical_cast<std::string>(std::get<0>(mv));
+        res += lexical_cast<std::string>(std::get<0>(mv));
 
         res += " Equity: ";
         double equity=std::get<1>(mv);
         std::string eq(
             equity > std::numeric_limits<double>::lowest()
-            ? boost::lexical_cast<std::string>(equity)
+            ? lexical_cast<std::string>(equity)
             : "NA"
         );
-        eq.resize(6);
+        if (eq.length() > 6) eq.resize(6);
         res += eq;
 
         res += " ";
@@ -350,11 +366,11 @@ std::string mcts::uct_node<G>::display(const bool flip)
 
     res += "\n";
 
-    return std::move(res);
+    return res;
 }
 
 template <typename G>
-typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::make_move(const size_t choice)
+typename uct_node<G>::uct_node_ptr uct_node<G>::make_move(const size_t choice)
 {
     std::vector<uct_node_ptr> & _children = get_children();
     if (choice>=_children.size())
@@ -364,20 +380,20 @@ typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::make_move(const size
 }
 
 template <typename G>
-typename mcts::uct_node<G>::uct_node_ptr mcts::uct_node<G>::make_move(const std::string & action_text, const bool flip)
+typename uct_node<G>::uct_node_ptr uct_node<G>::make_move(const std::string & action_text, const bool flip)
 {
     std::vector<uct_node_ptr> & _children = get_children();
     for (size_t i=0;i<_children.size();++i)
         if(_children[i]->state.get_action_text(flip)==action_text)
             return make_move(i);
 
-    throw std::string("Illegial move.");
+    throw std::string("Illegal move.");
 }
 
 // Returns a vector of sorted actions, from best to worst. each action is represented by a tuple of
 // (visit_count, equity, action_text).
 template <typename G>
-std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sorted_actions(const bool flip)
+std::vector<std::tuple<size_t, double, std::string>> uct_node<G>::get_sorted_actions(const bool flip)
 {
     std::vector<uct_node_ptr> & _children = get_children();
 
@@ -420,23 +436,23 @@ std::vector<std::tuple<size_t, double, std::string>> mcts::uct_node<G>::get_sort
         );
     });
 
-    return std::move(moves_display);
+    return moves_display;
 }
 
 template <typename G>
-bool mcts::uct_node<G>::is_evaluated() const
+bool uct_node<G>::is_evaluated() const
 {
     return eval_Q > std::numeric_limits<double>::lowest();
 }
 
 template <typename G>
-size_t mcts::uct_node<G>::get_visit_count() const
+size_t uct_node<G>::get_visit_count() const
 {
     return visit_count;
 }
 
 template <typename G>
-double mcts::uct_node<G>::get_equity() const
+double uct_node<G>::get_equity() const
 {
     if (!is_evaluated())
         throw std::string("Error: cannot get equity without evaluation");
@@ -449,21 +465,17 @@ double mcts::uct_node<G>::get_equity() const
     if (equity < -1 || equity > 1)
         throw std::string(
             "Q_sum is " 
-            + boost::lexical_cast<std::string>(Q_sum) + "\n"
+            + lexical_cast<std::string>(Q_sum) + "\n"
             + "and visit count is "
-            + boost::lexical_cast<std::string>(double(visit_count)) + "\n"
+            + lexical_cast<std::string>(double(visit_count)) + "\n"
             + "and eval_Q is "
-            + boost::lexical_cast<std::string>(eval_Q) + "\n"
+            + lexical_cast<std::string>(eval_Q) + "\n"
         );
     return equity;
-
-    return visit_count > 0
-        ? Q_sum / (double)visit_count
-        : eval_Q;
 }
 
 template <typename G>
-bool mcts::uct_node<G>::check_non_terminal_eval() const
+bool uct_node<G>::check_non_terminal_eval() const
 {
     double _;
     return state.check_non_terminal_eval(_);
@@ -473,13 +485,13 @@ bool mcts::uct_node<G>::check_non_terminal_eval() const
 // (stopping backprop at this node, allowing parent
 // to be safely deleted)
 template <typename G>
-void mcts::uct_node<G>::orphan()
+void uct_node<G>::orphan()
 {
     parent = NULL;
 }
 
 template <typename G>
-void mcts::uct_node<G>::select(
+void uct_node<G>::select(
     uct_node_ptr & leaf, 
     const double c, 
     Rand & rand, 
@@ -578,11 +590,11 @@ void mcts::uct_node<G>::select(
         if (best_action<0 || best_action >= curr_children.size())
             throw std::string(
                 "error: bounds violation on curr_children. best_action="
-                + boost::lexical_cast<std::string>(best_action)
+                + lexical_cast<std::string>(best_action)
                 + " when curr_children.size()=="
-                + boost::lexical_cast<std::string>(curr_children.size())
+                + lexical_cast<std::string>(curr_children.size())
                 + " with while_loop_iteration=="
-                + boost::lexical_cast<std::string>(while_loop_iteration)
+                + lexical_cast<std::string>(while_loop_iteration)
             );
 
         if (!curr_children[best_action].get())
@@ -591,6 +603,7 @@ void mcts::uct_node<G>::select(
         // get the node we're choosing
         leaf = curr_children[best_action];
         curr_node_ptr = leaf.get();
+        ++while_loop_iteration;
 
     }
     while (
@@ -604,7 +617,7 @@ void mcts::uct_node<G>::select(
 }
 
 template <typename G>
-std::vector<typename mcts::uct_node<G>::uct_node_ptr> & mcts::uct_node<G>::get_children()
+std::vector<typename uct_node<G>::uct_node_ptr> & uct_node<G>::get_children()
 {
     // nb: get_children can be thought of memoization for a child of a lazy evaluated
     // (which itself is a lazy tree)
@@ -617,7 +630,7 @@ std::vector<typename mcts::uct_node<G>::uct_node_ptr> & mcts::uct_node<G>::get_c
 }
  
 template <typename G>
-void mcts::uct_node<G>::eval(
+void uct_node<G>::eval(
     Rand & rand,
     const bool use_rollout,
     const bool eval_children)
@@ -666,14 +679,14 @@ void mcts::uct_node<G>::eval(
 }
 
 template <typename G>
-double mcts::uct_node<G>::rollout(Rand & rand) const
+double uct_node<G>::rollout(Rand & rand) const
 {
     return mcts::rollout<G>()(state,rand);
 }
 
 // performs the "backup" phase of the MCTS search
 template <typename G>
-void mcts::uct_node<G>::backprop()
+void uct_node<G>::backprop()
 {
     // test code
     if (!is_evaluated())
@@ -693,7 +706,7 @@ void mcts::uct_node<G>::backprop()
 }
 
 template <typename G>
-void mcts::uct_node<G>::Set_Null()
+void uct_node<G>::Set_Null()
 {
     Q_sum = 0;
     eval_Q = std::numeric_limits<double>::lowest();
@@ -704,14 +717,9 @@ void mcts::uct_node<G>::Set_Null()
 
 // performs naive (completely random) rollout
 template <typename G>
-double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
+double rollout<G>::operator()(const G & input, Rand & rand) const
 {
     bool initial_heros_turn = true;
-
-    #ifdef LOG_MOVES
-        std::vector<G> moves;
-        moves.push_back(input);
-    #endif
 
     G curr_move(input);
     for (size_t i=0;i<MAX_ROLLOUT_ITERS;++i)
@@ -720,18 +728,6 @@ double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
         // agent from initial move)
         if (curr_move.is_terminal())
         {
-            #ifdef PRINT_OUTPUT
-                double eval = curr_move.get_terminal_eval();
-                if (initial_heros_turn && eval>0
-                    || !initial_heros_turn && eval<0)
-                    std::cout << "Initial hero wins!" << std::endl;
-                else if(initial_heros_turn && eval<0
-                    || !initial_heros_turn && eval >0)
-                    std::cout << "Initial villain wins!" << std::endl;
-                else
-                    throw std::string("wtf");
-                std::cout << "Raw eval: " << eval << " modified eval: " << ((initial_heros_turn?1.0:-1.0) * curr_move.get_terminal_eval()) << std::endl;
-            #endif
             return (initial_heros_turn?1.0:-1.0) * curr_move.get_terminal_eval();
         }
 
@@ -744,26 +740,15 @@ double mcts::rollout<G>::operator()(const G & input, Rand & rand) const
 
         curr_move = select_random_value(actions,rand);
 
-        #ifdef LOG_MOVES
-            moves.push_back(curr_move);
-        #endif
-
         // flip whose turn it is
         initial_heros_turn = !initial_heros_turn;
-
-        // test code
-        #ifdef PRINT_OUTPUT
-        std::cout << "i: " << i << std::endl;
-        G curr_move_flipped(curr_move, !initial_heros_turn);
-        std::cout << curr_move_flipped.display();
-        getch();
-        #endif
     }
 
-    #ifdef LOG_MOVES
-        throw moves;
-    #else
-        // becuse we hit max moves without returning
-        throw std::string("Error: mcts::rollout MAX_ITERATIONS reached without end of episode.");
-    #endif
+    // because we hit max moves without returning
+    throw std::string("Error: mcts::rollout MAX_ITERATIONS reached without end of episode.");
 }
+
+} // namespace mcts
+
+// Make lexical_cast available globally for compatibility
+// using lexical_cast; // Not needed - defined at global scope already

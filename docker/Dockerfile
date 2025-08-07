@@ -10,7 +10,7 @@ RUN apt install -y software-properties-common
 RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
-    gcc-13 g++-13 libboost-all-dev git curl wget valgrind cppcheck \
+    gcc-13 g++-13 git curl wget valgrind cppcheck \
     libcairo2-dev pkg-config
 
 # Configure GCC
@@ -45,7 +45,7 @@ RUN apt install -y software-properties-common
 RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
-    gcc-13 g++-13 libboost-all-dev git curl wget valgrind cppcheck \
+    gcc-13 g++-13 git curl wget valgrind cppcheck \
     libcairo2-dev pkg-config
 
 # Configure GCC
@@ -83,16 +83,16 @@ RUN poetry install --with dev --no-interaction --no-root
 ENV PYTHONPATH="/home/python/"
 COPY ./python /home/python/
 
-# build c++ code 
+# build c++ code with pybind11 (no Boost) - Updated 2025-01-11
 COPY ./src /home/src/
-WORKDIR /home/src
+WORKDIR /home/src  
 RUN rm -f _corridors_mcts.so && scons
-RUN cp _corridors_mcts.so /home/python/corridors/
+RUN rm -f /home/python/corridors/_corridors_mcts.so && cp _corridors_mcts.so /home/python/corridors/
 WORKDIR /home
 RUN rm -rf src/
 
 # Copy C++ module to mcts directory for tests
-RUN mkdir -p /home/mcts/python/corridors && cp /home/python/corridors/_corridors_mcts.so /home/mcts/python/corridors/
+RUN mkdir -p /home/mcts/python/corridors && rm -f /home/mcts/python/corridors/_corridors_mcts.so && cp /home/python/corridors/_corridors_mcts.so /home/mcts/python/corridors/
 
 EXPOSE 8888 8786 8787
 CMD jupyter lab --ip=0.0.0.0 --port=8888 --LabApp.token="" --notebook-dir='/home' --no-browser --allow-root

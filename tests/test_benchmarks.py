@@ -15,11 +15,7 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
-
 @pytest.mark.benchmark
-@pytest.mark.skipif(
-    not CORRIDORS_AVAILABLE, reason="Corridors C++ module not available"
-)
 class TestMCTSBenchmarks:
     """Benchmark core MCTS operations."""
 
@@ -288,11 +284,7 @@ class TestMCTSBenchmarks:
         moves = benchmark(run_random_rollouts)
         assert moves >= 0
 
-
 @pytest.mark.benchmark
-@pytest.mark.skipif(
-    not CORRIDORS_AVAILABLE, reason="Corridors C++ module not available"
-)
 class TestPythonFunctionBenchmarks:
     """Benchmark pure Python functions."""
 
@@ -321,7 +313,6 @@ class TestPythonFunctionBenchmarks:
 
         result = benchmark(format_large_list)
         assert isinstance(result, str)
-
 
 # Custom benchmark configuration for this module
 def pytest_configure(config):

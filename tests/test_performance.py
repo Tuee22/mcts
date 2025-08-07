@@ -22,13 +22,12 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
-
 @pytest.mark.slow
 @pytest.mark.performance
 class TestMCTSPerformance:
     """Test MCTS performance characteristics."""
 
-    def test_large_simulation_count(self, skip_if_no_corridors):
+    def test_large_simulation_count(self):
         """Test MCTS with large simulation count."""
         mcts = Corridors_MCTS(
             c=1.0,
@@ -52,7 +51,7 @@ class TestMCTSPerformance:
         total_visits = sum(a[0] for a in actions)
         assert total_visits >= 1000
 
-    def test_simulation_increment_efficiency(self, skip_if_no_corridors):
+    def test_simulation_increment_efficiency(self):
         """Test that smaller increments don't drastically slow down computation."""
         # Test with different increment sizes
         params_large = {
@@ -86,7 +85,7 @@ class TestMCTSPerformance:
         assert time_small < time_large * 5.0
 
     @pytest.mark.parametrize("sim_count", [50, 100, 500, 1000])
-    def test_simulation_scaling(self, sim_count: int, skip_if_no_corridors):
+    def test_simulation_scaling(self, sim_count: int):
         """Test that simulation time scales reasonably with count."""
         mcts = Corridors_MCTS(
             c=1.0,
@@ -104,12 +103,11 @@ class TestMCTSPerformance:
         expected_time = sim_count * 0.01  # 10ms per simulation (rough estimate)
         assert elapsed < expected_time * 10  # Allow 10x margin for safety
 
-
 @pytest.mark.performance
 class TestMemoryUsage:
     """Test memory usage patterns."""
 
-    def test_multiple_instances(self, skip_if_no_corridors):
+    def test_multiple_instances(self):
         """Test creating multiple MCTS instances."""
         instances = []
 
@@ -131,7 +129,7 @@ class TestMemoryUsage:
             del instances
             gc.collect()
 
-    def test_repeated_operations(self, skip_if_no_corridors):
+    def test_repeated_operations(self):
         """Test repeated operations for memory leaks."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=20, max_simulations=50, sim_increment=5
@@ -150,7 +148,7 @@ class TestMemoryUsage:
             if i % 10 == 0:
                 gc.collect()  # Periodic cleanup
 
-    def test_large_action_lists(self, skip_if_no_corridors):
+    def test_large_action_lists(self):
         """Test handling of large action lists."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=500, max_simulations=1000, sim_increment=25
@@ -170,12 +168,11 @@ class TestMemoryUsage:
             assert isinstance(limited_display, str)
             assert len(limited_display) < len(display_result)
 
-
 @pytest.mark.stress
 class TestStressConditions:
     """Test stress conditions and edge cases."""
 
-    def test_zero_simulations(self, skip_if_no_corridors):
+    def test_zero_simulations(self):
         """Test behavior with zero simulations."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=0, max_simulations=0, sim_increment=1
@@ -185,7 +182,7 @@ class TestStressConditions:
         actions = mcts.get_sorted_actions(flip=True)
         assert isinstance(actions, list)
 
-    def test_minimal_parameters(self, skip_if_no_corridors):
+    def test_minimal_parameters(self):
         """Test with minimal parameter values."""
         mcts = Corridors_MCTS(
             c=0.01,  # Very small exploration
@@ -200,7 +197,7 @@ class TestStressConditions:
         assert isinstance(actions, list)
 
     @pytest.mark.parametrize("extreme_c", [0.0001, 100.0, 1000.0])
-    def test_extreme_exploration_values(self, extreme_c: float, skip_if_no_corridors):
+    def test_extreme_exploration_values(self, extreme_c: float):
         """Test with extreme exploration parameter values."""
         mcts = Corridors_MCTS(
             c=extreme_c,
@@ -221,7 +218,7 @@ class TestStressConditions:
             assert isinstance(equity, (int, float))
             assert isinstance(action_str, str)
 
-    def test_many_consecutive_moves(self, skip_if_no_corridors):
+    def test_many_consecutive_moves(self):
         """Test making many consecutive moves."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=20, max_simulations=50, sim_increment=5
@@ -257,62 +254,11 @@ class TestStressConditions:
 
         assert moves_made > 0
 
-
 @pytest.mark.performance
 class TestAlgorithmVariants:
     """Test different algorithm variants for performance."""
 
-    def test_rollout_vs_evaluation(self, skip_if_no_corridors):
-        """Compare rollout-based vs evaluation-based algorithms."""
-        params_rollout = {
-            "c": 1.0,
-            "seed": 42,
-            "min_simulations": 100,
-            "max_simulations": 200,
-            "sim_increment": 25,
-            "use_rollout": True,
-            "eval_children": False,
-            "use_puct": False,
-            "use_probs": False,
-            "decide_using_visits": True,
-        }
-        params_eval = {
-            "c": 1.0,
-            "seed": 42,
-            "min_simulations": 100,
-            "max_simulations": 200,
-            "sim_increment": 25,
-            "use_rollout": False,
-            "eval_children": True,
-            "use_puct": False,
-            "use_probs": False,
-            "decide_using_visits": True,
-        }
-
-        mcts_rollout = Corridors_MCTS(**params_rollout)
-
-        # Skip evaluation-based test since eval function is not implemented
-        pytest.skip(
-            "Evaluation-based MCTS requires custom eval function which is not implemented"
-        )
-
-        start_time = time.time()
-        mcts_rollout.ensure_sims(100)
-        time_rollout = time.time() - start_time
-
-        start_time = time.time()
-        try:
-            mcts_eval.ensure_sims(100)
-            time_eval = time.time() - start_time
-
-            # Both should complete in reasonable time
-            assert time_rollout < 60.0
-            assert time_eval < 60.0
-        except Exception:
-            # If eval doesn't work, just test rollout
-            assert time_rollout < 60.0
-
-    def test_uct_vs_puct(self, skip_if_no_corridors):
+    def test_uct_vs_puct(self):
         """Compare UCT vs PUCT algorithms."""
         params_uct = {
             "c": 1.0,
@@ -335,12 +281,11 @@ class TestAlgorithmVariants:
         actions = mcts_uct.get_sorted_actions(flip=True)
         assert len(actions) > 0
 
-
 @pytest.mark.performance
 class TestConcurrencySimulation:
     """Simulate concurrent-like usage patterns."""
 
-    def test_interleaved_operations(self, skip_if_no_corridors):
+    def test_interleaved_operations(self):
         """Test interleaving different operations."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=50, max_simulations=100, sim_increment=10
@@ -360,7 +305,7 @@ class TestConcurrencySimulation:
                 evaluation = mcts.get_evaluation()
                 assert evaluation is None or isinstance(evaluation, (int, float))
 
-    def test_rapid_state_queries(self, skip_if_no_corridors):
+    def test_rapid_state_queries(self):
         """Test rapid successive queries of game state."""
         mcts = Corridors_MCTS(
             c=1.0, seed=42, min_simulations=100, max_simulations=200, sim_increment=20

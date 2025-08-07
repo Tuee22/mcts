@@ -1,6 +1,6 @@
 #pragma once
 #include <stdexcept>
-#include "boost/functional/hash.hpp"
+#include <functional>
 #include <bitset>
 
 namespace flags {
@@ -86,8 +86,8 @@ void flags::flags<N>::flip()
 template <size_t N>
 size_t flags::flags<N>::get_hash() const
 {
-    size_t _hash=0;
-    boost::hash_combine(_hash,std::hash<std::bitset<N>>()(_flags));
-    boost::hash_combine(_hash,flipped);
+    size_t _hash = std::hash<std::bitset<N>>()(_flags);
+    // Simple hash combine using XOR and shift (similar to boost::hash_combine)
+    _hash ^= std::hash<bool>()(flipped) + 0x9e3779b9 + (_hash << 6) + (_hash >> 2);
     return _hash;
 }

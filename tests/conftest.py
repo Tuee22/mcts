@@ -15,7 +15,6 @@ except ImportError:
     CORRIDORS_AVAILABLE = False
     Corridors_MCTS = None
 
-
 @pytest.fixture
 def basic_mcts_params() -> Dict[str, Any]:
     """Basic MCTS parameters for testing."""
@@ -31,7 +30,6 @@ def basic_mcts_params() -> Dict[str, Any]:
         "use_probs": False,
         "decide_using_visits": True,
     }
-
 
 @pytest.fixture
 def fast_mcts_params() -> Dict[str, Any]:
@@ -49,7 +47,6 @@ def fast_mcts_params() -> Dict[str, Any]:
         "decide_using_visits": True,
     }
 
-
 @pytest.fixture
 def puct_mcts_params() -> Dict[str, Any]:
     """PUCT-style MCTS parameters."""
@@ -66,7 +63,6 @@ def puct_mcts_params() -> Dict[str, Any]:
         "decide_using_visits": False,
     }
 
-
 @pytest.fixture
 def sample_board_state() -> Dict[str, Any]:
     """Sample board state for testing C++ board functions."""
@@ -82,7 +78,6 @@ def sample_board_state() -> Dict[str, Any]:
         "horizontal_walls": [False] * 72,  # (9-1)*9 = 72
         "vertical_walls": [False] * 72,  # (9-1)*9 = 72
     }
-
 
 @pytest.fixture
 def blocked_board_state() -> Dict[str, Any]:
@@ -105,7 +100,6 @@ def blocked_board_state() -> Dict[str, Any]:
     state["horizontal_walls"][31] = True
     return state
 
-
 @pytest.fixture
 def near_terminal_state() -> Dict[str, Any]:
     """Board state near game end."""
@@ -122,7 +116,6 @@ def near_terminal_state() -> Dict[str, Any]:
         "vertical_walls": [False] * 72,
     }
 
-
 @pytest.fixture
 def sample_actions() -> List[Tuple[int, float, str]]:
     """Sample sorted actions for testing display functions."""
@@ -137,14 +130,6 @@ def sample_actions() -> List[Tuple[int, float, str]]:
         (10, 0.0987, "V(3,1)"),
     ]
 
-
-@pytest.fixture(scope="session")
-def skip_if_no_corridors():
-    """Skip test if corridors C++ module is not available."""
-    if not CORRIDORS_AVAILABLE:
-        pytest.skip("Corridors C++ module not available")
-
-
 class MCTSTestHelper:
     """Helper class for MCTS testing utilities."""
 
@@ -152,7 +137,7 @@ class MCTSTestHelper:
     def create_mcts_instance(params: Dict[str, Any]) -> "Corridors_MCTS":
         """Create MCTS instance with given parameters."""
         if not CORRIDORS_AVAILABLE:
-            pytest.skip("Corridors C++ module not available")
+            raise ImportError("Corridors C++ module not available")
         return Corridors_MCTS(**params)
 
     @staticmethod
@@ -194,7 +179,6 @@ class MCTSTestHelper:
         # MCTS sorts by best actions first, not most visited
         equities = [a[1] for a in actions]
         return equities == sorted(equities, reverse=True)
-
 
 @pytest.fixture
 def mcts_helper():
