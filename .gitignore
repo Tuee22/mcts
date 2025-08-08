@@ -89,3 +89,5 @@ Thumbs.db
 
 # Benchmark results
 .benchmarks
+
+version_comparison/

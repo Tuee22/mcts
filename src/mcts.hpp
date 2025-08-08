@@ -405,6 +405,8 @@ std::vector<std::tuple<size_t, double, std::string>> uct_node<G>::get_sorted_act
         // as a meaningful tie-breaker to prevent potentially infinite cycles
         // in an effectively "won" game
 
+        // For internal sorting, use extreme negative value for unvisited nodes
+        // This ensures proper UCT behavior while allowing display logic to handle it
         double equity = _child->is_evaluated()
             ? -_child->get_equity()
             : std::numeric_limits<double>::lowest();
@@ -427,11 +429,17 @@ std::vector<std::tuple<size_t, double, std::string>> uct_node<G>::get_sorted_act
     std::vector<std::tuple<size_t, double, std::string>> moves_display;
     std::for_each(moves.cbegin(), moves.cend(),[&](const auto & move)
     {
+        // Fix display bug: show reasonable equity for unvisited nodes instead of extreme negative value
+        double display_equity = std::get<0>(move);
+        if (display_equity < -1e100) {  // Detect extreme negative values (unvisited nodes)
+            display_equity = 0.0;  // Show neutral equity for unvisited nodes
+        }
+        
         moves_display.emplace_back(
             std::make_tuple(
-                std::get<2>(move),
-                std::get<0>(move),
-                std::get<3>(move)
+                std::get<2>(move),  // visit_count
+                display_equity,     // corrected equity
+                std::get<3>(move)   // action_text
             )
         );
     });
