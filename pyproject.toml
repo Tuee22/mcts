@@ -42,6 +42,14 @@ tqdm = ">=4.66.1,<5.0"
 psutil = ">=5.9.7,<6.0"
 scons = ">=4.6.0,<5.0"
 
+# API dependencies
+fastapi = ">=0.109.0,<1.0"
+uvicorn = {extras = ["standard"], version = ">=0.25.0,<1.0"}
+pydantic = ">=2.5.3,<3.0"
+websockets = ">=12.0,<13.0"
+python-multipart = ">=0.0.6,<1.0"
+httpx = ">=0.25.2,<1.0"
+
 [tool.poetry.group.dev.dependencies]
 mypy = ">=1.8.0,<2.0"
 pandas-stubs = ">=2.1.4.231227,<3.0"
@@ -49,6 +57,9 @@ types-python-dateutil = ">=2.8.19.14,<3.0"
 types-pytz = ">=2023.3.1.1,<2024.0"
 pytest = ">=7.4.0,<8.0"
 pytest-benchmark = ">=4.0.0,<5.0"
+pytest-asyncio = ">=0.21.0,<1.0"
+pytest-mock = ">=3.11.0,<4.0"
+pytest-cov = ">=4.1.0,<5.0"
 black = ">=23.7.0,<24.0"
 isort = ">=5.12.0,<6.0"
 flake8 = ">=6.0.0,<7.0"
@@ -70,6 +81,7 @@ line_length = 88
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
+asyncio_mode = "auto"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -85,7 +97,12 @@ markers = [
     "performance: marks performance and stress tests",
     "edge_cases: marks edge case and boundary condition tests",
     "benchmark: marks tests as benchmarks (run with --benchmark-only)",
-    "stress: marks stress tests with high resource usage"
+    "stress: marks stress tests with high resource usage",
+    "api: marks tests related to the FastAPI server",
+    "websocket: marks tests related to WebSocket functionality",
+    "game_manager: marks tests related to game management",
+    "models: marks tests related to Pydantic models",
+    "endpoints: marks tests for API endpoints"
 ]
 filterwarnings = [
     "ignore::UserWarning",
@@ -128,4 +145,16 @@ html_report = "mypy-reports/html"
 linecount_report = "mypy-reports/linecount"
 linecoverage_report = "mypy-reports/linecoverage"
 txt_report = "mypy-reports/txt"
+
+[tool.poetry.scripts]
+api-server = "api.server:main"
+api-dev = "api.server:dev"
+
+# Test runners
+test-all = "tests.utils.run_tests:main"
+test-api = "tests.utils.run_api_tests:main"
+test-core = "tests.utils.run_core_tests:main"
+
+[tool.poetry.extras]
+api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]
 
