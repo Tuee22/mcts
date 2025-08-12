@@ -176,9 +176,13 @@ class MCTSTestHelper:
                 return False
 
         # Check ordering (should be sorted by equity, descending)
-        # MCTS sorts by best actions first, not most visited
+        # MCTS sorts by best actions first, but when equities are equal, order may vary
         equities = [a[1] for a in actions]
-        return equities == sorted(equities, reverse=True)
+        # Check that equities are in non-increasing order (allowing for equal values)
+        for i in range(len(equities) - 1):
+            if equities[i] < equities[i + 1]:
+                return False
+        return True
 
 @pytest.fixture
 def mcts_helper():

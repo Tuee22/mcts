@@ -95,36 +95,52 @@ async def list_games(
     offset: int = 0
 ) -> GameListResponse:
     """List all games with optional filtering."""
-    games = await game_manager.list_games(
-        status=status,
-        player_id=player_id,
-        limit=limit,
-        offset=offset
-    )
-    return GameListResponse(
-        games=[GameResponse.from_game_session(g) for g in games],
-        total=len(games)
-    )
+    try:
+        games = await game_manager.list_games(
+            status=status,
+            player_id=player_id,
+            limit=limit,
+            offset=offset
+        )
+        return GameListResponse(
+            games=[GameResponse.from_game_session(g) for g in games],
+            total=len(games)
+        )
+    except Exception as e:
+        logger.error(f"Failed to list games: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/games/{game_id}", response_model=GameResponse)
 async def get_game(game_id: str) -> GameResponse:
     """Get detailed information about a specific game."""
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    return GameResponse.from_game_session(game)
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        return GameResponse.from_game_session(game)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get game: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/games/{game_id}")
 async def delete_game(game_id: str):
     """Delete/cancel a game session."""
-    success = await game_manager.delete_game(game_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    await ws_manager.broadcast_game_ended(game_id, "cancelled")
-    return {"message": "Game deleted successfully"}
+    try:
+        success = await game_manager.delete_game(game_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        await ws_manager.broadcast_game_ended(game_id, "cancelled")
+        return {"message": "Game deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete game: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== Game Play Endpoints ====================
@@ -181,20 +197,26 @@ async def make_move(
 @app.get("/games/{game_id}/legal-moves")
 async def get_legal_moves(game_id: str, player_id: Optional[str] = None):
     """Get all legal moves for the current position."""
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    # Optionally validate player access
-    if player_id and not game.is_player(player_id):
-        raise HTTPException(status_code=403, detail="Not a player in this game")
-    
-    legal_moves = await game_manager.get_legal_moves(game_id)
-    return {
-        "game_id": game_id,
-        "current_player": game.current_turn,
-        "legal_moves": legal_moves
-    }
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        # Optionally validate player access
+        if player_id and not game.is_player(player_id):
+            raise HTTPException(status_code=403, detail="Not a player in this game")
+        
+        legal_moves = await game_manager.get_legal_moves(game_id)
+        return {
+            "game_id": game_id,
+            "current_player": game.current_turn,
+            "legal_moves": legal_moves
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get legal moves: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/games/{game_id}/board")
@@ -204,36 +226,48 @@ async def get_board_state(
     flip: bool = False
 ):
     """Get the current board state visualization."""
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    board_display = await game_manager.get_board_display(game_id, flip)
-    return {
-        "game_id": game_id,
-        "board": board_display,
-        "current_turn": game.current_turn,
-        "move_count": len(game.move_history)
-    }
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        board_display = await game_manager.get_board_display(game_id, flip)
+        return {
+            "game_id": game_id,
+            "board": board_display,
+            "current_turn": game.current_turn,
+            "move_count": len(game.move_history)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get board state: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/games/{game_id}/resign")
 async def resign_game(game_id: str, player_id: str):
     """Allow a player to resign from the game."""
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    if not game.is_player(player_id):
-        raise HTTPException(status_code=403, detail="Not a player in this game")
-    
-    winner = await game_manager.resign_game(game_id, player_id)
-    await ws_manager.broadcast_game_ended(game_id, "resignation", winner)
-    
-    return {
-        "message": "Game resigned",
-        "winner": winner
-    }
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        if not game.is_player(player_id):
+            raise HTTPException(status_code=403, detail="Not a player in this game")
+        
+        winner = await game_manager.resign_game(game_id, player_id)
+        await ws_manager.broadcast_game_ended(game_id, "resignation", winner)
+        
+        return {
+            "message": "Game resigned",
+            "winner": winner
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to resign game: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== AI Analysis Endpoints ====================
@@ -248,17 +282,23 @@ async def get_position_analysis(
     Get AI analysis of the current position.
     Returns sorted actions with visit counts and evaluations.
     """
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    analysis = await game_manager.analyze_position(game_id, depth)
-    return {
-        "game_id": game_id,
-        "position_evaluation": analysis.get("evaluation"),
-        "best_moves": analysis.get("sorted_actions", [])[:10],
-        "total_simulations": analysis.get("simulations")
-    }
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        analysis = await game_manager.analyze_position(game_id, depth)
+        return {
+            "game_id": game_id,
+            "position_evaluation": analysis.get("evaluation"),
+            "best_moves": analysis.get("sorted_actions", [])[:10],
+            "total_simulations": analysis.get("simulations")
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/games/{game_id}/hint")
@@ -268,19 +308,25 @@ async def get_move_hint(
     simulations: int = 5000
 ):
     """Get AI suggestion for the best move."""
-    game = await game_manager.get_game(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    
-    if not game.is_player(player_id):
-        raise HTTPException(status_code=403, detail="Not a player in this game")
-    
-    hint = await game_manager.get_hint(game_id, simulations)
-    return {
-        "suggested_move": hint["action"],
-        "confidence": hint["confidence"],
-        "evaluation": hint["evaluation"]
-    }
+    try:
+        game = await game_manager.get_game(game_id)
+        if not game:
+            raise HTTPException(status_code=404, detail="Game not found")
+        
+        if not game.is_player(player_id):
+            raise HTTPException(status_code=403, detail="Not a player in this game")
+        
+        hint = await game_manager.get_hint(game_id, simulations)
+        return {
+            "suggested_move": hint["action"],
+            "confidence": hint["confidence"],
+            "evaluation": hint["evaluation"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get hint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== WebSocket Endpoints ====================
@@ -341,28 +387,38 @@ async def join_matchmaking_queue(
     settings: Optional[GameSettings] = None
 ):
     """Join the matchmaking queue to find an opponent."""
-    match = await game_manager.join_matchmaking(player_id, player_name, settings)
-    
-    if match:
-        return {
-            "status": "matched",
-            "game_id": match.game_id,
-            "opponent": match.opponent_name
-        }
-    else:
-        return {
-            "status": "queued",
-            "position": await game_manager.get_queue_position(player_id)
-        }
+    try:
+        match = await game_manager.join_matchmaking(player_id, player_name, settings)
+        
+        if match:
+            return {
+                "status": "matched",
+                "game_id": match.game_id,
+                "opponent": match.opponent_name
+            }
+        else:
+            return {
+                "status": "queued",
+                "position": await game_manager.get_queue_position(player_id)
+            }
+    except Exception as e:
+        logger.error(f"Failed to join matchmaking: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/matchmaking/queue/{player_id}")
 async def leave_matchmaking_queue(player_id: str):
     """Leave the matchmaking queue."""
-    success = await game_manager.leave_matchmaking(player_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Player not in queue")
-    return {"message": "Left matchmaking queue"}
+    try:
+        success = await game_manager.leave_matchmaking(player_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Player not in queue")
+        return {"message": "Left matchmaking queue"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to leave matchmaking: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== Statistics Endpoints ====================
@@ -370,17 +426,27 @@ async def leave_matchmaking_queue(player_id: str):
 @app.get("/stats/leaderboard")
 async def get_leaderboard(limit: int = 100):
     """Get the game leaderboard."""
-    leaderboard = await game_manager.get_leaderboard(limit)
-    return {"leaderboard": leaderboard}
+    try:
+        leaderboard = await game_manager.get_leaderboard(limit)
+        return {"leaderboard": leaderboard}
+    except Exception as e:
+        logger.error(f"Failed to get leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/stats/player/{player_id}")
 async def get_player_stats(player_id: str):
     """Get statistics for a specific player."""
-    stats = await game_manager.get_player_stats(player_id)
-    if not stats:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return stats
+    try:
+        stats = await game_manager.get_player_stats(player_id)
+        if not stats:
+            raise HTTPException(status_code=404, detail="Player not found")
+        return stats
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get player stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== Health Check ====================
