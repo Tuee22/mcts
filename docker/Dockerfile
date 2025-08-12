@@ -16,6 +16,10 @@ RUN apt update && apt install -y \
     libcairo2-dev pkg-config build-essential \
     python3-dev python3-distutils python3-setuptools
 
+# Install Node.js 20.x for React frontend
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+RUN apt install -y nodejs
+
 # Configure GCC
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 1 --slave /usr/bin/g++ g++ /usr/bin/g++-13
 
@@ -53,6 +57,10 @@ RUN apt update && apt install -y \
     gcc-13 g++-13 git curl wget valgrind cppcheck \
     libcairo2-dev pkg-config build-essential \
     python3-dev python3-distutils python3-setuptools
+
+# Install Node.js 20.x for React frontend
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+RUN apt install -y nodejs
 
 # Configure GCC
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 1 --slave /usr/bin/g++ g++ /usr/bin/g++-13
@@ -98,7 +106,26 @@ WORKDIR /home/mcts/src
 RUN rm -f _corridors_mcts.so && scons
 # Copy to python modules directory  
 RUN mkdir -p /home/mcts/python/corridors && cp _corridors_mcts.so /home/mcts/python/corridors/_corridors_mcts.so
+
+# Build React frontend (after copying project files)
+WORKDIR /home/mcts/frontend
+RUN npm ci --only=production
+RUN npm run build
+
+# Install runtime dependencies for serving the frontend
+RUN npm install -g serve
+
+# Install supervisor via pip instead of apt to ensure Python 3.12 compatibility
+RUN python3 -m pip install supervisor
+
+# Create supervisor configuration
+RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d/
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 WORKDIR /home
 
-EXPOSE 8888 8786 8787
-CMD jupyter lab --ip=0.0.0.0 --port=8888 --LabApp.token="" --notebook-dir='/home' --no-browser --allow-root
+# Expose ports for API (8000) and frontend (3000)
+EXPOSE 8000 3000
+
+# Start supervisor to run both API and frontend
+CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

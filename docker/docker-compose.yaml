@@ -12,14 +12,11 @@ services:
         source: ..
         target: /home/mcts
     ports:
-      - target: 8888
-        published: ${PORT_JUPYTER:-8888}
+      - target: 8000
+        published: ${PORT_API:-8000}
         protocol: tcp
-      - target: 8786
-        published: ${PORT_DASK_SCHEDULER:-8786}
-        protocol: tcp
-      - target: 8787
-        published: ${PORT_DASK_DASHBOARD:-8787}
+      - target: 3000
+        published: ${PORT_FRONTEND:-3000}
         protocol: tcp
     restart: unless-stopped
     environment:

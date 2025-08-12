@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.move-history-container {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #00ffcc;
+  border-radius: 8px;
+  padding: 15px;
+  min-width: 300px;
+  max-width: 400px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
+}
+
+.move-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #00ffcc;
+}
+
+.move-history-header h3 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #00ffcc;
+  margin: 0;
+  text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+}
+
+.move-history-empty {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: rgba(0, 255, 204, 0.5);
+  text-align: center;
+  padding: 20px;
+}
+
+.move-history-list {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding-right: 5px;
+}
+
+.move-history-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.move-history-list::-webkit-scrollbar-track {
+  background: rgba(0, 255, 204, 0.1);
+  border-radius: 4px;
+}
+
+.move-history-list::-webkit-scrollbar-thumb {
+  background: #00ffcc;
+  border-radius: 4px;
+}
+
+.move-history-list::-webkit-scrollbar-thumb:hover {
+  background: #00ccaa;
+}
+
+.move-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.move-item:hover {
+  background: rgba(0, 255, 204, 0.1);
+  transform: translateX(5px);
+}
+
+.move-item.selected {
+  background: rgba(0, 255, 204, 0.3);
+  border-left: 4px solid #00ffcc;
+  transform: translateX(5px);
+}
+
+.move-item.white-move {
+  color: #ff9f40;
+}
+
+.move-item.black-move {
+  color: #4ecdc4;
+}
+
+.move-number {
+  width: 40px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.move-notation {
+  flex: 1;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.move-type-icon {
+  margin-left: 10px;
+  font-size: 16px;
+}
+
+.move-item.game-result {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid #ffff00;
+  background: rgba(255, 255, 0, 0.1);
+}
+
+.result-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #ffff00;
+  margin-right: 15px;
+}
+
+.winner-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #00ffcc;
+}
+
+.move-history-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 2px solid #00ffcc;
+}
+
+.retro-btn-small {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #00ffcc 0%, #00ccff 100%);
+  border: none;
+  border-radius: 4px;
+  color: #1a1a2e;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #008b8b;
+  transition: all 0.1s;
+}
+
+.retro-btn-small:hover:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #008b8b;
+}
+
+.retro-btn-small:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.retro-btn-small:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, #666 0%, #888 100%);
+  box-shadow: 0 2px 0 #444;
+}

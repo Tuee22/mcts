@@ -1,7 +1,10 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-.pytest_cache
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 # C extensions
 *.so
 *.os
@@ -10,6 +13,9 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+.venv
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -32,9 +38,11 @@ htmlcov/
 .tox/
 .coverage
 .cache
-.pytest_cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
+*.cover
+.hypothesis/
 
 # Translations
 *.mo
@@ -45,6 +53,7 @@ coverage.xml
 
 # Sphinx documentation
 docs/_build/
+Sphinx-*/
 
 # scons db
 .sconsign.dblite
@@ -59,8 +68,8 @@ callgrind*
 gmon.out
 
 # IDE and editor files
-.vscode
-.idea
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
@@ -71,7 +80,7 @@ gmon.out
 .env.*.local
 
 # Claude AI
-.claude
+.claude/
 
 # OS generated files
 .DS_Store
@@ -88,6 +97,35 @@ Thumbs.db
 *.orig
 
 # Benchmark results
-.benchmarks
+.benchmarks/
 
 version_comparison/
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React build outputs
+frontend/build/
+frontend/dist/
+
+# Package lock files (keep package.json, ignore locks for cross-platform compatibility)
+package-lock.json
+yarn.lock
+
+# Test coverage reports
+coverage/
+*.lcov
+
+# React development
+.eslintcache
+
+# Local development databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Poetry
+poetry.lock

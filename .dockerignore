@@ -1,0 +1,215 @@
+# ==============================================================================
+# .dockerignore - Synchronized with .gitignore for consistent build context
+# ==============================================================================
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Python distribution / packaging
+env/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Python virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Python test and coverage
+.pytest_cache/
+.tox/
+.coverage
+.cache
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Python installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Translations
+*.mo
+*.pot
+
+# C extensions and compiled objects
+*.so
+*.os
+*.o
+
+# SCons database
+.sconsign.dblite
+
+# Compiled executables
+_corridors_mcts
+_numeric_limits
+_limit_compare
+
+# Profiling output
+callgrind*
+gmon.out
+
+# Node.js dependencies (exclude from Docker context for efficiency)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# React build outputs (built inside container)
+frontend/build/
+frontend/dist/
+
+# Package lock files (install fresh in container)
+package-lock.json
+yarn.lock
+poetry.lock
+
+# Test coverage reports
+coverage/
+*.lcov
+
+# React development cache
+.eslintcache
+
+# IDE and editor files (never needed in container)
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (use Docker env vars instead)
+.env
+.env.local
+.env.*.local
+
+# Claude AI files
+.claude/
+
+# OS generated files (never needed in container)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+*.log
+
+# Documentation build outputs
+docs/_build/
+Sphinx-*/
+
+# Benchmark results
+.benchmarks/
+
+# Version comparison directory
+version_comparison/
+
+# ==============================================================================
+# Docker-specific exclusions
+# ==============================================================================
+
+# Docker files themselves (don't copy into image)
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+.dockerignore
+
+# Git repository (exclude .git directory for smaller context)
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Development and testing tools not needed in production
+tests/
+test/
+spec/
+**/*.test.*
+**/*.spec.*
+
+# Development documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Editor configurations
+.editorconfig
+.prettierrc*
+.eslintrc*
+
+# Development scripts
+scripts/dev/
+scripts/test/
+
+# Local development databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Local development files
+.local/
+.tmp/
+
+# ==============================================================================
+# Performance optimizations - exclude large unnecessary files
+# ==============================================================================
+
+# Large media files that might be in development
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mkv
+
+# Large image files (keep small ones for UI)
+*.psd
+*.ai
+*.sketch
+
+# Archive files
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.rar
+*.7z
+
+# Backup files
+*.backup
+*.bak
+*~

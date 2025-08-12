@@ -1,0 +1,214 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.game-settings-container {
+  background: rgba(0, 0, 0, 0.9);
+  border: 3px solid #00ffcc;
+  border-radius: 10px;
+  padding: 30px;
+  min-width: 500px;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
+  animation: settingsSlideIn 0.3s ease-out;
+}
+
+@keyframes settingsSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.game-settings-container h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 18px;
+  color: #00ffcc;
+  text-align: center;
+  margin-bottom: 30px;
+  text-shadow: 0 0 15px rgba(0, 255, 204, 0.7);
+}
+
+.settings-group {
+  margin-bottom: 25px;
+}
+
+.settings-group label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #ffff00;
+  display: block;
+  margin-bottom: 15px;
+  text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.mode-btn {
+  background: rgba(0, 255, 204, 0.1);
+  border: 2px solid rgba(0, 255, 204, 0.3);
+  border-radius: 8px;
+  padding: 15px 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.mode-btn:hover {
+  background: rgba(0, 255, 204, 0.2);
+  border-color: #00ffcc;
+  transform: translateY(-2px);
+}
+
+.mode-btn.active {
+  background: rgba(0, 255, 204, 0.3);
+  border-color: #00ffcc;
+  box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+}
+
+.mode-icon {
+  font-size: 24px;
+}
+
+.mode-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #00ffcc;
+  text-align: center;
+}
+
+.difficulty-buttons,
+.time-buttons,
+.size-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.difficulty-btn,
+.time-btn,
+.size-btn {
+  flex: 1;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 12px 15px;
+  background: rgba(255, 153, 0, 0.1);
+  border: 2px solid rgba(255, 153, 0, 0.3);
+  border-radius: 4px;
+  color: #ff9900;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.difficulty-btn:hover,
+.time-btn:hover,
+.size-btn:hover {
+  background: rgba(255, 153, 0, 0.2);
+  border-color: #ff9900;
+  transform: translateY(-2px);
+}
+
+.difficulty-btn.active,
+.time-btn.active,
+.size-btn.active {
+  background: rgba(255, 153, 0, 0.3);
+  border-color: #ff9900;
+  box-shadow: 0 0 10px rgba(255, 153, 0, 0.5);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.start-game {
+  flex: 2;
+  background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+  box-shadow: 0 4px 0 #008800;
+}
+
+.start-game:hover {
+  background: linear-gradient(135deg, #00ff00 0%, #00dd00 100%);
+}
+
+.cancel {
+  flex: 1;
+  background: linear-gradient(135deg, #ff6666 0%, #cc4444 100%);
+  box-shadow: 0 4px 0 #aa2222;
+}
+
+.cancel:hover {
+  background: linear-gradient(135deg, #ff7777 0%, #dd5555 100%);
+}
+
+.toggle-settings {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 50;
+}
+
+/* Connection warning styles */
+.connection-warning {
+  background: rgba(255, 68, 68, 0.2);
+  border: 2px solid #ff4444;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.connection-warning h3 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #ff4444;
+  margin-bottom: 15px;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.connection-warning p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #ffaaaa;
+  line-height: 1.6;
+}
+
+/* Disabled state styles */
+.settings-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  filter: grayscale(50%);
+}
+
+.mode-btn:disabled,
+.difficulty-btn:disabled,
+.time-btn:disabled,
+.size-btn:disabled,
+.start-game:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(128, 128, 128, 0.1) !important;
+  border-color: #666 !important;
+  color: #666 !important;
+}
+
+.start-game:disabled {
+  background: linear-gradient(135deg, #666 0%, #444 100%) !important;
+  box-shadow: 0 4px 0 #222 !important;
+}
+
+.toggle-settings:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(128, 128, 128, 0.1) !important;
+  border-color: #666 !important;
+  color: #666 !important;
+}

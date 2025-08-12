@@ -1,0 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  color: #ffffff;
+}
+
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 3px solid #00ffcc;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 5px 20px rgba(0, 255, 204, 0.3);
+}
+
+.app-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 32px;
+  color: #00ffcc;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 204, 0.5),
+    0 0 20px rgba(0, 255, 204, 0.3),
+    0 0 30px rgba(0, 255, 204, 0.2);
+  animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  from {
+    text-shadow: 
+      0 0 10px rgba(0, 255, 204, 0.5),
+      0 0 20px rgba(0, 255, 204, 0.3),
+      0 0 30px rgba(0, 255, 204, 0.2);
+  }
+  to {
+    text-shadow: 
+      0 0 20px rgba(0, 255, 204, 0.8),
+      0 0 30px rgba(0, 255, 204, 0.6),
+      0 0 40px rgba(0, 255, 204, 0.4);
+  }
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  border: 2px solid rgba(0, 255, 204, 0.3);
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.connected {
+  background: #00ff00;
+  box-shadow: 0 0 10px #00ff00;
+}
+
+.status-indicator.disconnected {
+  background: #ff0000;
+  box-shadow: 0 0 10px #ff0000;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #00ffcc;
+}
+
+.app-main {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.game-setup {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.game-container {
+  display: flex;
+  gap: 30px;
+  max-width: 1600px;
+  width: 100%;
+}
+
+.game-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.game-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-info {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #ffff00;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 250px;
+}
+
+.game-info h3 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #ffff00;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding: 8px;
+  background: rgba(255, 255, 0, 0.05);
+  border-radius: 4px;
+}
+
+.info-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 0, 0.7);
+}
+
+.info-value {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #00ffcc;
+}
+
+.info-value.game-id {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.game-controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.app-footer {
+  background: rgba(0, 0, 0, 0.9);
+  border-top: 3px solid #00ffcc;
+  padding: 20px;
+  text-align: center;
+}
+
+.app-footer p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: rgba(0, 255, 204, 0.7);
+}
+
+@media (max-width: 1200px) {
+  .game-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .game-left,
+  .game-right {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+  }
+}

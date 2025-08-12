@@ -182,12 +182,33 @@ scons sanitize=1
 
 ### Running Tests
 
+**Comprehensive Test Suite (Python + Frontend):**
 ```bash
-# All tests
-poetry run pytest
+# Run all tests (Python API/Core + Frontend)
+poetry run test-everything
 
-# Fast tests only (exclude slow benchmarks)
-poetry run pytest -m 'not slow'
+# With coverage reports
+poetry run test-everything --coverage
+
+# Python tests only
+poetry run test-everything --python-only
+
+# Frontend tests only  
+poetry run test-everything --frontend-only
+```
+
+**Python Tests Only:**
+```bash
+# All Python tests (API + Core)
+poetry run test-all
+
+# Specific Python test suites
+poetry run test-api          # API and WebSocket tests
+poetry run test-core         # Core MCTS and board tests
+
+# Direct pytest usage
+poetry run pytest           # All Python tests
+poetry run pytest -m 'not slow'  # Fast tests only
 
 # Specific test categories
 poetry run pytest -m python      # Pure Python tests
@@ -195,8 +216,17 @@ poetry run pytest -m cpp         # C++ binding tests
 poetry run pytest -m integration # Integration tests
 poetry run pytest -m performance # Performance tests
 
-# Benchmarks (if test_benchmarks.py exists)
-poetry run pytest tests/test_benchmarks.py --benchmark-only
+# Benchmarks
+poetry run pytest tests/benchmarks/ --benchmark-only
+```
+
+**Frontend Tests Only:**
+```bash
+# From frontend test directory
+cd tests/frontend
+npm test                    # All frontend tests
+npm run test:coverage       # With coverage
+npm run test:watch          # Watch mode
 ```
 
 ### Code Quality

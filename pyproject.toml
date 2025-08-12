@@ -6,6 +6,9 @@ authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
 packages = [{include = "python"}]
 
+[tool.poetry.lock]
+enabled = false
+
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
 pybind11 = ">=2.11.0,<3.0"
@@ -157,6 +160,7 @@ api-dev = "api.server:dev"
 test-all = "tests.utils.run_tests:main"
 test-api = "tests.utils.run_api_tests:main"
 test-core = "tests.utils.run_core_tests:main"
+test-everything = "tests.utils.run_all_tests:main"
 
 [tool.poetry.extras]
 api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]
