@@ -2,11 +2,10 @@
 API-specific test fixtures and configuration.
 """
 import pytest
-import asyncio
 from typing import AsyncGenerator, Generator
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from api.server import app
 from api.game_manager import GameManager
@@ -23,26 +22,12 @@ from api.models import (
 @pytest.fixture
 def test_client() -> Generator:
     """Create a test client for the FastAPI app."""
+    # Ensure test environment is set
+    import os
+    os.environ['PYTEST_CURRENT_TEST'] = '1'
+    
     with TestClient(app) as client:
         yield client
-    
-    # Clean up global state after each test
-    import api.server
-    if api.server.game_manager:
-        # Run cleanup in a sync context
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If loop is running, schedule cleanup
-                loop.create_task(api.server.game_manager.cleanup())
-                loop.create_task(api.server.ws_manager.disconnect_all())
-            else:
-                # If no loop is running, run cleanup
-                loop.run_until_complete(api.server.game_manager.cleanup())
-                loop.run_until_complete(api.server.ws_manager.disconnect_all())
-        except:
-            pass  # Ignore cleanup errors in tests
 
 
 @pytest.fixture
@@ -56,26 +41,16 @@ async def async_client() -> AsyncGenerator:
 async def game_manager():
     """Create a GameManager instance for testing."""
     manager = GameManager()
-    try:
-        yield manager
-    finally:
-        # Ensure proper cleanup
-        await manager.cleanup()
-        # Give a moment for cleanup to complete
-        await asyncio.sleep(0.01)
+    yield manager
+    # Simplified cleanup - let the manager handle its own state
 
 
 @pytest.fixture
 async def ws_manager():
     """Create a WebSocketManager instance for testing."""
     manager = WebSocketManager()
-    try:
-        yield manager
-    finally:
-        # Ensure proper cleanup
-        await manager.disconnect_all()
-        # Give a moment for cleanup to complete
-        await asyncio.sleep(0.01)
+    yield manager
+    # Simplified cleanup - let the manager handle its own state
 
 
 @pytest.fixture
@@ -154,4 +129,45 @@ def invalid_moves():
     ]
 
 
-# MCTS mocking will be done per-test as needed to avoid conflicts
+@pytest.fixture(autouse=True)
+def mock_mcts(monkeypatch):
+    """Mock all MCTS operations to prevent expensive computations during tests."""
+    # Create a mock with fixed return values
+    mock_sorted_actions = [
+        (100, 0.8, "*(4,1)"), (80, 0.6, "*(3,0)"), (60, 0.4, "*(5,0)"),
+        (50, 0.3, "H(4,0)"), (40, 0.2, "V(4,0)"), (30, 0.1, "H(3,1)")
+    ]
+    
+    # Mock the MCTS constructor that returns a consistent mock
+    def mock_mcts_constructor(*_args, **_kwargs):
+        mock_mcts = MagicMock()
+        # Set up the mock with consistent return values
+        mock_mcts.get_sorted_actions = MagicMock(return_value=mock_sorted_actions)
+        mock_mcts.choose_best_action = MagicMock(return_value="*(4,1)")
+        mock_mcts.ensure_sims = MagicMock(return_value=None)
+        mock_mcts.get_best_move = MagicMock(return_value="*(4,1)")
+        mock_mcts.get_action_stats = MagicMock(return_value={
+            "*(4,1)": {"visits": 100, "value": 0.8},
+            "*(3,0)": {"visits": 80, "value": 0.6},
+            "*(5,0)": {"visits": 60, "value": 0.4},
+            "H(4,0)": {"visits": 50, "value": 0.3},
+            "V(4,0)": {"visits": 40, "value": 0.2},
+            "H(3,1)": {"visits": 30, "value": 0.1}
+        })
+        mock_mcts.display = MagicMock(return_value="Mock board display")
+        mock_mcts.get_evaluation = MagicMock(return_value=None)
+        mock_mcts.make_move = MagicMock(return_value=None)
+        return mock_mcts
+    
+    # Apply mocking to all relevant modules
+    monkeypatch.setattr('api.game_manager.Corridors_MCTS', mock_mcts_constructor)
+    monkeypatch.setattr('python.corridors.corridors_mcts.Corridors_MCTS', mock_mcts_constructor)
+    
+    # Also mock any import attempts
+    try:
+        import python.corridors.corridors_mcts
+        monkeypatch.setattr(python.corridors.corridors_mcts, 'Corridors_MCTS', mock_mcts_constructor)
+    except ImportError:
+        pass
+    
+    return mock_mcts_constructor

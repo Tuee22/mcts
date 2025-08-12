@@ -27,11 +27,15 @@ python_includes = []
 python_libs = []
 
 if not test:
-    # Try to get python config
+    # Try to get python config for the active Python version
     try:
-        # Try python3-config first
-        python_includes = subprocess.check_output(['python3-config', '--includes'], 
-                                                 universal_newlines=True).strip().split()
+        # Try python3.12-config first, then fallback to python3-config
+        try:
+            python_includes = subprocess.check_output(['python3.12-config', '--includes'], 
+                                                     universal_newlines=True).strip().split()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            python_includes = subprocess.check_output(['python3-config', '--includes'], 
+                                                     universal_newlines=True).strip().split()
         python_includes = [flag[2:] for flag in python_includes if flag.startswith('-I')]
     except (subprocess.CalledProcessError, FileNotFoundError):
         # Fallback configuration

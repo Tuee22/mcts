@@ -1,6 +1,8 @@
 # CPU-only build (works on both ARM64 and AMD64)
 FROM ubuntu:22.04 AS cpu
 ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # System update and base tools
 RUN apt update && apt upgrade -y
@@ -11,7 +13,8 @@ RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
     gcc-13 g++-13 git curl wget valgrind cppcheck \
-    libcairo2-dev pkg-config
+    libcairo2-dev pkg-config build-essential \
+    python3-dev python3-distutils python3-setuptools
 
 # Configure GCC
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 1 --slave /usr/bin/g++ g++ /usr/bin/g++-13
@@ -36,6 +39,8 @@ RUN poetry config virtualenvs.create false
 # CUDA build (AMD64 only)
 FROM nvidia/cuda:12.2.2-runtime-ubuntu22.04 AS cuda
 ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # System update and base tools
 RUN apt update && apt upgrade -y
@@ -46,7 +51,8 @@ RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
     gcc-13 g++-13 git curl wget valgrind cppcheck \
-    libcairo2-dev pkg-config
+    libcairo2-dev pkg-config build-essential \
+    python3-dev python3-distutils python3-setuptools
 
 # Configure GCC
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 1 --slave /usr/bin/g++ g++ /usr/bin/g++-13
@@ -77,22 +83,22 @@ COPY pyproject.toml ./
 RUN python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import distutils.util" && \
     find /usr/lib/python3/dist-packages -name "*blinker*" -delete 2>/dev/null || true && \
     find /usr/local/lib/python3.12/dist-packages -name "*blinker*" -delete 2>/dev/null || true
-RUN poetry install --with dev --no-interaction --no-root
+RUN if [ "${TARGETARCH}" = "cuda" ]; then \
+        poetry install --with dev,cuda --no-interaction --no-root; \
+    else \
+        poetry install --with dev --no-interaction --no-root; \
+    fi
 
-# set up python libs
-ENV PYTHONPATH="/home/python/"
-COPY ./python /home/python/
+# Copy all project files and set up environment
+ENV PYTHONPATH="/home/python/:/home/mcts/python/"
+COPY . /home/mcts/
 
-# build c++ code with pybind11 (no Boost) - Updated 2025-01-11
-COPY ./src /home/src/
-WORKDIR /home/src  
+# Build C++ module with current Python 3.12
+WORKDIR /home/mcts/src  
 RUN rm -f _corridors_mcts.so && scons
-RUN rm -f /home/python/corridors/_corridors_mcts.so && cp _corridors_mcts.so /home/python/corridors/
+# Copy to python modules directory  
+RUN mkdir -p /home/mcts/python/corridors && cp _corridors_mcts.so /home/mcts/python/corridors/_corridors_mcts.so
 WORKDIR /home
-RUN rm -rf src/
-
-# Copy C++ module to mcts directory for tests
-RUN mkdir -p /home/mcts/python/corridors && rm -f /home/mcts/python/corridors/_corridors_mcts.so && cp /home/python/corridors/_corridors_mcts.so /home/mcts/python/corridors/
 
 EXPOSE 8888 8786 8787
 CMD jupyter lab --ip=0.0.0.0 --port=8888 --LabApp.token="" --notebook-dir='/home' --no-browser --allow-root
