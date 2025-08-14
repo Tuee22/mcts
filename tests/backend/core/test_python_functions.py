@@ -13,7 +13,7 @@ import pytest
 import io
 import sys
 from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Generator
 
 try:
     from backend.python.corridors.corridors_mcts import (
@@ -27,12 +27,13 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
+
 @pytest.mark.python
 @pytest.mark.display
 class TestDisplaySortedActions:
     """Test the display_sorted_actions utility function."""
 
-    def test_display_empty_actions(self):
+    def test_display_empty_actions(self) -> None:
         """Test displaying empty action list."""
         result = display_sorted_actions([])
 
@@ -40,7 +41,9 @@ class TestDisplaySortedActions:
         assert "Total Visits: 0" in result
         assert result.count("\n") >= 2  # Should have header and trailing newline
 
-    def test_display_single_action(self, sample_actions: List[Tuple[int, float, str]]):
+    def test_display_single_action(
+        self, sample_actions: List[Tuple[int, float, str]]
+    ) -> None:
         """Test displaying single action."""
         single_action = sample_actions[:1]
         result = display_sorted_actions(single_action)
@@ -53,7 +56,7 @@ class TestDisplaySortedActions:
 
     def test_display_multiple_actions(
         self, sample_actions: List[Tuple[int, float, str]]
-    ):
+    ) -> None:
         """Test displaying multiple actions."""
         result = display_sorted_actions(sample_actions)
 
@@ -70,7 +73,7 @@ class TestDisplaySortedActions:
 
     def test_display_limited_actions(
         self, sample_actions: List[Tuple[int, float, str]]
-    ):
+    ) -> None:
         """Test displaying limited number of actions."""
         result = display_sorted_actions(sample_actions, list_size=3)
 
@@ -95,7 +98,9 @@ class TestDisplaySortedActions:
             )
             assert expected_line not in result
 
-    def test_display_zero_list_size(self, sample_actions: List[Tuple[int, float, str]]):
+    def test_display_zero_list_size(
+        self, sample_actions: List[Tuple[int, float, str]]
+    ) -> None:
         """Test display with list_size=0 shows all actions."""
         result_all = display_sorted_actions(sample_actions)
         result_zero = display_sorted_actions(sample_actions, list_size=0)
@@ -111,7 +116,9 @@ class TestDisplaySortedActions:
             (1, -0.5432, "*(0,8)"),
         ],
     )
-    def test_display_various_values(self, visits: int, equity: float, action: str):
+    def test_display_various_values(
+        self, visits: int, equity: float, action: str
+    ) -> None:
         """Test displaying various action value combinations."""
         test_actions = [(visits, equity, action)]
         result = display_sorted_actions(test_actions)
@@ -123,7 +130,7 @@ class TestDisplaySortedActions:
 
     def test_display_formatting_consistency(
         self, sample_actions: List[Tuple[int, float, str]]
-    ):
+    ) -> None:
         """Test that display formatting is consistent."""
         result = display_sorted_actions(sample_actions)
 
@@ -144,12 +151,13 @@ class TestDisplaySortedActions:
             assert parts[3] == "Equity:"
             assert parts[5] == "Action:"
 
+
 @pytest.mark.python
 @pytest.mark.integration
 class TestComputerSelfPlay:
     """Test computer self-play functionality."""
 
-    def test_computer_self_play_setup(self):
+    def test_computer_self_play_setup(self) -> None:
         """Test that computer_self_play can be called without errors in setup."""
         if not CORRIDORS_AVAILABLE:
             return
@@ -166,10 +174,9 @@ class TestComputerSelfPlay:
         # Verify methods were called
         mock_p1.get_sorted_actions.assert_called()
 
-    def test_computer_self_play_single_move(self):
+    def test_computer_self_play_single_move(self) -> None:
         """Test computer self-play with single move before game ends."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_p1 = Mock()
         mock_p2 = Mock()
@@ -195,10 +202,9 @@ class TestComputerSelfPlay:
         mock_p1.make_move.assert_called_with("*(4,1)", True)
         mock_p2.make_move.assert_called_with("*(4,1)", True)
 
-    def test_computer_self_play_same_instance(self):
+    def test_computer_self_play_same_instance(self) -> None:
         """Test computer self-play using same instance for both players."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_instance = Mock()
         mock_instance.get_sorted_actions.return_value = []  # Game over immediately
@@ -210,10 +216,9 @@ class TestComputerSelfPlay:
 
         mock_instance.get_sorted_actions.assert_called()
 
-    def test_computer_self_play_stop_on_eval(self):
+    def test_computer_self_play_stop_on_eval(self) -> None:
         """Test computer self-play with stop_on_eval=True."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_p1 = Mock()
         mock_p1.get_sorted_actions.return_value = [(100, 0.6, "*(4,8)")]  # Winning move
@@ -232,6 +237,7 @@ class TestComputerSelfPlay:
         winning_messages = [msg for msg in print_calls if "wins!" in msg]
         assert len(winning_messages) > 0
 
+
 @pytest.mark.python
 @pytest.mark.integration
 class TestHumanComputerPlay:
@@ -240,11 +246,10 @@ class TestHumanComputerPlay:
     @patch("builtins.input")
     @patch("builtins.print")
     def test_human_computer_play_human_first_immediate_end(
-        self, mock_print, mock_input
-    ):
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play when game ends immediately."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.return_value = []  # Game over immediately
@@ -257,10 +262,11 @@ class TestHumanComputerPlay:
 
     @patch("builtins.input", return_value="*(4,1)")
     @patch("builtins.print")
-    def test_human_computer_play_single_move(self, mock_print, mock_input):
+    def test_human_computer_play_single_move(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play with one move."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         # First call has moves, second call game over
@@ -279,10 +285,11 @@ class TestHumanComputerPlay:
 
     @patch("builtins.input", side_effect=["invalid_move", "*(4,1)"])
     @patch("builtins.print")
-    def test_human_computer_play_invalid_move(self, mock_print, mock_input):
+    def test_human_computer_play_invalid_move(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play with invalid move first."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
@@ -305,10 +312,11 @@ class TestHumanComputerPlay:
 
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_human_computer_play_computer_first(self, mock_print, mock_input):
+    def test_human_computer_play_computer_first(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play with computer going first."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
@@ -327,10 +335,11 @@ class TestHumanComputerPlay:
 
     @patch("builtins.input", return_value="*(1,1)")
     @patch("builtins.print")
-    def test_human_computer_play_hide_moves(self, mock_print, mock_input):
+    def test_human_computer_play_hide_moves(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test that human moves are properly hidden when requested."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         # First call returns actions, second call returns empty (game over)
@@ -352,15 +361,15 @@ class TestHumanComputerPlay:
         action_calls = [call for call in print_calls if "Visit count:" in call]
         assert len(action_calls) == 0
 
+
 @pytest.mark.python
 @pytest.mark.unit
 class TestCorridorsMCTSPythonMethods:
     """Test Python-specific methods in Corridors_MCTS class."""
 
-    def test_json_serialization(self, fast_mcts_params: Dict[str, Any]):
+    def test_json_serialization(self, fast_mcts_params: Dict[str, Any]) -> None:
         """Test __json__ method for serialization."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mcts = Corridors_MCTS(**fast_mcts_params)
         json_repr = mcts.__json__()
@@ -370,21 +379,24 @@ class TestCorridorsMCTSPythonMethods:
         assert "name" in json_repr
         assert json_repr["name"] == "unnamed"  # Default name
 
-    def test_json_serialization_with_name(self, fast_mcts_params: Dict[str, Any]):
+    def test_json_serialization_with_name(
+        self, fast_mcts_params: Dict[str, Any]
+    ) -> None:
         """Test __json__ method with custom name attribute."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mcts = Corridors_MCTS(**fast_mcts_params)
-        mcts.name = "test_mcts"
+        # Use setattr to dynamically add name attribute
+        setattr(mcts, "name", "test_mcts")
         json_repr = mcts.__json__()
 
         assert json_repr["name"] == "test_mcts"
 
-    def test_get_evaluation_none_handling(self, fast_mcts_params: Dict[str, Any]):
+    def test_get_evaluation_none_handling(
+        self, fast_mcts_params: Dict[str, Any]
+    ) -> None:
         """Test that get_evaluation properly handles None values."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
@@ -402,10 +414,9 @@ class TestCorridorsMCTSPythonMethods:
             result = mcts.get_evaluation()
             assert result == 0.5
 
-    def test_method_delegation(self, fast_mcts_params: Dict[str, Any]):
+    def test_method_delegation(self, fast_mcts_params: Dict[str, Any]) -> None:
         """Test that methods properly delegate to parent class."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
@@ -418,6 +429,7 @@ class TestCorridorsMCTSPythonMethods:
         evaluation = mcts.get_evaluation()
         assert evaluation is None or isinstance(evaluation, (int, float))
 
+
 @pytest.mark.python
 @pytest.mark.parametrize(
     "c,seed,min_sims,max_sims",
@@ -427,17 +439,17 @@ class TestCorridorsMCTSPythonMethods:
         (2.0, 123, 20, 50),
     ],
 )
-def test_mcts_parameter_combinations(c: float, seed: int, min_sims: int, max_sims: int):
+def test_mcts_parameter_combinations(
+    c: float, seed: int, min_sims: int, max_sims: int
+) -> None:
     """Test MCTS with various parameter combinations."""
     if not CORRIDORS_AVAILABLE:
-
         return
     mcts = Corridors_MCTS(
         c=c,
         seed=seed,
         min_simulations=min_sims,
         max_simulations=max_sims,
-        sim_increment=5,
     )
 
     assert mcts is not None
@@ -445,25 +457,30 @@ def test_mcts_parameter_combinations(c: float, seed: int, min_sims: int, max_sim
     display = mcts.display()
     assert isinstance(display, str)
 
+
 @pytest.mark.python
 @pytest.mark.integration
 class TestErrorHandling:
     """Test error handling in Python functions."""
 
-    def test_display_sorted_actions_invalid_input(self):
+    def test_display_sorted_actions_invalid_input(self) -> None:
         """Test display_sorted_actions with invalid input."""
         # Should handle empty gracefully
         result = display_sorted_actions([])
         assert isinstance(result, str)
 
         # Should handle malformed tuples gracefully
-        with pytest.raises((IndexError, TypeError)):
-            display_sorted_actions([(100,)])  # Missing elements
+        from typing import cast, Any
 
         with pytest.raises((IndexError, TypeError)):
-            display_sorted_actions([100])  # Not a tuple
+            # Cast to bypass mypy type check for intentionally malformed data
+            display_sorted_actions(cast(Any, [(100,)]))  # Missing elements
 
-    def test_function_imports(self):
+        with pytest.raises((IndexError, TypeError)):
+            # Cast to bypass mypy type check for intentionally malformed data
+            display_sorted_actions(cast(Any, [100]))  # Not a tuple
+
+    def test_function_imports(self) -> None:
         """Test that all expected functions can be imported."""
         if not CORRIDORS_AVAILABLE:
             return

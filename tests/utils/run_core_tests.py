@@ -13,7 +13,7 @@ def run_command(cmd, description):
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print(f"{'='*60}")
-    
+
     result = subprocess.run(cmd, capture_output=False)
     if result.returncode != 0:
         print(f"\n❌ {description} failed with return code {result.returncode}")
@@ -26,37 +26,39 @@ def run_command(cmd, description):
 def main():
     parser = argparse.ArgumentParser(description="Run core MCTS tests")
     parser.add_argument(
-        "--type", 
+        "--type",
         choices=["all", "fast", "cpp", "python", "integration", "performance"],
         default="fast",
-        help="Type of tests to run"
+        help="Type of tests to run",
     )
     parser.add_argument("--coverage", action="store_true", help="Run with coverage")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--benchmarks", action="store_true", help="Include benchmarks")
-    
+
     args = parser.parse_args()
-    
+
     # Base pytest command
     base_cmd = ["python", "-m", "pytest"]
-    
+
     # Add verbosity
     if args.verbose:
         base_cmd.append("-v")
-    
+
     # Add coverage
     if args.coverage:
-        base_cmd.extend([
-            "--cov=backend.python",
-            "--cov-report=html:htmlcov-core",
-            "--cov-report=term-missing",
-            "--cov-fail-under=70"
-        ])
-    
+        base_cmd.extend(
+            [
+                "--cov=backend.python",
+                "--cov-report=html:htmlcov-core",
+                "--cov-report=term-missing",
+                "--cov-fail-under=70",
+            ]
+        )
+
     # Determine test files and markers
     test_paths = []
     markers = []
-    
+
     if args.type == "all":
         test_paths = ["tests/backend/core/"]
         if args.benchmarks:
@@ -74,19 +76,19 @@ def main():
         test_paths = ["tests/backend/core/test_integration.py"]
     elif args.type == "performance":
         test_paths = ["tests/backend/core/test_performance.py", "tests/benchmarks/"]
-    
+
     # Build final command
     cmd = base_cmd + test_paths + markers
-    
+
     # Run the tests
     success = run_command(cmd, f"{args.type.title()} core tests")
-    
+
     if args.coverage and success:
         print(f"\n📊 Coverage report generated at: htmlcov-core/index.html")
-    
+
     if args.benchmarks and success:
         print(f"\n⚡ Benchmark results available")
-    
+
     sys.exit(0 if success else 1)
 
 

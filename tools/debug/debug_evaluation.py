@@ -39,37 +39,41 @@ print(f"Number of actions: {len(actions)}")
 if actions:
     best_action = actions[0]
     print(f"Best action: {best_action}")
-    print(f"Best action details: visits={best_action[0]}, equity={best_action[1]}, action='{best_action[2]}'")
-    
+    print(
+        f"Best action details: visits={best_action[0]}, equity={best_action[1]}, action='{best_action[2]}'"
+    )
+
     print("\n=== MAKING MOVE ===")
     print(f"Making move: {best_action[2]} with flip=True")
-    
+
     # Make the move
     mcts.make_move(best_action[2], flip=True)
-    
+
     print("\n=== STATE AFTER MOVE ===")
     print("Display after move:")
     print(mcts.display(flip=False))
     print()
-    
+
     # Check evaluation after move
     evaluation = mcts.get_evaluation()
     print(f"Evaluation after move: {evaluation}")
-    print(f"Terminal condition check: evaluation is not None = {evaluation is not None}")
+    print(
+        f"Terminal condition check: evaluation is not None = {evaluation is not None}"
+    )
     if evaluation is not None:
         print(f"abs(evaluation) = {abs(evaluation)}")
         print(f"abs(evaluation) >= 1.0 = {abs(evaluation) >= 1.0}")
-    
+
     # If the evaluation is exactly -1.0 or 1.0, let's examine the board state
     if evaluation is not None and abs(evaluation) >= 1.0:
         print(f"TERMINAL: evaluation {evaluation} >= 1.0 (absolute value)")
         print("This explains why the game ends after just one move!")
-        
+
         # Let's see what actions are available after this move
         print("\n=== CHECKING POST-MOVE STATE ===")
         actions_after = mcts.get_sorted_actions(flip=False)  # Villain's turn
         print(f"Actions available after move: {len(actions_after)}")
-        
+
         if len(actions_after) == 0:
             print("No actions available - position is terminal")
         else:

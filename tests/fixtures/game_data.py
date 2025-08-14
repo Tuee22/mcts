@@ -7,21 +7,13 @@ from api.models import GameSettings, MCTSSettings, PlayerType
 # Common game configurations
 FAST_GAME_SETTINGS = GameSettings(
     mcts_settings=MCTSSettings(
-        c=0.158,
-        min_simulations=50,
-        max_simulations=50,
-        use_rollout=True,
-        seed=42
+        c=0.158, min_simulations=50, max_simulations=50, use_rollout=True, seed=42
     )
 )
 
 STANDARD_GAME_SETTINGS = GameSettings(
     mcts_settings=MCTSSettings(
-        c=1.4,
-        min_simulations=1000,
-        max_simulations=1000,
-        use_rollout=True,
-        seed=42
+        c=1.4, min_simulations=1000, max_simulations=1000, use_rollout=True, seed=42
     )
 )
 
@@ -32,7 +24,7 @@ PUCT_GAME_SETTINGS = GameSettings(
         max_simulations=500,
         use_puct=True,
         use_probs=True,
-        seed=42
+        seed=42,
     )
 )
 
@@ -46,7 +38,7 @@ OPENING_MOVES = [
 
 WALL_GAME_MOVES = [
     "*(4,1)",  # Hero forward
-    "*(4,7)",  # Villain forward  
+    "*(4,7)",  # Villain forward
     "H(4,1)",  # Hero places horizontal wall
     "V(3,6)",  # Villain places vertical wall
     "*(3,1)",  # Hero moves left

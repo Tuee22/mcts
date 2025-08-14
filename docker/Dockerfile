@@ -88,8 +88,8 @@ RUN poetry config virtualenvs.create false
 FROM ${TARGETARCH} AS final
 WORKDIR /home
 
-# Install project dependencies
-COPY pyproject.toml poetry.lock* ./
+# Install project dependencies (lock file generated in container, not mounted)
+COPY pyproject.toml ./
 RUN python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import distutils.util" && \
     find /usr/lib/python3/dist-packages -name "*blinker*" -delete 2>/dev/null || true && \
     find /usr/local/lib/python3.12/dist-packages -name "*blinker*" -delete 2>/dev/null || true
@@ -103,7 +103,7 @@ RUN if [ "${TARGETARCH}" = "cuda" ]; then \
 ENV PYTHONPATH="/home/mcts/:/home/mcts/backend/python/"
 COPY . /home/mcts/
 
-# Install Poetry dependencies in the project directory
+# Install Poetry dependencies in the project directory (generates fresh lock file)
 WORKDIR /home/mcts
 RUN poetry install --no-interaction --no-root
 
@@ -113,16 +113,16 @@ RUN rm -f _corridors_mcts.so && scons
 # Copy to python modules directory (directory should already exist from COPY operation)
 RUN cp _corridors_mcts.so /home/mcts/backend/python/corridors/_corridors_mcts.so
 
-# Build React frontend (after copying project files)
+# Build React frontend (after copying project files) - generates fresh package-lock.json
 WORKDIR /home/mcts/frontend
-RUN npm ci
+RUN npm install
 RUN npm run build
 # Verify build directory was created
 RUN ls -la build/
 
-# Install frontend test dependencies
+# Install frontend test dependencies - generates fresh package-lock.json
 WORKDIR /home/mcts/tests/frontend
-RUN npm ci
+RUN npm install
 # Link React dependencies from main frontend to avoid version conflicts
 RUN ln -sf /home/mcts/frontend/node_modules/react node_modules/react
 RUN ln -sf /home/mcts/frontend/node_modules/react-dom node_modules/react-dom  

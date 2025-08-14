@@ -60,8 +60,11 @@ print(f"Found {len(positional_moves)} positional moves")
 if positional_moves:
     print(f"Making positional move {positional_moves[0][2]} with flip=True")
     mcts2.make_move(positional_moves[0][2], flip=True)
-    
-    print("Actions available after positional move:", len(mcts2.get_sorted_actions(flip=False)))
+
+    print(
+        "Actions available after positional move:",
+        len(mcts2.get_sorted_actions(flip=False)),
+    )
     print("Evaluation after positional move:", mcts2.get_evaluation())
 else:
     print("No positional moves found!")
@@ -82,13 +85,20 @@ mcts3 = Corridors_MCTS(
 )
 mcts3.ensure_sims(150)
 
-# Find a different wall move  
+# Find a different wall move
 actions3 = mcts3.get_sorted_actions(flip=True)
-wall_moves = [action for action in actions3 if action[2].startswith("V(") or action[2].startswith("H(")]
+wall_moves = [
+    action
+    for action in actions3
+    if action[2].startswith("V(") or action[2].startswith("H(")
+]
 if len(wall_moves) > 1:
     second_wall = wall_moves[1][2]
     print(f"Making second wall move {second_wall} with flip=True")
     mcts3.make_move(second_wall, flip=True)
-    
-    print("Actions available after second wall move:", len(mcts3.get_sorted_actions(flip=False)))
+
+    print(
+        "Actions available after second wall move:",
+        len(mcts3.get_sorted_actions(flip=False)),
+    )
     print("Evaluation after second wall move:", mcts3.get_evaluation())

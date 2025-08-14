@@ -25,12 +25,13 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
+
 @pytest.mark.integration
 @pytest.mark.slow
 class TestCompleteGameScenarios:
     """Test complete game scenarios from start to finish."""
 
-    def test_full_computer_self_play(self):
+    def test_full_computer_self_play(self) -> None:
         """Test a complete computer self-play game."""
         # Use reasonable parameters for a full game
         p1 = Corridors_MCTS(
@@ -38,7 +39,6 @@ class TestCompleteGameScenarios:
             seed=123,
             min_simulations=100,
             max_simulations=500,
-            sim_increment=25,
             use_rollout=True,
             eval_children=False,
             decide_using_visits=True,
@@ -49,7 +49,6 @@ class TestCompleteGameScenarios:
             seed=456,  # Different seed for variation
             min_simulations=100,
             max_simulations=500,
-            sim_increment=25,
             use_rollout=True,
             eval_children=False,
             decide_using_visits=True,
@@ -90,7 +89,7 @@ class TestCompleteGameScenarios:
             # Make move on both boards
             current_player.make_move(best_action, flip=is_hero_turn)
             other_player.make_move(best_action, flip=is_hero_turn)
-            
+
             # Ensure simulations for both players after move
             current_player.ensure_sims(50)
             other_player.ensure_sims(50)
@@ -117,14 +116,13 @@ class TestCompleteGameScenarios:
 
         print(f"Game completed in {len(moves_made)} moves")
 
-    def test_single_player_game_to_completion(self):
+    def test_single_player_game_to_completion(self) -> None:
         """Test a single-player game played to completion."""
         mcts = Corridors_MCTS(
             c=2.0,
             seed=789,
             min_simulations=150,
             max_simulations=300,
-            sim_increment=30,
             use_rollout=True,
             decide_using_visits=True,
         )
@@ -172,11 +170,15 @@ class TestCompleteGameScenarios:
 
         # Verify game progression makes sense
         for i, move_data in enumerate(move_sequence):
-            assert move_data["visits"] > 0, f"Move {i} had zero visits"
+            visits = move_data["visits"]
+            total_actions = move_data["total_actions"]
+            assert isinstance(visits, int) and visits > 0, f"Move {i} had zero visits"
             assert isinstance(
                 move_data["equity"], (int, float)
             ), f"Move {i} had invalid equity"
-            assert move_data["total_actions"] > 0, f"Move {i} had no available actions"
+            assert (
+                isinstance(total_actions, int) and total_actions > 0
+            ), f"Move {i} had no available actions"
 
     @pytest.mark.parametrize(
         "algorithm_params",
@@ -189,14 +191,13 @@ class TestCompleteGameScenarios:
     )
     def test_different_algorithms_complete_games(
         self, algorithm_params: Dict[str, Any]
-    ):
+    ) -> None:
         """Test that different algorithm configurations can complete games."""
         params = {
             "c": 1.2,
             "seed": 999,
             "min_simulations": 80,
             "max_simulations": 200,
-            "sim_increment": 20,
             **algorithm_params,
         }
 
@@ -221,16 +222,15 @@ class TestCompleteGameScenarios:
 
         assert moves_completed > 0, f"No moves completed with {algorithm_params}"
 
+
 @pytest.mark.integration
 @pytest.mark.cpp
 class TestCPythonIntegration:
     """Test integration between Python and C++ components."""
 
-    def test_data_type_consistency(self):
+    def test_data_type_consistency(self) -> None:
         """Test that data types are consistent across Python-C++ boundary."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=50, max_simulations=100, sim_increment=10
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=50, max_simulations=100)
 
         mcts.ensure_sims(50)
 
@@ -254,11 +254,9 @@ class TestCPythonIntegration:
             assert isinstance(action_str, str)
             assert len(action_str) > 0
 
-    def test_move_execution_consistency(self):
+    def test_move_execution_consistency(self) -> None:
         """Test that moves are executed consistently between calls."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=111, min_simulations=30, max_simulations=60, sim_increment=10
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=111, min_simulations=30, max_simulations=60)
 
         mcts.ensure_sims(30)
 
@@ -284,11 +282,9 @@ class TestCPythonIntegration:
             assert len(action) == 3
             assert isinstance(action[2], str)
 
-    def test_evaluation_function_integration(self):
+    def test_evaluation_function_integration(self) -> None:
         """Test evaluation function returns consistent types."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=222, min_simulations=40, max_simulations=80, sim_increment=10
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=222, min_simulations=40, max_simulations=80)
 
         # Test evaluation at different stages
         initial_eval = mcts.get_evaluation()
@@ -315,16 +311,15 @@ class TestCPythonIntegration:
                 ], f"Terminal evaluation should be ±1.0, got {evaluation}"
                 break
 
+
 @pytest.mark.integration
 @pytest.mark.performance
 class TestRealisticUsagePatterns:
     """Test realistic usage patterns and performance."""
 
-    def test_interactive_session_simulation(self):
+    def test_interactive_session_simulation(self) -> None:
         """Simulate an interactive session with varied queries."""
-        mcts = Corridors_MCTS(
-            c=1.5, seed=333, min_simulations=100, max_simulations=200, sim_increment=20
-        )
+        mcts = Corridors_MCTS(c=1.5, seed=333, min_simulations=100, max_simulations=200)
 
         # Simulate user behavior: checking state, making moves, checking again
         session_log = []
@@ -378,7 +373,7 @@ class TestRealisticUsagePatterns:
                 avg_action_time < 0.1
             ), f"Get actions too slow: {avg_action_time}s average"
 
-    def test_tournament_style_games(self):
+    def test_tournament_style_games(self) -> None:
         """Test multiple games as in a tournament setting."""
         results = []
 
@@ -388,7 +383,6 @@ class TestRealisticUsagePatterns:
                 seed=100 + game_num,
                 min_simulations=80,
                 max_simulations=160,
-                sim_increment=20,
             )
 
             p2 = Corridors_MCTS(
@@ -396,7 +390,6 @@ class TestRealisticUsagePatterns:
                 seed=200 + game_num,
                 min_simulations=80,
                 max_simulations=160,
-                sim_increment=20,
             )
 
             game_result = self._play_game(p1, p2, max_moves=120)
@@ -442,7 +435,7 @@ class TestRealisticUsagePatterns:
             other_player.make_move(best_action, flip=is_hero_turn)
 
             moves += 1
-            
+
             # Ensure simulations for evaluation
             current_player.ensure_sims(40)
 
@@ -456,16 +449,15 @@ class TestRealisticUsagePatterns:
 
         return {"moves": moves, "winner": "Incomplete", "reason": "max_moves"}
 
+
 @pytest.mark.integration
 @pytest.mark.display
 class TestDisplayIntegration:
     """Test display functionality integration."""
 
-    def test_display_consistency_during_game(self):
+    def test_display_consistency_during_game(self) -> None:
         """Test that display remains consistent during game progression."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=444, min_simulations=50, max_simulations=100, sim_increment=10
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=444, min_simulations=50, max_simulations=100)
 
         displays = []
 
@@ -505,11 +497,9 @@ class TestDisplayIntegration:
                 displays[0]["hero_view"] != displays[-1]["hero_view"]
             ), "Display should change during game"
 
-    def test_action_display_integration(self):
+    def test_action_display_integration(self) -> None:
         """Test integration between action generation and display."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=555, min_simulations=60, max_simulations=120, sim_increment=15
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=555, min_simulations=60, max_simulations=120)
 
         mcts.ensure_sims(60)
         actions = mcts.get_sorted_actions(flip=True)
@@ -539,15 +529,16 @@ class TestDisplayIntegration:
             except Exception as e:
                 pytest.fail(f"Action {action_str} caused error: {e}")
 
+
 @pytest.mark.integration
 @pytest.mark.slow
 class TestLongRunningScenarios:
     """Test long-running scenarios and stability."""
 
-    def test_extended_simulation_session(self):
+    def test_extended_simulation_session(self) -> None:
         """Test extended simulation and query session."""
         mcts = Corridors_MCTS(
-            c=1.2, seed=666, min_simulations=200, max_simulations=1000, sim_increment=50
+            c=1.2, seed=666, min_simulations=200, max_simulations=1000
         )
 
         # Extended simulation session

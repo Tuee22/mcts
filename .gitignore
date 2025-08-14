@@ -129,3 +129,7 @@ coverage/
 
 # Poetry
 poetry.lock
+
+# MyPy reports and cache
+mypy-reports/
+.mypy_cache/

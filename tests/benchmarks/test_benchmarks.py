@@ -15,6 +15,7 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
+
 @pytest.mark.benchmark
 class TestMCTSBenchmarks:
     """Benchmark core MCTS operations."""
@@ -27,7 +28,6 @@ class TestMCTSBenchmarks:
             seed=42,
             min_simulations=sim_count,
             max_simulations=sim_count,
-            sim_increment=50,
         )
 
         def run_simulations():
@@ -98,7 +98,6 @@ class TestMCTSBenchmarks:
                 seed=42,
                 min_simulations=500,
                 max_simulations=500,
-                sim_increment=25,
             )
             mcts.ensure_sims(500)
             return mcts.get_sorted_actions(flip=True)
@@ -152,24 +151,23 @@ class TestMCTSBenchmarks:
 
     def test_rollout_performance(self, benchmark):
         """Benchmark random rollout performance specifically."""
-        
+
         def run_rollout_simulation():
             mcts = Corridors_MCTS(
                 c=1.4,
                 seed=42,
                 min_simulations=500,
                 max_simulations=500,
-                sim_increment=50,
                 use_rollout=True,  # Only test rollouts since eval is not implemented
                 eval_children=False,
                 use_puct=False,
                 use_probs=False,
                 decide_using_visits=True,
             )
-            
+
             mcts.ensure_sims(500)
             actions = mcts.get_sorted_actions(flip=True)
-            
+
             # Make a few moves to test performance during gameplay
             moves_made = 0
             for i in range(5):
@@ -179,7 +177,7 @@ class TestMCTSBenchmarks:
                     moves_made += 1
                 else:
                     break
-            
+
             return moves_made
 
         moves = benchmark(run_rollout_simulation)
@@ -192,11 +190,11 @@ class TestMCTSBenchmarks:
             from python.corridors.corridors_mcts import computer_self_play
             import io
             import sys
-            
+
             # Capture output to avoid printing during benchmark
             old_stdout = sys.stdout
             sys.stdout = io.StringIO()
-            
+
             try:
                 p1 = Corridors_MCTS(
                     c=1.4, seed=333, min_simulations=100, max_simulations=100
@@ -204,40 +202,40 @@ class TestMCTSBenchmarks:
                 p2 = Corridors_MCTS(
                     c=1.4, seed=444, min_simulations=100, max_simulations=100
                 )
-                
+
                 # Track game state before and after
                 initial_actions = len(p1.get_sorted_actions(flip=True))
-                
+
                 # Run abbreviated self-play (limit moves for benchmark)
                 moves_made = 0
                 is_hero_turn = True
-                
+
                 p1.ensure_sims(100)
                 p2.ensure_sims(100)
-                
+
                 for move_num in range(20):  # Limit to 20 moves for benchmark
                     current_player = p1 if is_hero_turn else p2
                     other_player = p2 if is_hero_turn else p1
-                    
+
                     actions = current_player.get_sorted_actions(flip=is_hero_turn)
                     if not actions:
                         break
-                        
+
                     # Make best move
                     best_action = actions[0][2]
                     current_player.make_move(best_action, flip=is_hero_turn)
                     other_player.make_move(best_action, flip=is_hero_turn)
                     moves_made += 1
-                    
+
                     # Check for game end
                     evaluation = current_player.get_evaluation()
                     if evaluation is not None and abs(evaluation) >= 1.0:
                         break
-                        
+
                     is_hero_turn = not is_hero_turn
-                
+
                 return moves_made
-                
+
             finally:
                 sys.stdout = old_stdout
 
@@ -247,28 +245,27 @@ class TestMCTSBenchmarks:
     @pytest.mark.parametrize("sim_count", [50, 200, 500])
     def test_random_rollout_scaling(self, benchmark, sim_count: int):
         """Benchmark random rollout performance at different simulation counts."""
-        
+
         def run_random_rollouts():
             mcts = Corridors_MCTS(
                 c=1.4,
                 seed=42,
                 min_simulations=sim_count,
                 max_simulations=sim_count,
-                sim_increment=25,
                 use_rollout=True,  # Enable random rollouts
                 eval_children=False,
                 use_puct=False,
                 use_probs=False,
                 decide_using_visits=True,
             )
-            
+
             # Run simulations
             mcts.ensure_sims(sim_count)
-            
+
             # Get actions and make some moves to trigger more rollouts
             actions = mcts.get_sorted_actions(flip=True)
             rollout_moves = 0
-            
+
             for i in range(3):  # Make 3 moves to generate new rollouts
                 if actions:
                     mcts.make_move(actions[0][2], flip=(i % 2 == 0))
@@ -278,11 +275,12 @@ class TestMCTSBenchmarks:
                     rollout_moves += 1
                 else:
                     break
-            
+
             return rollout_moves
 
         moves = benchmark(run_random_rollouts)
         assert moves >= 0
+
 
 @pytest.mark.benchmark
 class TestPythonFunctionBenchmarks:
@@ -313,6 +311,7 @@ class TestPythonFunctionBenchmarks:
 
         result = benchmark(format_large_list)
         assert isinstance(result, str)
+
 
 # Custom benchmark configuration for this module
 def pytest_configure(config):

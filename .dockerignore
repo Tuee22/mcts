@@ -1,5 +1,6 @@
 # ==============================================================================
-# .dockerignore - Synchronized with .gitignore for consistent build context
+# .dockerignore - Keep synchronized with .gitignore for consistent build context
+# Last sync: 2025-01-14 (updated MyPy reports and lock file handling)
 # ==============================================================================
 
 # Python cache and compiled files
@@ -78,10 +79,11 @@ yarn-error.log*
 frontend/build/
 frontend/dist/
 
-# Package lock files (keep package-lock.json for npm ci)
-# package-lock.json is needed for npm ci
+# Package lock files (removed from version control for cross-platform compatibility)
+# These are generated fresh in Docker builds
+package-lock.json
 yarn.lock
-# poetry.lock is needed for reproducible builds
+poetry.lock
 
 # Test coverage reports
 coverage/
@@ -178,6 +180,10 @@ scripts/test/
 *.sqlite
 *.sqlite3
 
+# MyPy reports and cache
+mypy-reports/
+.mypy_cache/
+
 # Local development files
 .local/
 .tmp/
@@ -212,3 +218,9 @@ scripts/test/
 *.backup
 *.bak
 *~
+
+# ==============================================================================
+# Additional sync with .gitignore
+# ==============================================================================
+
+# Additional file patterns from .gitignore

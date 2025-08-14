@@ -7,10 +7,12 @@ except ImportError:
     print("Could not import Corridors_MCTS")
     exit(1)
 
+
 def get_positional_actions(mcts, flip):
     """Get only positional actions (moves starting with '*')."""
     all_actions = mcts.get_sorted_actions(flip=flip)
     return [action for action in all_actions if action[2].startswith("*")]
+
 
 # Test game with positional moves only
 mcts = Corridors_MCTS(
@@ -31,11 +33,11 @@ max_moves = 15
 
 for move_num in range(max_moves):
     mcts.ensure_sims(150)
-    
+
     # Get only positional actions
-    flip_value = (move_num % 2 == 0)
+    flip_value = move_num % 2 == 0
     positional_actions = get_positional_actions(mcts, flip_value)
-    
+
     if not positional_actions:
         print(f"No positional actions available at move {move_num}")
         # Try all actions as fallback
@@ -48,24 +50,28 @@ for move_num in range(max_moves):
             best_action = all_actions[0]
     else:
         best_action = positional_actions[0]
-    
-    move_sequence.append({
-        "move": move_num,
-        "action": best_action[2],
-        "visits": best_action[0],
-        "equity": best_action[1],
-        "flip": flip_value,
-    })
-    
-    print(f"Move {move_num}: {best_action[2]} (flip={flip_value}, visits: {best_action[0]}, equity: {best_action[1]})")
-    
+
+    move_sequence.append(
+        {
+            "move": move_num,
+            "action": best_action[2],
+            "visits": best_action[0],
+            "equity": best_action[1],
+            "flip": flip_value,
+        }
+    )
+
+    print(
+        f"Move {move_num}: {best_action[2]} (flip={flip_value}, visits: {best_action[0]}, equity: {best_action[1]})"
+    )
+
     # Make the move
     mcts.make_move(best_action[2], flip=flip_value)
-    
+
     # Check terminal state
     evaluation = mcts.get_evaluation()
     print(f"  Evaluation after move: {evaluation}")
-    
+
     if evaluation is not None and abs(evaluation) >= 1.0:
         print(f"  TERMINAL: evaluation {evaluation}")
         break

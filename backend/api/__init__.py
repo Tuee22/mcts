@@ -12,7 +12,7 @@ from .models import (
     MoveResponse,
     PlayerType,
     GameStatus,
-    GameMode
+    GameMode,
 )
 from .game_manager import GameManager
 from .websocket_manager import WebSocketManager
@@ -29,5 +29,5 @@ __all__ = [
     "MoveResponse",
     "PlayerType",
     "GameStatus",
-    "GameMode"
+    "GameMode",
 ]

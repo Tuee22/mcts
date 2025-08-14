@@ -45,7 +45,7 @@ if actions:
     next_move = actions[0][2]  # Get the best move for villain
     print(f"Making villain move {next_move} with flip=False")
     mcts.make_move(next_move, flip=False)
-    
+
     eval_after_second = mcts.get_evaluation()
     print("Evaluation after second move:", eval_after_second)
     actions_after_second = mcts.get_sorted_actions(flip=True)
@@ -65,10 +65,10 @@ for wall_pos in ["V(4,4)", "H(4,4)", "V(1,1)", "H(1,1)"]:
         use_rollout=True,
         decide_using_visits=True,
     )
-    
+
     mcts_test.ensure_sims(50)
     actions_before = mcts_test.get_sorted_actions(flip=True)
-    
+
     # Check if this wall position is legal
     legal_moves = [a[2] for a in actions_before]
     if wall_pos in legal_moves:

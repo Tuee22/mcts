@@ -2,6 +2,7 @@ from ._corridors_mcts import _corridors_mcts
 from math import sqrt
 import numpy as np
 import logging
+from typing import List, Tuple, Optional, Dict, Union, Any
 
 
 class Corridors_MCTS(_corridors_mcts):
@@ -54,23 +55,22 @@ class Corridors_MCTS(_corridors_mcts):
 
     def __init__(
         self,
-        c=sqrt(0.025),
-        seed=42,
-        min_simulations=10000,
-        max_simulations=10000,
-        sim_increment=250,
-        use_rollout=True,
-        eval_children=False,
-        use_puct=False,
-        use_probs=False,
-        decide_using_visits=True,
-    ):
+        c: float = sqrt(0.025),
+        seed: int = 42,
+        min_simulations: int = 10000,
+        max_simulations: int = 10000,
+        use_rollout: bool = True,
+        eval_children: bool = False,
+        use_puct: bool = False,
+        use_probs: bool = False,
+        decide_using_visits: bool = True,
+    ) -> None:
         super().__init__(
             c,
             seed,
             min_simulations,
             max_simulations,
-            sim_increment,
+            1000,  # sim_increment - deprecated but still required by C++
             use_rollout,
             eval_children,
             use_puct,
@@ -78,23 +78,23 @@ class Corridors_MCTS(_corridors_mcts):
             decide_using_visits,
         )
 
-    def __json__(self):
+    def __json__(self) -> Dict[str, str]:
         return {"type": str(type(self)), "name": getattr(self, "name", "unnamed")}
 
-    def display(self, flip=False):
+    def display(self, flip: bool = False) -> str:
         """Provides an ASCII representation of the board from
         heros perspective. Flip will provide the same board
         from villain's perspective."""
         return super().display(flip)
 
-    def make_move(self, action_text, flip=False):
+    def make_move(self, action_text: str, flip: bool = False) -> None:
         """Makes a move according to the following action text:
         *(X,Y)  - move hero's token to new coordinate (X,Y)
         H(X,Y)  - place a horizontal wall at intersection (X,Y)
         V(X,Y)  - place a vertical wall at intersection (X,Y)"""
         return super().make_move(action_text, flip)
 
-    def get_sorted_actions(self, flip=True):
+    def get_sorted_actions(self, flip: bool = True) -> List[Tuple[int, float, str]]:
         """Gets a list of tuples which represent all legal moves.
         List is sorted according to first value. Flip is defaulted
         to true since otherwise we'd be getting action/states from
@@ -106,23 +106,25 @@ class Corridors_MCTS(_corridors_mcts):
         """
         return super().get_sorted_actions(flip)
 
-    def choose_best_action(self, epsilon=0):
+    def choose_best_action(self, epsilon: float = 0) -> str:
         """make an epsilon-greedy choice"""
         return super().choose_best_action(epsilon)
 
-    def ensure_sims(self, sims):
+    def ensure_sims(self, sims: int) -> None:
         """blocking function that holds until at
         least 'sims' simulations have been performed"""
         return super().ensure_sims(sims)
 
-    def get_evaluation(self):
+    def get_evaluation(self) -> Optional[float]:
         """Returns -1, 1, or None, depending on whether
         a non-terminal evaluation is available for this position"""
         eval = super().get_evaluation()
         return eval if eval else None
 
 
-def display_sorted_actions(sorted_actions, list_size=0):
+def display_sorted_actions(
+    sorted_actions: List[Tuple[int, float, str]], list_size: int = 0
+) -> str:
     output = ""
     output += f"Total Visits: {sum(a[0] for a in sorted_actions)}\n"
     for a in sorted_actions[: list_size if list_size else len(sorted_actions)]:
@@ -131,7 +133,11 @@ def display_sorted_actions(sorted_actions, list_size=0):
     return output
 
 
-def computer_self_play(p1, p2=None, stop_on_eval=False):
+def computer_self_play(
+    p1: "Corridors_MCTS",
+    p2: Optional["Corridors_MCTS"] = None,
+    stop_on_eval: bool = False,
+) -> None:
     """Pass one or two instances of corridors_mcts to perform self-play.
     p1 acts first"""
     if not p2:
@@ -162,10 +168,11 @@ def computer_self_play(p1, p2=None, stop_on_eval=False):
             villain.make_move(best_action, p1_is_hero)
 
         # stop early
-        if stop_on_eval and hero.get_evaluation():
+        eval_result = hero.get_evaluation()
+        if stop_on_eval and eval_result:
             print(hero.display(p1_is_hero))
-            eval = hero.get_evaluation() * (-1 if p1_is_hero else 1)
-            print("Hero wins!" if eval > 0 else "Villain wins!")
+            eval_val = eval_result * (-1 if p1_is_hero else 1)
+            print("Hero wins!" if eval_val > 0 else "Villain wins!")
             break
 
         # prepare for next iteration
@@ -180,7 +187,11 @@ def computer_self_play(p1, p2=None, stop_on_eval=False):
         p1_is_hero = not p1_is_hero
 
 
-def human_computer_play(mcts, human_plays_first=True, hide_humans_moves=True):
+def human_computer_play(
+    mcts: "Corridors_MCTS",
+    human_plays_first: bool = True,
+    hide_humans_moves: bool = True,
+) -> None:
     """Pass a single instance of corridors_mcts to perform computer vs human play."""
     humans_turn = human_plays_first
     sorted_actions = mcts.get_sorted_actions(humans_turn)

@@ -9,8 +9,13 @@ except ImportError:
 
 # Let's debug exactly what happens when we make the problematic wall move
 mcts = Corridors_MCTS(
-    c=2.0, seed=789, min_simulations=150, max_simulations=300, sim_increment=30,
-    use_rollout=True, decide_using_visits=True
+    c=2.0,
+    seed=789,
+    min_simulations=150,
+    max_simulations=300,
+    sim_increment=30,
+    use_rollout=True,
+    decide_using_visits=True,
 )
 
 print("=== ANALYZING THE PROBLEMATIC SEQUENCE ===")
@@ -35,7 +40,7 @@ print("Raw get_evaluation():", mcts.get_evaluation())
 # Let's try different flip values for actions to see if that reveals the issue
 print("\n5. CHECKING ACTIONS FROM DIFFERENT PERSPECTIVES:")
 actions_flip_false = mcts.get_sorted_actions(flip=False)
-actions_flip_true = mcts.get_sorted_actions(flip=True) 
+actions_flip_true = mcts.get_sorted_actions(flip=True)
 
 print(f"Actions with flip=False: {len(actions_flip_false)}")
 print(f"Actions with flip=True: {len(actions_flip_true)}")
@@ -54,25 +59,31 @@ test_walls = ["V(4,4)", "H(4,4)", "V(1,1)", "H(1,1)"]
 
 for wall_pos in test_walls:
     test_mcts = Corridors_MCTS(
-        c=1.0, seed=789, min_simulations=50, max_simulations=100, sim_increment=10,
-        use_rollout=True, decide_using_visits=True
+        c=1.0,
+        seed=789,
+        min_simulations=50,
+        max_simulations=100,
+        sim_increment=10,
+        use_rollout=True,
+        decide_using_visits=True,
     )
     test_mcts.ensure_sims(50)
-    
+
     test_actions = test_mcts.get_sorted_actions(flip=True)
     legal_moves = [a[2] for a in test_actions]
-    
+
     if wall_pos in legal_moves:
         print(f"\nTesting {wall_pos}:")
         test_mcts.make_move(wall_pos, flip=True)
-        eval_result = test_mcts.get_evaluation() 
+        eval_result = test_mcts.get_evaluation()
         actions_after = len(test_mcts.get_sorted_actions(flip=False))
         print(f"  Evaluation: {eval_result}, Actions: {actions_after}")
     else:
         print(f"\n{wall_pos} not legal")
 
 print("\n=== HYPOTHESIS ===")
-print("""
+print(
+    """
 The issue seems to be that certain wall placements, when combined with flip=True,
 create board states where the MCTS tree evaluation logic incorrectly returns ±1.0.
 
@@ -82,4 +93,5 @@ This could be because:
 3. There's a bug in how flipped wall moves are stored in the MCTS tree
 
 Next steps: Need to dig into the actual C++ board state after these moves.
-""")
+"""
+)

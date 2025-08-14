@@ -24,7 +24,7 @@ print(f"Initial actions available: {len(initial_actions)}")
 print(f"Initial evaluation: {mcts.get_evaluation()}")
 
 # Make first move
-best_action = initial_actions[0][2] 
+best_action = initial_actions[0][2]
 print(f"\nMaking move: {best_action} with flip=True")
 mcts.make_move(best_action, flip=True)
 
@@ -51,16 +51,16 @@ if actions_flip_true:
 # The issue might be that we're calling get_sorted_actions(false) in the C++ code
 # but the Python test might be calling it with a different flip value
 
-# Let me also check what happens if we make a second move  
+# Let me also check what happens if we make a second move
 if actions_flip_false:
     second_action = actions_flip_false[0][2]
     print(f"\nMaking second move: {second_action} with flip=False")
     mcts.make_move(second_action, flip=False)
-    
+
     print(f"Evaluation after second move: {mcts.get_evaluation()}")
     third_actions = mcts.get_sorted_actions(flip=True)
     print(f"Actions after second move: {len(third_actions)}")
 
 # The core issue might be that even though actions are available from the MCTS tree,
-# the underlying get_equity() is returning ±1.0 for non-terminal positions due to 
+# the underlying get_equity() is returning ±1.0 for non-terminal positions due to
 # flipped board states in the tree structure

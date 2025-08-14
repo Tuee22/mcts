@@ -25,6 +25,7 @@ try:
 except ImportError:
     CORRIDORS_AVAILABLE = False
 
+
 @pytest.mark.edge_cases
 @pytest.mark.cpp
 class TestBoundaryConditions:
@@ -41,11 +42,9 @@ class TestBoundaryConditions:
             (8, 4),  # Side centers
         ],
     )
-    def test_boundary_positions(self, x: int, y: int):
+    def test_boundary_positions(self, x: int, y: int) -> None:
         """Test MCTS behavior at board boundaries."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=10, max_simulations=30, sim_increment=5
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=30)
 
         # Try to place hero at boundary position via moves
         # (This is indirect since we can't directly set positions)
@@ -58,11 +57,9 @@ class TestBoundaryConditions:
         assert isinstance(actions, list)
         assert isinstance(display, str)
 
-    def test_wall_boundary_positions(self):
+    def test_wall_boundary_positions(self) -> None:
         """Test wall placement at board boundaries."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=20, max_simulations=50, sim_increment=10
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=50)
 
         mcts.ensure_sims(20)
         actions = mcts.get_sorted_actions(flip=True)
@@ -97,11 +94,9 @@ class TestBoundaryConditions:
             except Exception as e:
                 pytest.fail(f"Boundary wall {wall_action} caused error: {e}")
 
-    def test_maximum_walls_placement(self):
+    def test_maximum_walls_placement(self) -> None:
         """Test behavior when maximum walls are placed."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=15, max_simulations=40, sim_increment=5
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=40)
 
         # Try to place many walls (simulate late game)
         for i in range(10):  # Try up to 10 wall placements
@@ -126,19 +121,20 @@ class TestBoundaryConditions:
         final_actions = mcts.get_sorted_actions(flip=False)
         assert isinstance(final_actions, list)
 
+
 @pytest.mark.edge_cases
 @pytest.mark.python
 class TestDisplayEdgeCases:
     """Test display function edge cases."""
 
-    def test_display_empty_actions_list(self):
+    def test_display_empty_actions_list(self) -> None:
         """Test displaying empty actions."""
         result = display_sorted_actions([])
         assert isinstance(result, str)
         assert "Total Visits: 0" in result
         assert result.strip() == "Total Visits: 0" or result.endswith("\n")
 
-    def test_display_single_zero_visit_action(self):
+    def test_display_single_zero_visit_action(self) -> None:
         """Test displaying action with zero visits."""
         actions = [(0, 0.5, "*(4,4)")]
         result = display_sorted_actions(actions)
@@ -147,14 +143,14 @@ class TestDisplayEdgeCases:
         assert "Visit count: 0" in result
         assert "Equity: 0.5000" in result
 
-    def test_display_negative_equity(self):
+    def test_display_negative_equity(self) -> None:
         """Test displaying actions with negative equity."""
         actions = [(100, -0.7554, "*(2,3)")]
         result = display_sorted_actions(actions)
 
         assert "Equity: -0.7554" in result
 
-    def test_display_extreme_values(self):
+    def test_display_extreme_values(self) -> None:
         """Test displaying extreme values."""
         actions = [
             (999999, 0.9999, "*(0,0)"),
@@ -170,7 +166,7 @@ class TestDisplayEdgeCases:
     @pytest.mark.parametrize("list_size", [-1, 0, 1, 100, 999999])
     def test_display_various_list_sizes(
         self, list_size: int, sample_actions: List[Tuple[int, float, str]]
-    ):
+    ) -> None:
         """Test display with various list size limits."""
         result = display_sorted_actions(sample_actions, list_size=list_size)
         assert isinstance(result, str)
@@ -187,7 +183,7 @@ class TestDisplayEdgeCases:
             ]
             assert len(action_lines) == expected_count
 
-    def test_display_unicode_handling(self):
+    def test_display_unicode_handling(self) -> None:
         """Test display with potential unicode issues."""
         # Test with basic ASCII - more complex unicode would need C++ side support
         actions = [(50, 0.5, "*(1,2)")]
@@ -195,13 +191,14 @@ class TestDisplayEdgeCases:
         assert isinstance(result, str)
         assert len(result) > 0
 
+
 @pytest.mark.edge_cases
 @pytest.mark.integration
 class TestGameFlowEdgeCases:
     """Test edge cases in game flow."""
 
     @patch("builtins.print")
-    def test_computer_self_play_immediate_end(self, mock_print):
+    def test_computer_self_play_immediate_end(self, mock_print: Any) -> None:
         """Test self-play when game ends immediately."""
         if not CORRIDORS_AVAILABLE:
             return
@@ -215,24 +212,23 @@ class TestGameFlowEdgeCases:
         mock_p1.get_sorted_actions.assert_called_once()
 
     @patch("builtins.print")
-    def test_computer_self_play_alternating_players(self, mock_print):
+    def test_computer_self_play_alternating_players(self, mock_print: Any) -> None:
         """Test self-play with proper player alternation."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_p1 = Mock()
         mock_p2 = Mock()
 
         call_count = [0]  # Mutable counter
 
-        def get_actions_p1(flip):
+        def get_actions_p1(flip: bool) -> List[Tuple[int, float, str]]:
             call_count[0] += 1
             if call_count[0] == 1:
                 return [(100, 0.6, "*(4,1)")]  # First call - hero's move
             else:
                 return []  # Second call - game over
 
-        def get_actions_p2(flip):
+        def get_actions_p2(flip: bool) -> List[Tuple[int, float, str]]:
             return []  # Villain has no moves
 
         mock_p1.get_sorted_actions.side_effect = get_actions_p1
@@ -252,10 +248,11 @@ class TestGameFlowEdgeCases:
 
     @patch("builtins.input", side_effect=["", "   ", "*(4,1)"])
     @patch("builtins.print")
-    def test_human_computer_play_empty_input(self, mock_print, mock_input):
+    def test_human_computer_play_empty_input(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play with empty/whitespace input."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
@@ -274,10 +271,11 @@ class TestGameFlowEdgeCases:
 
     @patch("builtins.input", return_value="*(4,1)")
     @patch("builtins.print")
-    def test_human_computer_play_case_sensitivity(self, mock_print, mock_input):
+    def test_human_computer_play_case_sensitivity(
+        self, mock_print: Any, mock_input: Any
+    ) -> None:
         """Test human-computer play with case variations."""
         if not CORRIDORS_AVAILABLE:
-
             return
         mock_mcts = Mock()
         mock_mcts.get_sorted_actions.side_effect = [
@@ -292,40 +290,39 @@ class TestGameFlowEdgeCases:
         # Should work with exact case match
         mock_mcts.make_move.assert_called_with("*(4,1)", True)
 
+
 @pytest.mark.edge_cases
 @pytest.mark.cpp
 class TestMCTSParameterEdgeCases:
     """Test MCTS with edge case parameters."""
 
-    def test_very_small_c_parameter(self):
+    def test_very_small_c_parameter(self) -> None:
         """Test with very small exploration parameter."""
         mcts = Corridors_MCTS(
             c=1e-10,  # Extremely small
             seed=42,
             min_simulations=10,
             max_simulations=20,
-            sim_increment=2,
         )
 
         mcts.ensure_sims(10)
         actions = mcts.get_sorted_actions(flip=True)
         assert isinstance(actions, list)
 
-    def test_very_large_c_parameter(self):
+    def test_very_large_c_parameter(self) -> None:
         """Test with very large exploration parameter."""
         mcts = Corridors_MCTS(
             c=1e6,  # Extremely large
             seed=42,
             min_simulations=10,
             max_simulations=20,
-            sim_increment=2,
         )
 
         mcts.ensure_sims(10)
         actions = mcts.get_sorted_actions(flip=True)
         assert isinstance(actions, list)
 
-    def test_min_greater_than_max_simulations(self):
+    def test_min_greater_than_max_simulations(self) -> None:
         """Test behavior when min_simulations > max_simulations."""
         # This might be handled by the C++ code, test that it doesn't crash
         try:
@@ -334,7 +331,6 @@ class TestMCTSParameterEdgeCases:
                 seed=42,
                 min_simulations=100,
                 max_simulations=50,  # Less than min
-                sim_increment=10,
             )
 
             mcts.ensure_sims(50)
@@ -344,11 +340,11 @@ class TestMCTSParameterEdgeCases:
             # If it raises an exception, that's acceptable behavior
             pass
 
-    def test_zero_increment(self):
+    def test_zero_increment(self) -> None:
         """Test with zero simulation increment."""
         try:
             mcts = Corridors_MCTS(
-                c=1.0, seed=42, min_simulations=10, max_simulations=20, sim_increment=0
+                c=1.0, seed=42, min_simulations=10, max_simulations=20
             )
 
             # This might hang or throw an error - either is acceptable
@@ -359,11 +355,11 @@ class TestMCTSParameterEdgeCases:
             pass
 
     @pytest.mark.parametrize("seed", [-1, 0, 2**31 - 1, 2**32 - 1])
-    def test_edge_case_seeds(self, seed: int):
+    def test_edge_case_seeds(self, seed: int) -> None:
         """Test with edge case random seeds."""
         try:
             mcts = Corridors_MCTS(
-                c=1.0, seed=seed, min_simulations=5, max_simulations=15, sim_increment=2
+                c=1.0, seed=seed, min_simulations=5, max_simulations=15
             )
 
             mcts.ensure_sims(5)
@@ -373,19 +369,19 @@ class TestMCTSParameterEdgeCases:
             # Some seeds might be invalid - that's acceptable
             pass
 
+
 @pytest.mark.edge_cases
 @pytest.mark.cpp
 class TestStateTransitionEdgeCases:
     """Test edge cases in state transitions."""
 
-    def test_rapid_move_sequence(self):
+    def test_rapid_move_sequence(self) -> None:
         """Test rapid sequence of moves without simulations."""
         mcts = Corridors_MCTS(
             c=1.0,
             seed=42,
             min_simulations=1,  # Minimal simulations
             max_simulations=5,
-            sim_increment=1,
         )
 
         # Try to make moves rapidly
@@ -404,11 +400,9 @@ class TestStateTransitionEdgeCases:
             assert isinstance(display, str)
             assert len(display) > 0
 
-    def test_alternating_flip_parameters(self):
+    def test_alternating_flip_parameters(self) -> None:
         """Test alternating flip parameters."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=10, max_simulations=25, sim_increment=5
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=25)
 
         mcts.ensure_sims(10)
 
@@ -420,11 +414,9 @@ class TestStateTransitionEdgeCases:
             assert isinstance(actions, list)
             assert isinstance(display, str)
 
-    def test_evaluation_during_game_progress(self):
+    def test_evaluation_during_game_progress(self) -> None:
         """Test evaluation changes during game progress."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=15, max_simulations=30, sim_increment=5
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=30)
 
         evaluations = []
 
@@ -443,12 +435,13 @@ class TestStateTransitionEdgeCases:
         for eval_val in evaluations:
             assert eval_val is None or isinstance(eval_val, (int, float))
 
+
 @pytest.mark.edge_cases
 @pytest.mark.python
 class TestErrorRecovery:
     """Test error recovery and robustness."""
 
-    def test_malformed_action_strings(self):
+    def test_malformed_action_strings(self) -> None:
         """Test display with malformed action strings."""
         malformed_actions = [
             (100, 0.5, "invalid"),
@@ -462,8 +455,10 @@ class TestErrorRecovery:
         assert isinstance(result, str)
         assert "Total Visits: 185" in result
 
-    def test_type_mixed_actions(self):
+    def test_type_mixed_actions(self) -> None:
         """Test display with mixed types in action tuples."""
+        from typing import cast, Any
+
         try:
             mixed_actions = [
                 (100, 0.5, "*(4,1)"),
@@ -471,17 +466,16 @@ class TestErrorRecovery:
                 (25.5, 0.1, "V(1,1)"),  # Float visits
             ]
 
-            result = display_sorted_actions(mixed_actions)
+            # Cast to bypass mypy type check for intentionally malformed data
+            result = display_sorted_actions(cast(Any, mixed_actions))
             assert isinstance(result, str)
         except (TypeError, ValueError):
             # Type errors are acceptable for invalid input
             pass
 
-    def test_function_resilience(self):
+    def test_function_resilience(self) -> None:
         """Test that functions are resilient to unexpected inputs."""
-        mcts = Corridors_MCTS(
-            c=1.0, seed=42, min_simulations=5, max_simulations=15, sim_increment=2
-        )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=5, max_simulations=15)
 
         # Test various edge case calls
         try:

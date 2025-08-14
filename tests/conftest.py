@@ -8,12 +8,16 @@ from math import sqrt
 from typing import Dict, Any, List, Tuple
 
 try:
-    from backend.python.corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+    from backend.python.corridors.corridors_mcts import (
+        Corridors_MCTS,
+        display_sorted_actions,
+    )
 
     CORRIDORS_AVAILABLE = True
 except ImportError:
     CORRIDORS_AVAILABLE = False
     Corridors_MCTS = None
+
 
 @pytest.fixture
 def basic_mcts_params() -> Dict[str, Any]:
@@ -23,13 +27,13 @@ def basic_mcts_params() -> Dict[str, Any]:
         "seed": 42,
         "min_simulations": 100,
         "max_simulations": 1000,
-        "sim_increment": 50,
         "use_rollout": True,
         "eval_children": False,
         "use_puct": False,
         "use_probs": False,
         "decide_using_visits": True,
     }
+
 
 @pytest.fixture
 def fast_mcts_params() -> Dict[str, Any]:
@@ -39,13 +43,13 @@ def fast_mcts_params() -> Dict[str, Any]:
         "seed": 123,
         "min_simulations": 10,
         "max_simulations": 50,
-        "sim_increment": 10,
         "use_rollout": True,
         "eval_children": False,
         "use_puct": False,
         "use_probs": False,
         "decide_using_visits": True,
     }
+
 
 @pytest.fixture
 def puct_mcts_params() -> Dict[str, Any]:
@@ -55,13 +59,13 @@ def puct_mcts_params() -> Dict[str, Any]:
         "seed": 456,
         "min_simulations": 100,
         "max_simulations": 500,
-        "sim_increment": 25,
         "use_rollout": False,
         "eval_children": True,
         "use_puct": True,
         "use_probs": True,
         "decide_using_visits": False,
     }
+
 
 @pytest.fixture
 def sample_board_state() -> Dict[str, Any]:
@@ -78,6 +82,7 @@ def sample_board_state() -> Dict[str, Any]:
         "horizontal_walls": [False] * 72,  # (9-1)*9 = 72
         "vertical_walls": [False] * 72,  # (9-1)*9 = 72
     }
+
 
 @pytest.fixture
 def blocked_board_state() -> Dict[str, Any]:
@@ -100,6 +105,7 @@ def blocked_board_state() -> Dict[str, Any]:
     state["horizontal_walls"][31] = True
     return state
 
+
 @pytest.fixture
 def near_terminal_state() -> Dict[str, Any]:
     """Board state near game end."""
@@ -116,6 +122,7 @@ def near_terminal_state() -> Dict[str, Any]:
         "vertical_walls": [False] * 72,
     }
 
+
 @pytest.fixture
 def sample_actions() -> List[Tuple[int, float, str]]:
     """Sample sorted actions for testing display functions."""
@@ -129,6 +136,7 @@ def sample_actions() -> List[Tuple[int, float, str]]:
         (20, 0.1543, "H(5,0)"),
         (10, 0.0987, "V(3,1)"),
     ]
+
 
 class MCTSTestHelper:
     """Helper class for MCTS testing utilities."""
@@ -183,6 +191,7 @@ class MCTSTestHelper:
             if equities[i] < equities[i + 1]:
                 return False
         return True
+
 
 @pytest.fixture
 def mcts_helper():
