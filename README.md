@@ -184,17 +184,20 @@ scons sanitize=1
 
 **Comprehensive Test Suite (Python + Frontend):**
 ```bash
-# Run all tests (Python API/Core + Frontend)
-poetry run test-everything
+# In Docker container (recommended)
+docker exec -w /home/mcts docker-mcts-1 python3 -m tests.utils.run_all_tests
+
+# Run all tests (Python API/Core + Frontend)  
+python3 -m tests.utils.run_all_tests
 
 # With coverage reports
-poetry run test-everything --coverage
+python3 -m tests.utils.run_all_tests --coverage
 
 # Python tests only
-poetry run test-everything --python-only
+python3 -m tests.utils.run_all_tests --python-only
 
 # Frontend tests only  
-poetry run test-everything --frontend-only
+python3 -m tests.utils.run_all_tests --frontend-only
 ```
 
 **Python Tests Only:**

@@ -109,11 +109,15 @@ RUN mkdir -p /home/mcts/python/corridors && cp _corridors_mcts.so /home/mcts/pyt
 
 # Build React frontend (after copying project files)
 WORKDIR /home/mcts/frontend
-RUN npm ci --only=production
+RUN npm ci
 RUN npm run build
 
-# Install runtime dependencies for serving the frontend
-RUN npm install -g serve
+# Install global Node.js dependencies for testing and serving
+RUN npm install -g serve ws websockets
+
+# Install ws locally in home directory for testing scripts
+WORKDIR /home
+RUN npm install ws
 
 # Install supervisor via pip instead of apt to ensure Python 3.12 compatibility
 RUN python3 -m pip install supervisor

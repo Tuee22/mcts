@@ -6,7 +6,7 @@ import './GameSettings.css';
 
 export const GameSettings: React.FC = () => {
   const { gameSettings, setGameSettings, isLoading, isConnected } = useGameStore();
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleModeChange = (mode: GameMode) => {
     setGameSettings({ mode });
