@@ -12,12 +12,14 @@ import {
   createUser 
 } from '../utils/test-utils';
 
-// Mock dependencies
-jest.mock('../../../frontend/src/store/gameStore');
-jest.mock('../../../frontend/src/services/websocket');
+import { vi, describe, test, expect, beforeEach, type MockedFunction } from 'vitest';
 
-const mockUseGameStore = useGameStore as jest.MockedFunction<typeof useGameStore>;
-const mockWsService = wsService as jest.Mocked<typeof wsService>;
+// Mock dependencies
+vi.mock('../../../frontend/src/store/gameStore');
+vi.mock('../../../frontend/src/services/websocket');
+
+const mockUseGameStore = useGameStore as MockedFunction<typeof useGameStore>;
+const mockWsService = wsService as ReturnType<typeof vi.mocked>;
 
 describe('GameBoard Component', () => {
   const user = createUser();

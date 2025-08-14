@@ -48,15 +48,15 @@ def main():
         print("🐍 Running Python tests (API + Core)...")
         
         # Build pytest command
-        pytest_cmd = ["python3", "-m", "pytest", "tests/"]
+        pytest_cmd = ["python3", "-m", "pytest", "tests/backend/"]
         
         if args.verbose:
             pytest_cmd.append("-v")
         
         if args.coverage:
             pytest_cmd.extend([
-                "--cov=api",
-                "--cov=python", 
+                "--cov=backend.api",
+                "--cov=backend.python", 
                 "--cov-report=html:htmlcov",
                 "--cov-report=term-missing"
             ])

@@ -8,7 +8,7 @@ from math import sqrt
 from typing import Dict, Any, List, Tuple
 
 try:
-    from python.corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+    from backend.python.corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
 
     CORRIDORS_AVAILABLE = True
 except ImportError:

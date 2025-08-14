@@ -46,7 +46,7 @@ def main():
     # Add coverage
     if args.coverage:
         base_cmd.extend([
-            "--cov=api",
+            "--cov=backend.api",
             "--cov-report=html:htmlcov-api", 
             "--cov-report=term-missing",
             "--cov-fail-under=70"
@@ -54,29 +54,29 @@ def main():
     
     # Determine test files and markers
     if args.type == "all":
-        test_files = ["tests/api/"]
+        test_files = ["tests/backend/api/"]
         markers = []
     elif args.type == "fast":
-        test_files = ["tests/api/"]
+        test_files = ["tests/backend/api/"]
         markers = ["-m", "not slow"]
     elif args.type == "unit":
         test_files = [
-            "tests/api/test_models.py",
-            "tests/api/test_game_manager.py",
-            "tests/api/test_websocket.py"
+            "tests/backend/api/test_models.py",
+            "tests/backend/api/test_game_manager.py",
+            "tests/backend/api/test_websocket.py"
         ]
         markers = []
     elif args.type == "integration":
-        test_files = ["tests/api/test_integration.py"]
+        test_files = ["tests/backend/api/test_integration.py"]
         markers = []
     elif args.type == "websocket":
-        test_files = ["tests/api/test_websocket.py"]
+        test_files = ["tests/backend/api/test_websocket.py"]
         markers = []
     elif args.type == "endpoints":
-        test_files = ["tests/api/test_endpoints.py"]
+        test_files = ["tests/backend/api/test_endpoints.py"]
         markers = []
     elif args.type == "models":
-        test_files = ["tests/api/test_models.py"]
+        test_files = ["tests/backend/api/test_models.py"]
         markers = []
     
     # Build final command

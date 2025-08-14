@@ -78,10 +78,10 @@ yarn-error.log*
 frontend/build/
 frontend/dist/
 
-# Package lock files (install fresh in container)
-package-lock.json
+# Package lock files (keep package-lock.json for npm ci)
+# package-lock.json is needed for npm ci
 yarn.lock
-poetry.lock
+# poetry.lock is needed for reproducible builds
 
 # Test coverage reports
 coverage/
@@ -153,11 +153,10 @@ docker-compose*.yaml
 azure-pipelines.yml
 
 # Development and testing tools not needed in production
-tests/
+# Note: tests/backend/ and tests/frontend/ are needed for running tests in container
+# tests/frontend/ is commented out to allow frontend tests
 test/
 spec/
-**/*.test.*
-**/*.spec.*
 
 # Development documentation
 README.md

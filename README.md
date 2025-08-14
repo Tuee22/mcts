@@ -96,7 +96,7 @@ The project directory is mounted at `/home/mcts` inside the container.
 ### Basic MCTS Game
 
 ```python
-from python.corridors.corridors_mcts import Corridors_MCTS
+from backend.python.corridors.corridors_mcts import Corridors_MCTS
 from math import sqrt
 
 # Create MCTS instance
@@ -125,7 +125,7 @@ print(mcts.display())
 ### Interactive Play
 
 ```python
-from python.corridors.corridors_mcts import Corridors_MCTS, human_computer_play
+from backend.python.corridors.corridors_mcts import Corridors_MCTS, human_computer_play
 
 # Start human vs computer game
 mcts = Corridors_MCTS(min_simulations=5000)
@@ -135,7 +135,7 @@ human_computer_play(mcts, human_plays_first=True)
 ### Computer Self-Play
 
 ```python
-from python.corridors.corridors_mcts import Corridors_MCTS, computer_self_play
+from backend.python.corridors.corridors_mcts import Corridors_MCTS, computer_self_play
 
 # Create two MCTS instances
 p1 = Corridors_MCTS(seed=1, min_simulations=2000)
@@ -162,7 +162,7 @@ mcts_puct = Corridors_MCTS(
 ### Building C++ Components
 
 ```bash
-cd src
+cd backend/core
 
 # Standard build
 scons
@@ -182,36 +182,36 @@ scons sanitize=1
 
 ### Running Tests
 
-**Comprehensive Test Suite (Python + Frontend):**
+**Complete Test Suite (Python + Frontend):**
 ```bash
 # In Docker container (recommended)
-docker exec -w /home/mcts docker-mcts-1 python3 -m tests.utils.run_all_tests
+docker exec -w /home/mcts docker-mcts-1 poetry run test-all
 
-# Run all tests (Python API/Core + Frontend)  
-python3 -m tests.utils.run_all_tests
+# Run ALL tests (Python API/Core + Frontend)  
+poetry run test-all
 
 # With coverage reports
-python3 -m tests.utils.run_all_tests --coverage
+poetry run test-all --coverage
 
 # Python tests only
-python3 -m tests.utils.run_all_tests --python-only
+poetry run test-all --python-only
 
 # Frontend tests only  
-python3 -m tests.utils.run_all_tests --frontend-only
+poetry run test-all --frontend-only
 ```
 
 **Python Tests Only:**
 ```bash
-# All Python tests (API + Core)
-poetry run test-all
+# All Python backend tests (API + Core)
+poetry run test-python
 
 # Specific Python test suites
-poetry run test-api          # API and WebSocket tests
-poetry run test-core         # Core MCTS and board tests
+poetry run test-python-api      # API and WebSocket tests
+poetry run test-python-core     # Core MCTS and board tests
 
 # Direct pytest usage
-poetry run pytest           # All Python tests
-poetry run pytest -m 'not slow'  # Fast tests only
+poetry run pytest tests/backend/           # All Python tests
+poetry run pytest tests/backend/ -m 'not slow'  # Fast tests only
 
 # Specific test categories
 poetry run pytest -m python      # Pure Python tests
@@ -225,11 +225,17 @@ poetry run pytest tests/benchmarks/ --benchmark-only
 
 **Frontend Tests Only:**
 ```bash
+# In Docker container (recommended)
+docker exec -w /home/mcts/tests/frontend docker-mcts-1 npm test
+
 # From frontend test directory
 cd tests/frontend
 npm test                    # All frontend tests
 npm run test:coverage       # With coverage
 npm run test:watch          # Watch mode
+
+# Core smoke test only (fastest)
+npm test -- --testNamePattern="Core Frontend Smoke Test"
 ```
 
 ### Code Quality

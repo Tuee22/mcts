@@ -7,10 +7,10 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from unittest.mock import MagicMock
 
-from api.server import app
-from api.game_manager import GameManager
-from api.websocket_manager import WebSocketManager
-from api.models import (
+from backend.api.server import app
+from backend.api.game_manager import GameManager
+from backend.api.websocket_manager import WebSocketManager
+from backend.api.models import (
     GameSettings, MCTSSettings, PlayerType,
     GameCreateRequest, Player
 )
@@ -160,13 +160,13 @@ def mock_mcts(monkeypatch):
         return mock_mcts
     
     # Apply mocking to all relevant modules
-    monkeypatch.setattr('api.game_manager.Corridors_MCTS', mock_mcts_constructor)
-    monkeypatch.setattr('python.corridors.corridors_mcts.Corridors_MCTS', mock_mcts_constructor)
+    monkeypatch.setattr('backend.api.game_manager.Corridors_MCTS', mock_mcts_constructor)
+    monkeypatch.setattr('backend.python.corridors.corridors_mcts.Corridors_MCTS', mock_mcts_constructor)
     
     # Also mock any import attempts
     try:
-        import python.corridors.corridors_mcts
-        monkeypatch.setattr(python.corridors.corridors_mcts, 'Corridors_MCTS', mock_mcts_constructor)
+        import backend.python.corridors.corridors_mcts
+        monkeypatch.setattr(backend.python.corridors.corridors_mcts, 'Corridors_MCTS', mock_mcts_constructor)
     except ImportError:
         pass
     

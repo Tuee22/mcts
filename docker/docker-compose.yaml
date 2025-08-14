@@ -13,10 +13,7 @@ services:
         target: /home/mcts
     ports:
       - target: 8000
-        published: ${PORT_API:-8000}
-        protocol: tcp
-      - target: 3000
-        published: ${PORT_FRONTEND:-3000}
+        published: ${PORT:-8000}
         protocol: tcp
     restart: unless-stopped
     environment:

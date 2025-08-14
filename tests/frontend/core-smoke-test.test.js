@@ -11,7 +11,7 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { describe, test, expect, vi } from 'vitest';
 
 // Simple test implementation that doesn't rely on full React components
 describe('Core Frontend Smoke Test', () => {
@@ -305,22 +305,22 @@ describe('Core Frontend Smoke Test', () => {
   test('WebSocket service interface validation', () => {
     // Mock WebSocket service interface
     const mockWebSocketService = {
-      connect: jest.fn(() => Promise.resolve()),
-      disconnect: jest.fn(),
-      createGame: jest.fn((settings) => {
+      connect: vi.fn(() => Promise.resolve()),
+      disconnect: vi.fn(),
+      createGame: vi.fn((settings) => {
         expect(settings).toHaveProperty('mode');
         return Promise.resolve({ game_id: 'test-123' });
       }),
-      makeMove: jest.fn((gameId, move) => {
+      makeMove: vi.fn((gameId, move) => {
         expect(gameId).toBeTruthy();
         expect(move).toBeTruthy();
         return Promise.resolve({ success: true });
       }),
-      getAIMove: jest.fn((gameId) => {
+      getAIMove: vi.fn((gameId) => {
         expect(gameId).toBeTruthy();
         return Promise.resolve({ move: 'e2' });
       }),
-      isConnected: jest.fn(() => true)
+      isConnected: vi.fn(() => true)
     };
 
     // Test service interface

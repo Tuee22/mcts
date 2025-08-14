@@ -133,21 +133,23 @@ export const mockLocalStorage = () => {
   const store: { [key: string]: string } = {};
   
   return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => {
+    getItem: vi.fn((key: string) => store[key] || null),
+    setItem: vi.fn((key: string, value: string) => {
       store[key] = value;
     }),
-    removeItem: jest.fn((key: string) => {
+    removeItem: vi.fn((key: string) => {
       delete store[key];
     }),
-    clear: jest.fn(() => {
+    clear: vi.fn(() => {
       Object.keys(store).forEach(key => delete store[key]);
     })
   };
 };
 
+import { vi } from 'vitest';
+
 // Mock clipboard
 export const mockClipboard = {
-  writeText: jest.fn(() => Promise.resolve()),
-  readText: jest.fn(() => Promise.resolve(''))
+  writeText: vi.fn(() => Promise.resolve()),
+  readText: vi.fn(() => Promise.resolve(''))
 };

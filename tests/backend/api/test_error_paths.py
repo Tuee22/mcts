@@ -4,14 +4,14 @@ Tests specifically designed to hit error paths and exception handling.
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, AsyncMock
-from api.models import PlayerType, GameStatus
+from backend.api.models import PlayerType, GameStatus
 import asyncio
 
 
 class TestServerExceptionPaths:
     """Test server exception handling paths."""
     
-    @patch('api.server.game_manager.create_game')
+    @patch('backend.api.server.game_manager.create_game')
     def test_create_game_exception(self, mock_create_game, test_client: TestClient):
         """Test exception handling in create_game endpoint."""
         # Mock create_game to raise an exception
@@ -29,7 +29,7 @@ class TestServerExceptionPaths:
         assert response.status_code == 500
         assert "Database connection failed" in response.json()["detail"]
     
-    @patch('api.server.game_manager.list_games')
+    @patch('backend.api.server.game_manager.list_games')
     def test_list_games_exception(self, mock_list_games, test_client: TestClient):
         """Test exception handling in list_games endpoint."""
         mock_list_games.side_effect = Exception("Service unavailable")
@@ -37,7 +37,7 @@ class TestServerExceptionPaths:
         response = test_client.get("/games")
         assert response.status_code == 500
     
-    @patch('api.server.game_manager.get_game')
+    @patch('backend.api.server.game_manager.get_game')
     def test_get_game_exception(self, mock_get_game, test_client: TestClient):
         """Test exception handling in get_game endpoint."""
         mock_get_game.side_effect = Exception("Connection timeout")
@@ -45,7 +45,7 @@ class TestServerExceptionPaths:
         response = test_client.get("/games/test-id")
         assert response.status_code == 500
     
-    @patch('api.server.game_manager.delete_game')
+    @patch('backend.api.server.game_manager.delete_game')
     def test_delete_game_exception(self, mock_delete_game, test_client: TestClient):
         """Test exception handling in delete_game endpoint."""
         mock_delete_game.side_effect = Exception("Deletion failed")
@@ -69,7 +69,7 @@ class TestServerExceptionPaths:
         player1_id = response.json()["player1"]["id"]
         
         # Mock the game to be finished
-        with patch('api.server.game_manager.get_game') as mock_get_game:
+        with patch('backend.api.server.game_manager.get_game') as mock_get_game:
             mock_game = MagicMock()
             mock_game.status = GameStatus.COMPLETED
             mock_get_game.return_value = mock_game
@@ -104,7 +104,7 @@ class TestServerExceptionPaths:
         assert response.status_code == 403
         assert "Not your turn" in response.json()["detail"]
     
-    @patch('api.server.game_manager.make_move')
+    @patch('backend.api.server.game_manager.make_move')
     def test_make_move_value_error(self, mock_make_move, test_client: TestClient):
         """Test ValueError handling in make_move."""
         # Create a game first
@@ -130,7 +130,7 @@ class TestServerExceptionPaths:
         assert response.status_code == 400
         assert "Invalid move" in response.json()["detail"]
     
-    @patch('api.server.game_manager.make_move')
+    @patch('backend.api.server.game_manager.make_move')
     def test_make_move_general_exception(self, mock_make_move, test_client: TestClient):
         """Test general exception handling in make_move."""
         # Create a game first
@@ -164,7 +164,7 @@ class TestMatchmakingExceptionPaths:
     """Test matchmaking exception paths."""
     
     
-    @patch('api.server.game_manager.leave_matchmaking')
+    @patch('backend.api.server.game_manager.leave_matchmaking')
     def test_leave_queue_exception(self, mock_leave, test_client: TestClient):
         """Test exception handling in leave matchmaking queue."""
         mock_leave.side_effect = Exception("Queue removal failed")
@@ -181,7 +181,7 @@ class TestAnalysisExceptionPaths:
 class TestStatisticsExceptionPaths:
     """Test statistics exception paths."""
     
-    @patch('api.server.game_manager.get_leaderboard')
+    @patch('backend.api.server.game_manager.get_leaderboard')
     def test_get_leaderboard_exception(self, mock_leaderboard, test_client: TestClient):
         """Test exception handling in get_leaderboard."""
         mock_leaderboard.side_effect = Exception("Leaderboard service down")
@@ -189,7 +189,7 @@ class TestStatisticsExceptionPaths:
         response = test_client.get("/stats/leaderboard")
         assert response.status_code == 500
     
-    @patch('api.server.game_manager.get_player_stats')
+    @patch('backend.api.server.game_manager.get_player_stats')
     def test_get_player_stats_exception(self, mock_stats, test_client: TestClient):
         """Test exception handling in get_player_stats."""
         mock_stats.side_effect = Exception("Stats calculation failed")
@@ -201,7 +201,7 @@ class TestStatisticsExceptionPaths:
 class TestWebSocketExceptionPaths:
     """Test WebSocket-related exception paths in endpoints."""
     
-    @patch('api.server.ws_manager.broadcast_game_created')
+    @patch('backend.api.server.ws_manager.broadcast_game_created')
     def test_websocket_broadcast_failure_on_create(self, mock_broadcast, test_client: TestClient):
         """Test WebSocket broadcast failure during game creation."""
         mock_broadcast.side_effect = Exception("WebSocket broadcast failed")
@@ -219,7 +219,7 @@ class TestWebSocketExceptionPaths:
         # Should still succeed despite WebSocket failure
         assert response.status_code == 200 or response.status_code == 500
     
-    @patch('api.server.ws_manager.broadcast_move')
+    @patch('backend.api.server.ws_manager.broadcast_move')
     def test_websocket_broadcast_failure_on_move(self, mock_broadcast, test_client: TestClient):
         """Test WebSocket broadcast failure during move."""
         # Create a game first

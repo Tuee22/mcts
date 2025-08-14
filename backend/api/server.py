@@ -1,11 +1,15 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 from typing import Dict, Optional, List, Any
 import asyncio
 import uuid
 from datetime import datetime
 import logging
+import os
+from pathlib import Path
 
 from .models import (
     GameCreateRequest, GameResponse, MoveRequest, MoveResponse,
@@ -46,6 +50,15 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Static files configuration for frontend
+FRONTEND_BUILD_DIR = Path("/home/mcts/frontend/build")
+if FRONTEND_BUILD_DIR.exists():
+    # Mount static assets first (CSS, JS, images)
+    app.mount("/static", StaticFiles(directory=FRONTEND_BUILD_DIR / "static"), name="static")
+    
+    # Serve other static files (favicon, manifest, etc.)
+    app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR), name="assets")
 
 # CORS configuration
 app.add_middleware(
@@ -498,6 +511,48 @@ async def health_check():
         "active_games": await game_manager.get_active_game_count(),
         "connected_clients": ws_manager.get_connection_count()
     }
+
+
+# ==================== Frontend SPA Routes ====================
+
+@app.get("/manifest.json")
+async def manifest():
+    """Serve the PWA manifest file."""
+    manifest_path = FRONTEND_BUILD_DIR / "manifest.json"
+    if manifest_path.exists():
+        return FileResponse(manifest_path)
+    raise HTTPException(status_code=404, detail="Manifest not found")
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve the favicon."""
+    favicon_path = FRONTEND_BUILD_DIR / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/robots.txt")
+async def robots():
+    """Serve the robots.txt file."""
+    robots_path = FRONTEND_BUILD_DIR / "robots.txt"
+    if robots_path.exists():
+        return FileResponse(robots_path)
+    raise HTTPException(status_code=404, detail="Robots.txt not found")
+
+@app.get("/{full_path:path}")
+async def serve_spa(request: Request, full_path: str):
+    """Serve the React SPA for any non-API routes."""
+    # Don't serve SPA for API routes
+    if full_path.startswith(("games", "matchmaking", "stats", "ws", "health", "docs", "openapi.json", "redoc")):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Serve index.html for all other routes (React Router will handle routing)
+    index_path = FRONTEND_BUILD_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path, media_type="text/html")
+    
+    # Fallback if frontend build doesn't exist
+    return {"message": "Frontend not built. Run 'npm run build' in the frontend directory."}
 
 
 def main():

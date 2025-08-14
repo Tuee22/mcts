@@ -22,7 +22,7 @@ TARGET=cuda docker compose up -d # For GPU-enabled build (AMD64 only)
 ### Building C++ Components
 ```bash
 # Build C++ shared library
-cd src
+cd backend/core
 scons                    # Standard build
 scons debug=1           # Debug build with symbols
 scons test=1            # Build test executable
@@ -59,24 +59,24 @@ poetry run lint         # Format check only
 poetry run lint-check   # Check formatting without changes
 
 # Type checking  
-poetry run typecheck    # Run mypy on python/ and tests/
+poetry run typecheck    # Run mypy on backend/ and tests/
 ```
 
 ## Architecture
 
 ### Core Components
 
-**C++ Backend (`src/`)**
+**C++ Backend (`backend/core/`)**
 - `mcts.hpp`: Generic MCTS template implementation with UCT/PUCT support
 - `board.h/.cpp`: Corridors game board representation and logic
 - `corridors_threaded_api.h/.cpp`: Thread-safe API wrapper for Python bindings
 - `_corridors_mcts.cpp`: Boost.Python bindings module
 
-**Python Frontend (`python/corridors/`)**
+**Python Frontend (`backend/python/corridors/`)**
 - `corridors_mcts.py`: Main Python interface with `Corridors_MCTS` class
 - Provides high-level API for game play, self-play, and analysis
 
-**Test Suite (`tests/`)**
+**Test Suite (`tests/backend/` and `tests/frontend/`)**
 - Comprehensive pytest-based testing with fixtures for different MCTS configurations
 - Performance benchmarks and integration tests for C++/Python interop
 

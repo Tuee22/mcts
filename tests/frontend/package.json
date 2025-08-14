@@ -2,34 +2,31 @@
   "name": "frontend",
   "version": "1.0.0",
   "description": "This directory contains comprehensive tests for the React frontend of the Corridors MCTS game. The test suite covers unit tests, integration tests, and end-to-end tests to ensure the frontend works correctly in isolation and when integrated with the backend API.",
-  "main": "jest.config.js",
+  "main": "vitest.config.ts",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/preset-env": "^7.28.0",
-    "@babel/preset-react": "^7.27.1",
-    "@babel/preset-typescript": "^7.27.1",
-    "@jest/globals": "^30.0.5",
     "@testing-library/jest-dom": "^6.6.4",
-    "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.1.10",
-    "@types/react-dom": "^19.1.7",
-    "babel-jest": "^30.0.5",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.1.8",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^30.0.5",
-    "jest-environment-jsdom": "^30.0.5",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-hot-toast": "^2.5.2",
-    "socket.io-client": "^4.8.1",
+    "jsdom": "^25.0.1",
     "typescript": "^5.9.2",
-    "zustand": "^5.0.7"
+    "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-dom": "*",
+    "@testing-library/react": "*",
+    "zustand": "*",
+    "react-hot-toast": "*",
+    "socket.io-client": "*"
   }
 }

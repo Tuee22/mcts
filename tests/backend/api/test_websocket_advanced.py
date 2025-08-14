@@ -6,8 +6,8 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import WebSocket
 
-from api.websocket_manager import WebSocketManager
-from api.models import MoveResponse, GameResponse, Player, PlayerType, GameSession
+from backend.api.websocket_manager import WebSocketManager
+from backend.api.models import MoveResponse, GameResponse, Player, PlayerType, GameSession
 
 
 @pytest.mark.asyncio

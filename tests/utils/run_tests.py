@@ -58,9 +58,9 @@ def main():
     coverage_args = []
     if args.coverage:
         if args.suite in ["all", "api"]:
-            coverage_args.extend(["--cov=api"])
+            coverage_args.extend(["--cov=backend.api"])
         if args.suite in ["all", "core"]: 
-            coverage_args.extend(["--cov=python"])
+            coverage_args.extend(["--cov=backend.python"])
         coverage_args.extend([
             "--cov-report=html:htmlcov-all",
             "--cov-report=term-missing",
@@ -76,18 +76,18 @@ def main():
         if args.type != "all":
             markers = ["-m", f"{args.type}" if args.type != "fast" else "not slow"]
     elif args.suite == "api":
-        test_paths = ["tests/api/"]
+        test_paths = ["tests/backend/api/"]
         if args.type == "integration":
-            test_paths = ["tests/api/test_integration.py"]
+            test_paths = ["tests/backend/api/test_integration.py"]
         elif args.type == "unit":
-            test_paths = ["tests/api/"]
+            test_paths = ["tests/backend/api/"]
             markers = ["-m", "not integration"]
         elif args.type == "fast":
             markers = ["-m", "not slow"]
     elif args.suite == "core":
-        test_paths = ["tests/core/"]
+        test_paths = ["tests/backend/core/"]
         if args.type == "performance":
-            test_paths = ["tests/core/test_performance.py"] 
+            test_paths = ["tests/backend/core/test_performance.py"] 
         elif args.type == "fast":
             markers = ["-m", "not slow"]
     elif args.suite == "benchmarks":

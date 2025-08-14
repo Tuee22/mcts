@@ -1,7 +1,7 @@
-// Jest setup file for frontend tests
+// Vitest setup file for frontend tests
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, afterAll } from '@jest/globals';
+import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 
 // Cleanup after each test
 afterEach(() => {
@@ -13,8 +13,8 @@ beforeAll(() => {
   // Mock navigator.clipboard
   Object.defineProperty(navigator, 'clipboard', {
     value: {
-      writeText: jest.fn(() => Promise.resolve()),
-      readText: jest.fn(() => Promise.resolve(''))
+      writeText: vi.fn(() => Promise.resolve()),
+      readText: vi.fn(() => Promise.resolve(''))
     },
     writable: true
   });
@@ -23,14 +23,14 @@ beforeAll(() => {
   const localStorageMock = (() => {
     let store: { [key: string]: string } = {};
     return {
-      getItem: jest.fn((key: string) => store[key] || null),
-      setItem: jest.fn((key: string, value: string) => {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => {
         store[key] = value;
       }),
-      removeItem: jest.fn((key: string) => {
+      removeItem: vi.fn((key: string) => {
         delete store[key];
       }),
-      clear: jest.fn(() => {
+      clear: vi.fn(() => {
         store = {};
       })
     };
@@ -46,71 +46,71 @@ beforeAll(() => {
   });
 
   // Mock WebSocket
-  global.WebSocket = jest.fn().mockImplementation((url) => ({
+  global.WebSocket = vi.fn().mockImplementation((url) => ({
     url,
     readyState: WebSocket.CONNECTING,
-    send: jest.fn(),
-    close: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn()
+    send: vi.fn(),
+    close: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn()
   }));
 
   // Mock ResizeObserver
-  global.ResizeObserver = jest.fn().mockImplementation(() => ({
-    observe: jest.fn(),
-    unobserve: jest.fn(),
-    disconnect: jest.fn()
+  global.ResizeObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn()
   }));
 
   // Mock IntersectionObserver
-  global.IntersectionObserver = jest.fn().mockImplementation(() => ({
-    observe: jest.fn(),
-    unobserve: jest.fn(),
-    disconnect: jest.fn()
+  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn()
   }));
 
   // Mock window.matchMedia
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
-    value: jest.fn().mockImplementation(query => ({
+    value: vi.fn().mockImplementation(query => ({
       matches: false,
       media: query,
       onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn()
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
     }))
   });
 
   // Mock HTMLCanvasElement.getContext
-  HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
-    fillRect: jest.fn(),
-    clearRect: jest.fn(),
-    getImageData: jest.fn(() => ({ data: new Array(4) })),
-    putImageData: jest.fn(),
-    createImageData: jest.fn(() => ({ data: new Array(4) })),
-    setTransform: jest.fn(),
-    drawImage: jest.fn(),
-    save: jest.fn(),
-    fillText: jest.fn(),
-    restore: jest.fn(),
-    beginPath: jest.fn(),
-    moveTo: jest.fn(),
-    lineTo: jest.fn(),
-    closePath: jest.fn(),
-    stroke: jest.fn(),
-    translate: jest.fn(),
-    scale: jest.fn(),
-    rotate: jest.fn(),
-    arc: jest.fn(),
-    fill: jest.fn(),
-    measureText: jest.fn(() => ({ width: 0 })),
-    transform: jest.fn(),
-    rect: jest.fn(),
-    clip: jest.fn()
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+    fillRect: vi.fn(),
+    clearRect: vi.fn(),
+    getImageData: vi.fn(() => ({ data: new Array(4) })),
+    putImageData: vi.fn(),
+    createImageData: vi.fn(() => ({ data: new Array(4) })),
+    setTransform: vi.fn(),
+    drawImage: vi.fn(),
+    save: vi.fn(),
+    fillText: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    stroke: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    rotate: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    measureText: vi.fn(() => ({ width: 0 })),
+    transform: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn()
   }));
 
   // Suppress console errors in tests unless explicitly testing them
@@ -131,17 +131,4 @@ afterAll(() => {
   // Cleanup any global mocks if needed
 });
 
-// Global test timeout
-jest.setTimeout(10000);
-
-// Mock CSS imports
-jest.mock('*.css', () => ({}));
-jest.mock('*.scss', () => ({}));
-jest.mock('*.sass', () => ({}));
-
-// Mock image imports
-jest.mock('*.jpg', () => 'test-file-stub');
-jest.mock('*.jpeg', () => 'test-file-stub');
-jest.mock('*.png', () => 'test-file-stub');
-jest.mock('*.gif', () => 'test-file-stub');
-jest.mock('*.svg', () => 'test-file-stub');
+// Note: Vitest handles CSS and image imports via the config file

@@ -14,7 +14,8 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
     gcc-13 g++-13 git curl wget valgrind cppcheck \
     libcairo2-dev pkg-config build-essential \
-    python3-dev python3-distutils python3-setuptools
+    python3-dev python3-distutils python3-setuptools \
+    tini
 
 # Install Node.js 20.x for React frontend
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -56,7 +57,8 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt update && apt install -y \
     gcc-13 g++-13 git curl wget valgrind cppcheck \
     libcairo2-dev pkg-config build-essential \
-    python3-dev python3-distutils python3-setuptools
+    python3-dev python3-distutils python3-setuptools \
+    tini
 
 # Install Node.js 20.x for React frontend
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -87,7 +89,7 @@ FROM ${TARGETARCH} AS final
 WORKDIR /home
 
 # Install project dependencies
-COPY pyproject.toml ./
+COPY pyproject.toml poetry.lock* ./
 RUN python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import distutils.util" && \
     find /usr/lib/python3/dist-packages -name "*blinker*" -delete 2>/dev/null || true && \
     find /usr/local/lib/python3.12/dist-packages -name "*blinker*" -delete 2>/dev/null || true
@@ -98,38 +100,49 @@ RUN if [ "${TARGETARCH}" = "cuda" ]; then \
     fi
 
 # Copy all project files and set up environment
-ENV PYTHONPATH="/home/python/:/home/mcts/python/"
+ENV PYTHONPATH="/home/mcts/:/home/mcts/backend/python/"
 COPY . /home/mcts/
 
+# Install Poetry dependencies in the project directory
+WORKDIR /home/mcts
+RUN poetry install --no-interaction --no-root
+
 # Build C++ module with current Python 3.12
-WORKDIR /home/mcts/src  
+WORKDIR /home/mcts/backend/core  
 RUN rm -f _corridors_mcts.so && scons
-# Copy to python modules directory  
-RUN mkdir -p /home/mcts/python/corridors && cp _corridors_mcts.so /home/mcts/python/corridors/_corridors_mcts.so
+# Copy to python modules directory (directory should already exist from COPY operation)
+RUN cp _corridors_mcts.so /home/mcts/backend/python/corridors/_corridors_mcts.so
 
 # Build React frontend (after copying project files)
 WORKDIR /home/mcts/frontend
 RUN npm ci
 RUN npm run build
+# Verify build directory was created
+RUN ls -la build/
 
-# Install global Node.js dependencies for testing and serving
-RUN npm install -g serve ws websockets
+# Install frontend test dependencies
+WORKDIR /home/mcts/tests/frontend
+RUN npm ci
+# Link React dependencies from main frontend to avoid version conflicts
+RUN ln -sf /home/mcts/frontend/node_modules/react node_modules/react
+RUN ln -sf /home/mcts/frontend/node_modules/react-dom node_modules/react-dom  
+RUN ln -sf /home/mcts/frontend/node_modules/@testing-library node_modules/@testing-library
+RUN ln -sf /home/mcts/frontend/node_modules/zustand node_modules/zustand
+RUN ln -sf /home/mcts/frontend/node_modules/react-hot-toast node_modules/react-hot-toast
+RUN ln -sf /home/mcts/frontend/node_modules/socket.io-client node_modules/socket.io-client
 
-# Install ws locally in home directory for testing scripts
-WORKDIR /home
-RUN npm install ws
+# Node.js build tools no longer needed at runtime (frontend is served by FastAPI)
 
-# Install supervisor via pip instead of apt to ensure Python 3.12 compatibility
-RUN python3 -m pip install supervisor
+# Tini is installed via apt package above - no additional setup needed
 
-# Create supervisor configuration
-RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d/
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+WORKDIR /home/mcts
 
-WORKDIR /home
+# Set Python path for the project
+ENV PYTHONPATH="/home/mcts:/home/mcts/backend/python"
 
-# Expose ports for API (8000) and frontend (3000)
-EXPOSE 8000 3000
+# Expose port for unified FastAPI server (serves both API and frontend)
+EXPOSE 8000
 
-# Start supervisor to run both API and frontend
-CMD ["/usr/local/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start FastAPI server directly with tini as init system
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python3", "-m", "backend.api.server"]

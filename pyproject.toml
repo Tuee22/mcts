@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Monte Carlo Tree Search implementation with C++ backend"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "python"}]
+packages = [{include = "backend"}]
 
 
 [tool.poetry.dependencies]
@@ -151,14 +151,14 @@ linecoverage_report = "mypy-reports/linecoverage"
 txt_report = "mypy-reports/txt"
 
 [tool.poetry.scripts]
-api-server = "api.server:main"
-api-dev = "api.server:dev"
+api-server = "backend.api.server:main"
+api-dev = "backend.api.server:dev"
 
-# Test runners
-test-all = "tests.utils.run_tests:main"
-test-api = "tests.utils.run_api_tests:main"
-test-core = "tests.utils.run_core_tests:main"
-test-everything = "tests.utils.run_all_tests:main"
+# Test runners  
+test-python = "tests.utils.run_tests:main"
+test-python-api = "tests.utils.run_api_tests:main"
+test-python-core = "tests.utils.run_core_tests:main"
+test-all = "tests.utils.run_all_tests:main"
 
 [tool.poetry.extras]
 api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]

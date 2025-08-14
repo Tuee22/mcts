@@ -44,21 +44,23 @@ export class MockWebSocket {
   }
 }
 
+import { vi } from 'vitest';
+
 // Mock socket.io client
 export const mockSocketIOClient = {
-  connect: jest.fn(() => new MockWebSocket('http://localhost:8000')),
+  connect: vi.fn(() => new MockWebSocket('http://localhost:8000')),
   Socket: MockWebSocket
 };
 
 // Mock WebSocket service methods
 export const mockWebSocketService = {
-  connect: jest.fn(),
-  disconnect: jest.fn(),
-  createGame: jest.fn(),
-  joinGame: jest.fn(),
-  makeMove: jest.fn(),
-  getAIMove: jest.fn(),
-  isConnected: jest.fn(() => true)
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  createGame: vi.fn(),
+  joinGame: vi.fn(),
+  makeMove: vi.fn(),
+  getAIMove: vi.fn(),
+  isConnected: vi.fn(() => true)
 };
 
 // WebSocket event data mocks

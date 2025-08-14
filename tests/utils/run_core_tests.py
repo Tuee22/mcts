@@ -47,7 +47,7 @@ def main():
     # Add coverage
     if args.coverage:
         base_cmd.extend([
-            "--cov=python",
+            "--cov=backend.python",
             "--cov-report=html:htmlcov-core",
             "--cov-report=term-missing",
             "--cov-fail-under=70"
@@ -58,22 +58,22 @@ def main():
     markers = []
     
     if args.type == "all":
-        test_paths = ["tests/core/"]
+        test_paths = ["tests/backend/core/"]
         if args.benchmarks:
             test_paths.append("tests/benchmarks/")
     elif args.type == "fast":
-        test_paths = ["tests/core/"]
+        test_paths = ["tests/backend/core/"]
         markers = ["-m", "not slow"]
     elif args.type == "cpp":
-        test_paths = ["tests/core/"]
+        test_paths = ["tests/backend/core/"]
         markers = ["-m", "cpp"]
     elif args.type == "python":
-        test_paths = ["tests/core/"]
+        test_paths = ["tests/backend/core/"]
         markers = ["-m", "python"]
     elif args.type == "integration":
-        test_paths = ["tests/core/test_integration.py"]
+        test_paths = ["tests/backend/core/test_integration.py"]
     elif args.type == "performance":
-        test_paths = ["tests/core/test_performance.py", "tests/benchmarks/"]
+        test_paths = ["tests/backend/core/test_performance.py", "tests/benchmarks/"]
     
     # Build final command
     cmd = base_cmd + test_paths + markers

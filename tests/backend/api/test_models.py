@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime
 from pydantic import ValidationError
 
-from api.models import (
+from backend.api.models import (
     PlayerType, GameStatus, GameMode, MCTSSettings, GameSettings,
     Player, Position, Move, BoardState, GameSession,
     GameCreateRequest, GameResponse, MoveRequest, MoveResponse,

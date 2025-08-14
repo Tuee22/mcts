@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch, MagicMock
 from typing import Dict, Any, List, Tuple
 
 try:
-    from python.corridors.corridors_mcts import (
+    from backend.python.corridors.corridors_mcts import (
         Corridors_MCTS,
         display_sorted_actions,
         computer_self_play,
@@ -468,7 +468,7 @@ class TestErrorHandling:
         if not CORRIDORS_AVAILABLE:
             return
         # These imports should work
-        from python.corridors.corridors_mcts import (
+        from backend.python.corridors.corridors_mcts import (
             Corridors_MCTS,
             display_sorted_actions,
             computer_self_play,
