@@ -81,25 +81,17 @@ def main():
     if not args.python_only:
         print("\n⚛️  Running Frontend tests...")
 
-        # Check if frontend test directory exists
-        if not os.path.exists(frontend_test_dir):
-            print(f"⚠️  Frontend test directory not found: {frontend_test_dir}")
-            print("Skipping frontend tests")
-        else:
-            # Build npm test command
-            npm_cmd = ["npm", "test"]
-            if args.coverage:
-                npm_cmd = ["npm", "run", "test:coverage"]
+        # Use our dedicated frontend test runner
+        frontend_cmd = [sys.executable, "-m", "tests.utils.run_frontend_tests"]
+        if args.coverage:
+            frontend_cmd.append("--coverage")
+        if args.verbose:
+            frontend_cmd.append("--verbose")
 
-            frontend_success = run_command(
-                npm_cmd, "Frontend Tests", cwd=frontend_test_dir
-            )
-            success = success and frontend_success
-
-            if args.coverage and frontend_success:
-                print(
-                    f"📊 Frontend coverage report: {frontend_test_dir}/coverage/index.html"
-                )
+        frontend_success = run_command(
+            frontend_cmd, "Frontend Tests", cwd=project_root
+        )
+        success = success and frontend_success
 
     # Final summary
     print(f"\n{'='*60}")
