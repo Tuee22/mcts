@@ -156,6 +156,8 @@ test-python = "tests.utils.run_tests:main"
 test-python-api = "tests.utils.run_api_tests:main"
 test-python-core = "tests.utils.run_core_tests:main"
 test-all = "tests.utils.run_all_tests:main"
+# Wrapper script for auto-installation
+test-all-auto = "scripts.test-all:main"
 
 [tool.poetry.extras]
 api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]

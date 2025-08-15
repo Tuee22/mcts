@@ -12,14 +12,14 @@ import {
   createUser 
 } from '../utils/test-utils';
 
-import { vi, describe, test, expect, beforeEach, type MockedFunction } from 'vitest';
+import { vi, describe, test, expect, beforeEach } from 'vitest';
 
 // Mock dependencies
 vi.mock('../../../frontend/src/store/gameStore');
 vi.mock('../../../frontend/src/services/websocket');
 
-const mockUseGameStore = useGameStore as MockedFunction<typeof useGameStore>;
-const mockWsService = wsService as ReturnType<typeof vi.mocked>;
+const mockUseGameStore = vi.mocked(useGameStore);
+const mockWsService = vi.mocked(wsService);
 
 describe('GameBoard Component', () => {
   const user = createUser();
@@ -32,9 +32,9 @@ describe('GameBoard Component', () => {
 
   beforeEach(() => {
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockUseGameStore.mockReturnValue(defaultMockStore as any);
-    mockWsService.makeMove = jest.fn();
+    mockWsService.makeMove = vi.fn();
   });
 
   describe('Rendering', () => {

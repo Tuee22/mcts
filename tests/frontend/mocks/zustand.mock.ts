@@ -1,5 +1,6 @@
 // Mock Zustand store for testing
 import { act } from '@testing-library/react';
+import { vi } from 'vitest';
 
 // Create a mock store factory
 export const createMockStore = <T>(initialState: T) => {
@@ -50,15 +51,15 @@ export const mockGameStoreState = {
   error: null,
   selectedHistoryIndex: null,
   
-  setGameId: jest.fn(),
-  setGameState: jest.fn(),
-  setGameSettings: jest.fn(),
-  setIsConnected: jest.fn(),
-  setIsLoading: jest.fn(),
-  setError: jest.fn(),
-  setSelectedHistoryIndex: jest.fn(),
-  addMoveToHistory: jest.fn(),
-  reset: jest.fn()
+  setGameId: vi.fn(),
+  setGameState: vi.fn(),
+  setGameSettings: vi.fn(),
+  setIsConnected: vi.fn(),
+  setIsLoading: vi.fn(),
+  setError: vi.fn(),
+  setSelectedHistoryIndex: vi.fn(),
+  addMoveToHistory: vi.fn(),
+  reset: vi.fn()
 };
 
 // Create a mock store instance
@@ -68,7 +69,7 @@ export const mockGameStore = createMockStore(mockGameStoreState);
 export const resetMockStore = () => {
   Object.keys(mockGameStoreState).forEach(key => {
     const value = mockGameStoreState[key as keyof typeof mockGameStoreState];
-    if (typeof value === 'function' && jest.isMockFunction(value)) {
+    if (typeof value === 'function' && vi.isMockFunction(value)) {
       value.mockClear();
     }
   });

@@ -104,9 +104,13 @@ export const customRender = (
   ui: ReactElement,
   options?: CustomRenderOptions
 ) => {
-  return render(ui, {
-    ...options
+  let result;
+  act(() => {
+    result = render(ui, {
+      ...options
+    });
   });
+  return result;
 };
 
 // Re-export everything from testing-library

@@ -11,15 +11,16 @@ import {
   generateMockMove,
   createUser 
 } from '../utils/test-utils';
+import { vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('../../../frontend/src/store/gameStore');
+vi.mock('../../../frontend/src/store/gameStore');
 
-const mockUseGameStore = useGameStore as jest.MockedFunction<typeof useGameStore>;
+const mockUseGameStore = vi.mocked(useGameStore);
 
 describe('MoveHistory Component', () => {
   const user = createUser();
-  const mockSetSelectedHistoryIndex = jest.fn();
+  const mockSetSelectedHistoryIndex = vi.fn();
 
   const defaultMockStore = {
     gameState: mockGameStateWithHistory,
@@ -28,7 +29,7 @@ describe('MoveHistory Component', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockUseGameStore.mockReturnValue(defaultMockStore as any);
   });
 

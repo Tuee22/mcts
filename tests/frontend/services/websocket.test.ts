@@ -1,35 +1,36 @@
 import { wsService } from '../../../frontend/src/services/websocket';
 import { useGameStore } from '../../../frontend/src/store/gameStore';
 import { MockWebSocket, mockWebSocketEvents } from '../mocks/websocket.mock';
+import { vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('../../../frontend/src/store/gameStore');
-jest.mock('socket.io-client', () => ({
+vi.mock('../../../frontend/src/store/gameStore');
+vi.mock('socket.io-client', () => ({
   __esModule: true,
-  default: jest.fn(() => new MockWebSocket('http://localhost:8000')),
+  default: vi.fn(() => new MockWebSocket('http://localhost:8000')),
   Socket: MockWebSocket
 }));
 
-const mockUseGameStore = useGameStore as jest.MockedFunction<typeof useGameStore>;
+const mockUseGameStore = useGameStore as ReturnType<typeof vi.mocked<typeof useGameStore>>;
 
 describe('WebSocket Service', () => {
   let mockSocket: MockWebSocket;
   let mockStore: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockStore = {
-      setIsConnected: jest.fn(),
-      setError: jest.fn(),
-      setGameId: jest.fn(),
-      setGameState: jest.fn(),
-      setIsLoading: jest.fn(),
-      addMoveToHistory: jest.fn(),
+      setIsConnected: vi.fn(),
+      setError: vi.fn(),
+      setGameId: vi.fn(),
+      setGameState: vi.fn(),
+      setIsLoading: vi.fn(),
+      addMoveToHistory: vi.fn(),
       getState: () => mockStore
     };
     
-    mockUseGameStore.mockReturnValue(mockStore);
+    vi.mocked(mockUseGameStore).mockReturnValue(mockStore);
     
     // Reset the service
     wsService.disconnect();

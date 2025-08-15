@@ -1,10 +1,10 @@
 import React from 'react';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, test, expect, beforeEach, vi, type MockedFunction } from 'vitest';
-import { GameSettings } from '@frontend/components/GameSettings';
-import { useGameStore } from '@frontend/store/gameStore';
-import { wsService } from '@frontend/services/websocket';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { GameSettings } from '../../../frontend/src/components/GameSettings';
+import { useGameStore } from '../../../frontend/src/store/gameStore';
+import { wsService } from '../../../frontend/src/services/websocket';
 import { 
   render, 
   mockGameSettings,
@@ -12,11 +12,11 @@ import {
 } from '../utils/test-utils';
 
 // Mock dependencies
-vi.mock('@frontend/store/gameStore');
-vi.mock('@frontend/services/websocket');
+vi.mock('../../../frontend/src/store/gameStore');
+vi.mock('../../../frontend/src/services/websocket');
 
-const mockUseGameStore = useGameStore as MockedFunction<typeof useGameStore>;
-const mockWsService = wsService as ReturnType<typeof vi.mocked>;
+const mockUseGameStore = vi.mocked(useGameStore);
+const mockWsService = vi.mocked(wsService);
 
 describe('GameSettings Component', () => {
   const user = createUser();

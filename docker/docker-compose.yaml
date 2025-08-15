@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: ./docker/Dockerfile
       args:
-        TARGETARCH: ${TARGET:-cpu}
+        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
     image: mcts:${TARGET:-cpu}
     runtime: ${RUNTIME:-}
     volumes:
@@ -17,4 +17,4 @@ services:
         protocol: tcp
     restart: unless-stopped
     environment:
-      PYTHONPATH: /home/python/:/home/mcts/python/
+      PYTHONPATH: /home/mcts:/home/mcts/backend/python
