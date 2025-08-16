@@ -15,30 +15,12 @@ A high-performance Monte Carlo Tree Search (MCTS) implementation for the Corrido
 
 ### Prerequisites
 - Docker and Docker Compose
-- Docker Buildx (for multi-platform builds)
+- For GPU support: NVIDIA Docker runtime
 - Git
-
-### Enable Docker Buildx
-
-Docker Buildx enables building images for multiple architectures. Ensure it's available:
-
-```bash
-# Check if buildx is available
-docker buildx version
-
-# Create and use a new buildx builder (if needed)
-docker buildx create --name multiarch --use
-
-# Enable experimental features (if not already enabled)
-# Add to ~/.docker/config.json:
-# {
-#   "experimental": "enabled"
-# }
-```
 
 ### Quick Start Instructions
 
-**For CPU-only systems (any architecture):**
+**For CPU-only systems:**
 ```bash
 git clone <repository-url>
 cd mcts/docker
@@ -52,28 +34,42 @@ cd mcts/docker
 TARGET=cuda RUNTIME=nvidia docker compose up -d
 ```
 
-Docker will automatically detect and build for your system's architecture (ARM64 for Apple Silicon, AMD64 for Intel/AMD).
+**For ARM64 systems (Apple Silicon, etc):**
+```bash
+git clone <repository-url>
+cd mcts/docker
+TARGET=arm PLATFORM=linux/arm64 docker compose up -d
+```
 
-### Advanced Multi-Platform Building
+### Docker Configuration
 
-To build images for multiple platforms simultaneously:
+The build system automatically selects the appropriate base image:
+- **CPU builds**: `ubuntu:22.04`  
+- **CUDA builds**: `nvidia/cuda:12.6.2-devel-ubuntu22.04`
+- **ARM builds**: `ubuntu:22.04` (with QEMU emulation)
+
+Configuration is handled via environment variables (see `docker/.env.example`):
 
 ```bash
-# Build for both ARM64 and AMD64
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --build-arg TARGETARCH=cpu \
-  -t mcts:multi \
-  -f docker/Dockerfile \
-  --push .
+# Copy and customize environment file
+cp docker/.env.example docker/.env
+# Edit .env to set TARGET, PLATFORM, RUNTIME, and PORT
+```
 
-# Build and load locally for current platform only
-docker buildx build \
-  --platform linux/$(docker info --format '{{.Architecture}}') \
-  --build-arg TARGETARCH=cpu \
-  -t mcts:local \
-  -f docker/Dockerfile \
-  --load .
+### Running Tests
+
+**All unit tests (130 tests):**
+```bash
+# CPU container
+docker compose exec mcts poetry run pytest tests/backend/core/ -v
+
+# CUDA container  
+TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run pytest tests/backend/core/ -v
+```
+
+**GPU verification (CUDA only):**
+```bash
+TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
 ```
 
 ### Access the Environment
@@ -84,11 +80,14 @@ Once the container is running:
 # Access the container shell
 docker compose exec mcts bash
 
-# Or access Jupyter Lab (automatically available)
-# Open browser to: http://localhost:8888
+# Run interactive Python session
+docker compose exec mcts python3
+
+# Check container logs
+docker compose logs mcts
 ```
 
-The project directory is mounted at `/home/mcts` inside the container.
+The project directory is mounted for live development.
 
 
 ## Usage Examples
@@ -182,60 +181,44 @@ scons sanitize=1
 
 ### Running Tests
 
-**Complete Test Suite (Python + Frontend):**
+**Docker Testing (Recommended):**
 ```bash
-# In Docker container (recommended)
-docker exec -w /home/mcts docker-mcts-1 poetry run test-all
+# CPU container - all unit tests (130 tests)
+docker compose exec mcts poetry run pytest tests/backend/core/ -v
 
-# Run ALL tests (Python API/Core + Frontend)  
-poetry run test-all
+# CUDA container - all unit tests with GPU verification
+TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run pytest tests/backend/core/ -v
+TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
 
-# With coverage reports
-poetry run test-all --coverage
-
-# Python tests only
-poetry run test-all --python-only
-
-# Frontend tests only  
-poetry run test-all --frontend-only
+# One-time test run (no persistent container)
+docker compose run --rm mcts poetry run pytest tests/backend/core/ -v
 ```
 
-**Python Tests Only:**
+**Local Development Testing:**
 ```bash
-# All Python backend tests (API + Core)
-poetry run test-python
+# All Python backend tests (requires local build)
+poetry run pytest tests/backend/core/      # Core MCTS and board tests
+poetry run pytest tests/backend/ -v        # All backend tests with verbose output
 
-# Specific Python test suites
-poetry run test-python-api      # API and WebSocket tests
-poetry run test-python-core     # Core MCTS and board tests
+# Test categories
+poetry run pytest tests/backend/core/ -m 'not slow'  # Fast tests only
+poetry run pytest tests/backend/core/ -m performance # Performance tests
+poetry run pytest tests/backend/core/ -m integration # Integration tests
 
-# Direct pytest usage
-poetry run pytest tests/backend/           # All Python tests
-poetry run pytest tests/backend/ -m 'not slow'  # Fast tests only
-
-# Specific test categories
-poetry run pytest -m python      # Pure Python tests
-poetry run pytest -m cpp         # C++ binding tests  
-poetry run pytest -m integration # Integration tests
-poetry run pytest -m performance # Performance tests
-
-# Benchmarks
-poetry run pytest tests/benchmarks/ --benchmark-only
+# With coverage
+poetry run pytest tests/backend/core/ --cov=backend.python.corridors
 ```
 
-**Frontend Tests Only:**
+**Frontend Testing:**
 ```bash
-# In Docker container (recommended)
-docker exec -w /home/mcts/tests/frontend docker-mcts-1 npm test
+# In Docker container
+docker compose exec mcts bash -c "cd tests/frontend && npm test"
 
-# From frontend test directory
+# Local development
 cd tests/frontend
 npm test                    # All frontend tests
 npm run test:coverage       # With coverage
 npm run test:watch          # Watch mode
-
-# Core smoke test only (fastest)
-npm test -- --testNamePattern="Core Frontend Smoke Test"
 ```
 
 ### Code Quality
@@ -326,11 +309,12 @@ Corridors is a two-player board game where players race to reach the opposite si
 - Verify SCons is available (`pip install scons`)
 
 **Docker Issues:**
-- For GPU support, ensure NVIDIA Docker runtime is installed
-- Check Docker platform matches your architecture
-- Use `docker compose logs` to debug startup issues
-- If buildx fails, ensure experimental features are enabled
-- For "no builder instance" errors, create a buildx builder: `docker buildx create --use`
+- For GPU support, ensure NVIDIA Docker runtime is installed: `sudo apt install nvidia-docker2`
+- CUDA builds require nvidia runtime: `TARGET=cuda RUNTIME=nvidia docker compose up -d`
+- Check if nvidia-smi works: `TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi`
+- Use `docker compose logs mcts` to debug startup issues
+- For ARM builds on x86, expect slower performance due to QEMU emulation
+- Check available platforms: `docker buildx ls`
 
 **Import Errors:**
 - Verify C++ module was built successfully (`_corridors_mcts.so`)

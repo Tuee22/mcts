@@ -1,5 +1,15 @@
-ARG BASE_IMAGE=ubuntu:22.04
-FROM ${BASE_IMAGE}
+# Build argument to determine build target
+ARG TARGET=cpu
+
+# Select base image based on target
+# For CUDA builds, use NVIDIA's official CUDA development image
+# For CPU/ARM builds, use standard Ubuntu
+FROM nvidia/cuda:12.6.2-devel-ubuntu22.04 AS cuda-base
+FROM ubuntu:22.04 AS cpu-base
+FROM ubuntu:22.04 AS arm-base
+
+# Select the appropriate base image
+FROM ${TARGET}-base AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV PYTHONPATH="/app:/app/backend/python"

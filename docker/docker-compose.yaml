@@ -4,9 +4,9 @@ services:
       context: ..
       dockerfile: ./docker/Dockerfile
       platforms:
-        - ${PLATFORM:-linux/arm64}
+        - ${PLATFORM:-linux/amd64}
       args:
-        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
+        TARGET: ${TARGET:-cpu}
     image: mcts:${TARGET:-cpu}
     runtime: ${RUNTIME:-runc}
     ports:
@@ -16,7 +16,6 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONPATH=/app:/app/backend/python
-    # For development, mount volumes
     volumes:
       - type: bind
         source: ../backend
