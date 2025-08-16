@@ -3,18 +3,26 @@ services:
     build:
       context: ..
       dockerfile: ./docker/Dockerfile
+      platforms:
+        - ${PLATFORM:-linux/arm64}
       args:
         BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
     image: mcts:${TARGET:-cpu}
-    runtime: ${RUNTIME:-}
-    volumes:
-      - type: bind
-        source: ..
-        target: /home/mcts
+    runtime: ${RUNTIME:-runc}
     ports:
       - target: 8000
         published: ${PORT:-8000}
         protocol: tcp
     restart: unless-stopped
     environment:
-      PYTHONPATH: /home/mcts:/home/mcts/backend/python
+      - PYTHONPATH=/app:/app/backend/python
+    # For development, mount volumes
+    volumes:
+      - type: bind
+        source: ../backend
+        target: /app/backend
+        read_only: false
+      - type: bind
+        source: ../tests
+        target: /app/tests
+        read_only: false

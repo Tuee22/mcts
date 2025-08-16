@@ -177,16 +177,9 @@ def mock_mcts(monkeypatch: Any) -> Any:
         "backend.python.corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
     )
 
-    # Also mock any import attempts
-    try:
-        import backend.python.corridors.corridors_mcts
-
-        monkeypatch.setattr(
-            backend.python.corridors.corridors_mcts,
-            "Corridors_MCTS",
-            mock_mcts_constructor,
-        )
-    except ImportError:
-        pass
+    # Mock the import at the module level before any actual imports happen
+    monkeypatch.setattr(
+        "corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
+    )
 
     return mock_mcts_constructor

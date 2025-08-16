@@ -53,25 +53,39 @@ def main():
 
     # Run Python tests unless frontend-only
     if not args.frontend_only:
-        print("🐍 Running Python tests (API + Core)...")
+        print("🐍 Running Python tests (Core + API separately)...")
 
-        # Build pytest command
-        pytest_cmd = ["python3", "-m", "pytest", "tests/backend/"]
-
+        # Run Core tests first (these load the C++ module)
+        core_cmd = ["python3", "-m", "pytest", "tests/backend/core/"]
         if args.verbose:
-            pytest_cmd.append("-v")
-
+            core_cmd.append("-v")
         if args.coverage:
-            pytest_cmd.extend(
+            core_cmd.extend(
                 [
-                    "--cov=backend.api",
                     "--cov=backend.python",
-                    "--cov-report=html:htmlcov",
+                    "--cov-report=html:htmlcov-core",
                     "--cov-report=term-missing",
                 ]
             )
 
-        python_success = run_command(pytest_cmd, "Python Tests", cwd=project_root)
+        core_success = run_command(core_cmd, "Python Core Tests", cwd=project_root)
+        
+        # Run API tests in a separate process to avoid pybind11 double registration
+        api_cmd = ["python3", "-m", "pytest", "tests/backend/api/"]
+        if args.verbose:
+            api_cmd.append("-v")
+        if args.coverage:
+            api_cmd.extend(
+                [
+                    "--cov=backend.api", 
+                    "--cov-report=html:htmlcov-api",
+                    "--cov-report=term-missing",
+                ]
+            )
+
+        api_success = run_command(api_cmd, "Python API Tests", cwd=project_root)
+        
+        python_success = core_success and api_success
         success = success and python_success
 
         if args.coverage and python_success:

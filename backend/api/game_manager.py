@@ -8,7 +8,7 @@ import os
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.python.corridors.corridors_mcts import Corridors_MCTS
+from corridors.corridors_mcts import Corridors_MCTS
 from .models import (
     GameSession,
     GameStatus,
