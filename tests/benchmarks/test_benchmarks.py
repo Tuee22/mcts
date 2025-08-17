@@ -9,7 +9,7 @@ import pytest
 from typing import Dict, Any
 
 try:
-    from backend.python.corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+    from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
 
     CORRIDORS_AVAILABLE = True
 except ImportError:
@@ -187,7 +187,7 @@ class TestMCTSBenchmarks:
         """Benchmark self-play game performance with computer vs computer."""
 
         def run_self_play():
-            from backend.python.corridors.corridors_mcts import computer_self_play
+            from corridors.corridors_mcts import computer_self_play
             import io
             import sys
 

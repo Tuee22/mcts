@@ -16,7 +16,7 @@ from typing import Dict, Any
 from unittest.mock import patch
 
 try:
-    from backend.python.corridors.corridors_mcts import (
+    from corridors.corridors_mcts import (
         Corridors_MCTS,
         display_sorted_actions,
     )

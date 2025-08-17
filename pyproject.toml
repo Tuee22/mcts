@@ -4,11 +4,11 @@ version = "0.1.0"
 description = "Monte Carlo Tree Search implementation with C++ backend"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "backend"}]
+packages = [{include = "backend"}, {include = "corridors", from = "backend/python"}]
 
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
+python = ">=3.10,<4.0"
 pybind11 = ">=2.11.0,<3.0"
 numpy = ">=1.26.3,<2.0"
 pandas = ">=2.1.4,<3.0"
@@ -74,7 +74,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 88
-target-version = ['py312']
+target-version = ['py310']
 
 [tool.isort]
 profile = "black"
@@ -114,7 +114,7 @@ filterwarnings = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 strict = true
 # Default paths to check
 files = ["backend/", "tests/backend/"]
@@ -144,7 +144,7 @@ disable_error_code = "misc"
 
 # Python wrapper for C++ module - some Any usage is unavoidable
 [[tool.mypy.overrides]]
-module = "backend.python.corridors.corridors_mcts"
+module = "corridors.corridors_mcts"
 disable_error_code = "misc"
 
 [tool.poetry.scripts]

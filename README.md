@@ -95,7 +95,7 @@ The project directory is mounted for live development.
 ### Basic MCTS Game
 
 ```python
-from backend.python.corridors.corridors_mcts import Corridors_MCTS
+from corridors.corridors_mcts import Corridors_MCTS
 from math import sqrt
 
 # Create MCTS instance
@@ -124,7 +124,7 @@ print(mcts.display())
 ### Interactive Play
 
 ```python
-from backend.python.corridors.corridors_mcts import Corridors_MCTS, human_computer_play
+from corridors.corridors_mcts import Corridors_MCTS, human_computer_play
 
 # Start human vs computer game
 mcts = Corridors_MCTS(min_simulations=5000)
@@ -134,7 +134,7 @@ human_computer_play(mcts, human_plays_first=True)
 ### Computer Self-Play
 
 ```python
-from backend.python.corridors.corridors_mcts import Corridors_MCTS, computer_self_play
+from corridors.corridors_mcts import Corridors_MCTS, computer_self_play
 
 # Create two MCTS instances
 p1 = Corridors_MCTS(seed=1, min_simulations=2000)
@@ -206,7 +206,7 @@ poetry run pytest tests/backend/core/ -m performance # Performance tests
 poetry run pytest tests/backend/core/ -m integration # Integration tests
 
 # With coverage
-poetry run pytest tests/backend/core/ --cov=backend.python.corridors
+poetry run pytest tests/backend/core/ --cov=corridors
 ```
 
 **Frontend Testing:**

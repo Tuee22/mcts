@@ -69,7 +69,7 @@ def main():
             )
 
         core_success = run_command(core_cmd, "Python Core Tests", cwd=project_root)
-        
+
         # Run API tests in a separate process to avoid pybind11 double registration
         api_cmd = ["python3", "-m", "pytest", "tests/backend/api/"]
         if args.verbose:
@@ -77,14 +77,14 @@ def main():
         if args.coverage:
             api_cmd.extend(
                 [
-                    "--cov=backend.api", 
+                    "--cov=backend.api",
                     "--cov-report=html:htmlcov-api",
                     "--cov-report=term-missing",
                 ]
             )
 
         api_success = run_command(api_cmd, "Python API Tests", cwd=project_root)
-        
+
         python_success = core_success and api_success
         success = success and python_success
 
@@ -102,9 +102,7 @@ def main():
         if args.verbose:
             frontend_cmd.append("--verbose")
 
-        frontend_success = run_command(
-            frontend_cmd, "Frontend Tests", cwd=project_root
-        )
+        frontend_success = run_command(frontend_cmd, "Frontend Tests", cwd=project_root)
         success = success and frontend_success
 
     # Final summary

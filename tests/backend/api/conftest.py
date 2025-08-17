@@ -174,7 +174,7 @@ def mock_mcts(monkeypatch: Any) -> Any:
         "backend.api.game_manager.Corridors_MCTS", mock_mcts_constructor
     )
     monkeypatch.setattr(
-        "backend.python.corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
+        "corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
     )
 
     # Mock the import at the module level before any actual imports happen

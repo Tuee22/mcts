@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Literal, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.python.corridors.corridors_mcts import Corridors_MCTS
+    from corridors.corridors_mcts import Corridors_MCTS
 from datetime import datetime
 from enum import Enum
 import uuid

@@ -29,20 +29,16 @@ python_libs = []
 if not test:
     # Try to get python config for the active Python version
     try:
-        # Try python3.12-config first, then fallback to python3-config
-        try:
-            python_includes = subprocess.check_output(['python3.12-config', '--includes'], 
-                                                     universal_newlines=True).strip().split()
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            python_includes = subprocess.check_output(['python3-config', '--includes'], 
-                                                     universal_newlines=True).strip().split()
+        # Try python3-config first (should work with standard Python 3.10)
+        python_includes = subprocess.check_output(['python3-config', '--includes'], 
+                                                 universal_newlines=True).strip().split()
         python_includes = [flag[2:] for flag in python_includes if flag.startswith('-I')]
     except (subprocess.CalledProcessError, FileNotFoundError):
-        # Fallback configuration
+        # Fallback configuration for Python 3.10
         python_includes = [
-            '/usr/include/python3.12',
-            '/usr/local/include/python3.12',
-            '/usr/include/python3.12m'
+            '/usr/include/python3.10',
+            '/usr/local/include/python3.10',
+            '/usr/include/python3.10m'
         ]
     
     # Add pybind11 includes if available
@@ -95,8 +91,19 @@ else:
         'LIBS': python_libs
     }
 
-build_method(
-    target=target_name,
-    source=source_files,
-    **extra_args
-)
+if test:
+    result = build_method(
+        target=target_name,
+        source=source_files,
+        **extra_args
+    )
+else:
+    # Build extension directly into the corridors package directory
+    target_path = '../python/corridors/' + target_name
+    result = build_method(
+        target=target_path,
+        source=source_files,
+        **extra_args
+    )
+    # Make this the default target
+    Default(result)

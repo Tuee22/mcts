@@ -2,8 +2,8 @@ import sys
 import importlib
 
 # Prevent pybind11 double registration by checking if module is already loaded
-if 'corridors._corridors_mcts' in sys.modules:
-    _corridors_mcts = sys.modules['corridors._corridors_mcts']._corridors_mcts
+if "corridors._corridors_mcts" in sys.modules:
+    _corridors_mcts = sys.modules["corridors._corridors_mcts"]._corridors_mcts
 else:
     from ._corridors_mcts import _corridors_mcts
 from math import sqrt

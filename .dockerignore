@@ -161,10 +161,9 @@ test/
 spec/
 
 # Development documentation
-README.md
 CHANGELOG.md
 LICENSE
-*.md
+# Note: README.md is needed for Poetry project installation
 
 # Editor configurations
 .editorconfig

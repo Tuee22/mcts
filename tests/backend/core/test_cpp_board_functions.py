@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Tuple
 from unittest.mock import Mock
 
 try:
-    from backend.python.corridors.corridors_mcts import Corridors_MCTS
+    from corridors.corridors_mcts import Corridors_MCTS
 
     CORRIDORS_AVAILABLE = True
 except ImportError:

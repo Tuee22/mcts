@@ -15,12 +15,32 @@ services:
         protocol: tcp
     restart: unless-stopped
     environment:
-      - PYTHONPATH=/app:/app/backend/python
+      - PYTHONPATH=/app/backend/python
+      - NPM_CONFIG_YES=true
     volumes:
+      # Bind mount source code but preserve built artifacts
       - type: bind
-        source: ../backend
-        target: /app/backend
+        source: ../backend/api
+        target: /app/backend/api
         read_only: false
+      - type: bind
+        source: ../backend/core
+        target: /app/backend/core
+        read_only: false
+      - type: bind
+        source: ../backend/python/corridors/corridors_mcts.py
+        target: /app/backend/python/corridors/corridors_mcts.py
+        read_only: false
+      - type: bind
+        source: ../backend/python/corridors/__init__.py
+        target: /app/backend/python/corridors/__init__.py
+        read_only: false
+      - type: bind
+        source: ../backend/python/corridors/_corridors_mcts.pyi
+        target: /app/backend/python/corridors/_corridors_mcts.pyi
+        read_only: false
+      # Note: Do NOT bind mount the .so file - let it stay from the image build
+      # Bind mount tests
       - type: bind
         source: ../tests
         target: /app/tests

@@ -30,9 +30,7 @@ def run_command(cmd, description, cwd=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Run frontend tests for MCTS project"
-    )
+    parser = argparse.ArgumentParser(description="Run frontend tests for MCTS project")
     parser.add_argument("--coverage", action="store_true", help="Run with coverage")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--watch", action="store_true", help="Run in watch mode")
@@ -49,9 +47,9 @@ def main():
 
     print("⚛️  Running Frontend tests...")
 
-    # Build vitest command using npx to use local installation
-    vitest_cmd = ["npx", "vitest"]
-    
+    # Build vitest command using npx to use local installation (non-interactive)
+    vitest_cmd = ["npx", "--yes", "vitest"]
+
     if args.watch:
         # Run in watch mode
         pass  # Default vitest behavior
@@ -64,9 +62,7 @@ def main():
     if args.verbose:
         vitest_cmd.append("--reporter=verbose")
 
-    success = run_command(
-        vitest_cmd, "Frontend Tests", cwd=str(frontend_test_dir)
-    )
+    success = run_command(vitest_cmd, "Frontend Tests", cwd=str(frontend_test_dir))
 
     if args.coverage and success:
         coverage_path = frontend_test_dir / "coverage" / "index.html"
