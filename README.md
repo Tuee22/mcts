@@ -181,44 +181,54 @@ scons sanitize=1
 
 ### Running Tests
 
-**Docker Testing (Recommended):**
+**Poetry Test Commands (Recommended):**
 ```bash
-# CPU container - all unit tests (130 tests)
-docker compose exec mcts poetry run pytest tests/backend/core/ -v
+# All tests - Python backend and frontend (recommended)
+poetry run test-all                # Runs all test suites
 
-# CUDA container - all unit tests with GPU verification
-TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run pytest tests/backend/core/ -v
+# Python backend tests
+poetry run test-python              # All Python tests (core + API)
+poetry run test-python-core         # Core MCTS and board tests only
+poetry run test-python-api          # API server tests only
+
+# Frontend tests
+poetry run test-frontend             # JavaScript/TypeScript frontend tests
+```
+
+**Direct Docker Testing:**
+```bash
+# CPU container - all tests
+docker exec docker-mcts-1 poetry run test-all
+
+# Individual test suites in container
+docker exec docker-mcts-1 poetry run test-python-core    # 117 tests
+docker exec docker-mcts-1 poetry run test-python-api     # 58 tests  
+docker exec docker-mcts-1 poetry run test-frontend       # 3 tests
+```
+
+**Advanced Testing Options:**
+```bash
+# Test categories with pytest markers
+poetry run pytest tests/backend/core/ -m 'not slow'      # Fast tests only
+poetry run pytest tests/backend/core/ -m performance     # Performance tests
+poetry run pytest tests/backend/core/ -m integration     # Integration tests
+poetry run pytest tests/backend/core/ -m cpp             # C++ binding tests
+poetry run pytest tests/backend/core/ -m python          # Pure Python tests
+
+# With coverage and verbose output
+poetry run pytest tests/backend/core/ --cov=corridors -v
+
+# Specific test files
+poetry run pytest tests/backend/core/test_board.py       # Board functionality
+poetry run pytest tests/backend/core/test_mcts.py        # MCTS algorithm
+poetry run pytest tests/backend/api/test_server.py       # API endpoints
+```
+
+**GPU Testing (CUDA only):**
+```bash
+# CUDA container with GPU verification
+TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run test-all
 TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
-
-# One-time test run (no persistent container)
-docker compose run --rm mcts poetry run pytest tests/backend/core/ -v
-```
-
-**Local Development Testing:**
-```bash
-# All Python backend tests (requires local build)
-poetry run pytest tests/backend/core/      # Core MCTS and board tests
-poetry run pytest tests/backend/ -v        # All backend tests with verbose output
-
-# Test categories
-poetry run pytest tests/backend/core/ -m 'not slow'  # Fast tests only
-poetry run pytest tests/backend/core/ -m performance # Performance tests
-poetry run pytest tests/backend/core/ -m integration # Integration tests
-
-# With coverage
-poetry run pytest tests/backend/core/ --cov=corridors
-```
-
-**Frontend Testing:**
-```bash
-# In Docker container
-docker compose exec mcts bash -c "cd tests/frontend && npm test"
-
-# Local development
-cd tests/frontend
-npm test                    # All frontend tests
-npm run test:coverage       # With coverage
-npm run test:watch          # Watch mode
 ```
 
 ### Code Quality

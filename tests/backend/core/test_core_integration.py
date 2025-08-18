@@ -1,3 +1,4 @@
+from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
 """
 Integration tests for the complete MCTS system.
 
@@ -10,7 +11,7 @@ These tests verify that all components work together correctly:
 
 import pytest
 import time
-from typing import Dict, Any, List, Tuple
+from typing import Dict, List, Tuple
 from unittest.mock import Mock, patch
 
 try:
@@ -26,8 +27,8 @@ except ImportError:
     CORRIDORS_AVAILABLE = False
 
 
-@pytest.mark.integration
-@pytest.mark.slow
+@integration
+@slow
 class TestCompleteGameScenarios:
     """Test complete game scenarios from start to finish."""
 
@@ -180,7 +181,7 @@ class TestCompleteGameScenarios:
                 isinstance(total_actions, int) and total_actions > 0
             ), f"Move {i} had no available actions"
 
-    @pytest.mark.parametrize(
+    @parametrize(
         "algorithm_params",
         [
             {"use_rollout": True, "eval_children": False, "use_puct": False},
@@ -190,7 +191,7 @@ class TestCompleteGameScenarios:
         ],
     )
     def test_different_algorithms_complete_games(
-        self, algorithm_params: Dict[str, Any]
+        self, algorithm_params: Dict[str, str | int | bool]
     ) -> None:
         """Test that different algorithm configurations can complete games."""
         params = {
@@ -223,8 +224,8 @@ class TestCompleteGameScenarios:
         assert moves_completed > 0, f"No moves completed with {algorithm_params}"
 
 
-@pytest.mark.integration
-@pytest.mark.cpp
+@integration
+@cpp
 class TestCPythonIntegration:
     """Test integration between Python and C++ components."""
 
@@ -312,8 +313,8 @@ class TestCPythonIntegration:
                 break
 
 
-@pytest.mark.integration
-@pytest.mark.performance
+@integration
+@performance
 class TestRealisticUsagePatterns:
     """Test realistic usage patterns and performance."""
 
@@ -411,7 +412,7 @@ class TestRealisticUsagePatterns:
 
     def _play_game(
         self, p1: "Corridors_MCTS", p2: "Corridors_MCTS", max_moves: int
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, str | int | bool]:
         """Helper to play a single game between two MCTS instances."""
         p1.ensure_sims(80)
         p2.ensure_sims(80)
@@ -450,8 +451,8 @@ class TestRealisticUsagePatterns:
         return {"moves": moves, "winner": "Incomplete", "reason": "max_moves"}
 
 
-@pytest.mark.integration
-@pytest.mark.display
+@integration
+@display
 class TestDisplayIntegration:
     """Test display functionality integration."""
 
@@ -530,8 +531,8 @@ class TestDisplayIntegration:
                 pytest.fail(f"Action {action_str} caused error: {e}")
 
 
-@pytest.mark.integration
-@pytest.mark.slow
+@integration
+@slow
 class TestLongRunningScenarios:
     """Test long-running scenarios and stability."""
 

@@ -5,22 +5,46 @@ Pytest configuration and fixtures for MCTS testing.
 import pytest
 import numpy as np
 from math import sqrt
-from typing import Dict, Any, List, Tuple
+from typing import Dict, List, Tuple, TypedDict, Optional
 
-try:
-    from corridors.corridors_mcts import (
-        Corridors_MCTS,
-        display_sorted_actions,
-    )
+# Approach that completely avoids assignment issues by setting up module constants
+import sys
 
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
-    Corridors_MCTS = None
+# Always use the corridors module - stubs should handle the typing
+from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+
+
+class MCTSParams(TypedDict):
+    """Type definition for MCTS parameters."""
+
+    c: float
+    seed: int
+    min_simulations: int
+    max_simulations: int
+    use_rollout: bool
+    eval_children: bool
+    use_puct: bool
+    use_probs: bool
+    decide_using_visits: bool
+
+
+class BoardState(TypedDict):
+    """Type definition for board state."""
+
+    flip: bool
+    hero_x: int
+    hero_y: int
+    villain_x: int
+    villain_y: int
+    hero_walls_remaining: int
+    villain_walls_remaining: int
+    wall_middles: List[bool]
+    horizontal_walls: List[bool]
+    vertical_walls: List[bool]
 
 
 @pytest.fixture
-def basic_mcts_params() -> Dict[str, Any]:
+def basic_mcts_params() -> MCTSParams:
     """Basic MCTS parameters for testing."""
     return {
         "c": sqrt(2),
@@ -36,7 +60,7 @@ def basic_mcts_params() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def fast_mcts_params() -> Dict[str, Any]:
+def fast_mcts_params() -> MCTSParams:
     """Fast MCTS parameters for quick testing."""
     return {
         "c": sqrt(0.5),
@@ -52,7 +76,7 @@ def fast_mcts_params() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def puct_mcts_params() -> Dict[str, Any]:
+def puct_mcts_params() -> MCTSParams:
     """PUCT-style MCTS parameters."""
     return {
         "c": sqrt(0.025),
@@ -68,7 +92,7 @@ def puct_mcts_params() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def sample_board_state() -> Dict[str, Any]:
+def sample_board_state() -> BoardState:
     """Sample board state for testing C++ board functions."""
     return {
         "flip": False,
@@ -85,9 +109,9 @@ def sample_board_state() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def blocked_board_state() -> Dict[str, Any]:
+def blocked_board_state() -> BoardState:
     """Board state with some walls placed."""
-    state = {
+    state: BoardState = {
         "flip": False,
         "hero_x": 4,
         "hero_y": 1,
@@ -107,7 +131,7 @@ def blocked_board_state() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def near_terminal_state() -> Dict[str, Any]:
+def near_terminal_state() -> BoardState:
     """Board state near game end."""
     return {
         "flip": False,
@@ -142,7 +166,7 @@ class MCTSTestHelper:
     """Helper class for MCTS testing utilities."""
 
     @staticmethod
-    def create_mcts_instance(params: Dict[str, Any]) -> "Corridors_MCTS":
+    def create_mcts_instance(params: MCTSParams) -> "Corridors_MCTS":
         """Create MCTS instance with given parameters."""
         if not CORRIDORS_AVAILABLE:
             raise ImportError("Corridors C++ module not available")
@@ -194,6 +218,6 @@ class MCTSTestHelper:
 
 
 @pytest.fixture
-def mcts_helper():
+def mcts_helper() -> type[MCTSTestHelper]:
     """Provide MCTS testing helper."""
     return MCTSTestHelper

@@ -143,7 +143,10 @@ class GameManager:
             games = [g for g in games if g.is_player(player_id)]
 
         # Sort by creation time (newest first)
-        games.sort(key=lambda g: g.created_at, reverse=True)
+        def get_created_at(game: GameSession) -> datetime:
+            return game.created_at
+
+        games.sort(key=get_created_at, reverse=True)
 
         # Apply pagination
         return games[offset : offset + limit]
@@ -278,7 +281,8 @@ class GameManager:
         if not game:
             return ""
         if game.mcts_instance is not None:
-            return game.mcts_instance.display(flip)
+            display_result: str = game.mcts_instance.display(flip)
+            return display_result
         return ""
 
     async def _get_board_state(self, game: GameSession) -> BoardState:

@@ -1,11 +1,24 @@
 import asyncio
 import logging
-from typing import Dict, List, Set, Union, Any
+from typing import Dict, List, Set, Union, Optional
 from fastapi import WebSocket
 import json
 
 from .models import MoveResponse, GameResponse, WebSocketMessage
-from typing import Optional
+from .types import (
+    OutgoingWebSocketMessage,
+    PlayerConnectedMessage,
+    PlayerDisconnectedMessage,
+    GameStateMessage,
+    MoveBroadcastMessage,
+    GameEndedMessage,
+    GameCreatedMessage,
+    MoveData,
+    MoveMessageData,
+    GameStateData,
+    GameEndedData,
+    GameCreatedData,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +47,16 @@ class WebSocketManager:
             logger.info(f"WebSocket connected to game {game_id}")
 
             # Notify other clients
+            message: PlayerConnectedMessage = {
+                "type": "player_connected",
+                "data": {
+                    "game_id": game_id,
+                    "connection_count": len(self.active_connections[game_id]),
+                },
+            }
             await self._broadcast_to_game(
                 game_id,
-                {
-                    "type": "player_connected",
-                    "data": {
-                        "game_id": game_id,
-                        "connection_count": len(self.active_connections[game_id]),
-                    },
-                },
+                message,
                 exclude=websocket,
             )
 
@@ -62,35 +76,37 @@ class WebSocketManager:
 
             # Notify remaining clients
             if game_id in self.active_connections:
-                await self._broadcast_to_game(
-                    game_id,
-                    {
-                        "type": "player_disconnected",
-                        "data": {
-                            "game_id": game_id,
-                            "connection_count": len(self.active_connections[game_id]),
-                        },
+                message: PlayerDisconnectedMessage = {
+                    "type": "player_disconnected",
+                    "data": {
+                        "game_id": game_id,
+                        "connection_count": len(self.active_connections[game_id]),
                     },
-                )
+                }
+                await self._broadcast_to_game(game_id, message)
 
     async def broadcast_move(self, game_id: str, move_response: MoveResponse) -> None:
         """Broadcast a move to all connected clients for a game."""
-        message = {
+        move_data: MoveData = {
+            "player_id": move_response.move.player_id,
+            "action": move_response.move.action,
+            "move_number": move_response.move.move_number,
+            "evaluation": move_response.move.evaluation,
+            "timestamp": move_response.move.timestamp.isoformat(),
+        }
+
+        message_data: MoveMessageData = {
+            "game_id": game_id,
+            "move": move_data,
+            "game_status": move_response.game_status,
+            "next_turn": move_response.next_turn,
+            "board_display": move_response.board_display,
+            "winner": move_response.winner,
+        }
+
+        message: MoveBroadcastMessage = {
             "type": "move",
-            "data": {
-                "game_id": game_id,
-                "move": {
-                    "player_id": move_response.move.player_id,
-                    "action": move_response.move.action,
-                    "move_number": move_response.move.move_number,
-                    "evaluation": move_response.move.evaluation,
-                    "timestamp": move_response.move.timestamp.isoformat(),
-                },
-                "game_status": move_response.game_status,
-                "next_turn": move_response.next_turn,
-                "board_display": move_response.board_display,
-                "winner": move_response.winner,
-            },
+            "data": message_data,
         }
 
         await self._broadcast_to_game(game_id, message)
@@ -99,13 +115,29 @@ class WebSocketManager:
         self, game_id: str, game_response: GameResponse
     ) -> None:
         """Broadcast updated game state to all connected clients."""
-        message = {"type": "game_state", "data": game_response.dict()}
+        game_data: GameStateData = {
+            "game_id": game_response.game_id,
+            "status": game_response.status,
+            "player1_id": game_response.player1.id,
+            "player2_id": game_response.player2.id,
+            "current_turn": game_response.current_turn,
+            "winner": game_response.winner,
+            "board_display": game_response.board_display,
+            "legal_moves": [],  # GameResponse doesn't have legal_moves
+            "created_at": game_response.created_at.isoformat(),
+        }
+
+        message: GameStateMessage = {"type": "game_state", "data": game_data}
 
         await self._broadcast_to_game(game_id, message)
 
     async def broadcast_game_created(self, game_id: str) -> None:
         """Broadcast that a new game has been created."""
-        message = {"type": "game_created", "data": {"game_id": game_id}}
+        game_created_data: GameCreatedData = {"game_id": game_id}
+        message: GameCreatedMessage = {
+            "type": "game_created",
+            "data": game_created_data,
+        }
 
         # Broadcast to all connections (for lobby updates)
         await self._broadcast_to_all(message)
@@ -114,15 +146,21 @@ class WebSocketManager:
         self, game_id: str, reason: str, winner: Optional[int] = None
     ) -> None:
         """Broadcast that a game has ended."""
-        message = {
+        game_ended_data: GameEndedData = {
+            "game_id": game_id,
+            "winner": winner,
+            "game_status": reason,
+        }
+
+        message: GameEndedMessage = {
             "type": "game_ended",
-            "data": {"game_id": game_id, "reason": reason, "winner": winner},
+            "data": game_ended_data,
         }
 
         await self._broadcast_to_game(game_id, message)
 
     async def send_to_player(
-        self, game_id: str, player_id: str, message: Dict[str, Any]
+        self, game_id: str, player_id: str, message: OutgoingWebSocketMessage
     ) -> None:
         """Send a message to a specific player (if connected)."""
         # This would require tracking player_id -> WebSocket mapping
@@ -130,7 +168,10 @@ class WebSocketManager:
         await self._broadcast_to_game(game_id, message)
 
     async def _broadcast_to_game(
-        self, game_id: str, message: Dict[str, Any], exclude: Optional[WebSocket] = None
+        self,
+        game_id: str,
+        message: OutgoingWebSocketMessage,
+        exclude: Optional[WebSocket] = None,
     ) -> None:
         """Broadcast a message to all connections for a specific game."""
         if game_id not in self.active_connections:
@@ -154,7 +195,7 @@ class WebSocketManager:
         for conn in dead_connections:
             await self.disconnect(conn, game_id)
 
-    async def _broadcast_to_all(self, message: Dict[str, Any]) -> None:
+    async def _broadcast_to_all(self, message: OutgoingWebSocketMessage) -> None:
         """Broadcast a message to all connected clients."""
         all_connections = set()
         for connections in self.active_connections.values():
@@ -178,12 +219,14 @@ class WebSocketManager:
     async def _send_json_safe(
         self,
         websocket: WebSocket,
-        message: Dict[str, Any],
+        message: OutgoingWebSocketMessage,
         dead_connections: List[WebSocket],
     ) -> None:
         """Safely send JSON message to a WebSocket."""
         try:
-            await websocket.send_json(message)
+            # Convert TypedDict to dict for WebSocket API compatibility
+            message_dict = dict(message)
+            await websocket.send_json(message_dict)
         except Exception as e:
             logger.warning(f"Failed to send message to WebSocket: {e}")
             dead_connections.append(websocket)

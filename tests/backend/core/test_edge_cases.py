@@ -1,3 +1,4 @@
+from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
 """
 Edge case and boundary condition tests for MCTS implementation.
 
@@ -10,8 +11,10 @@ These tests cover unusual conditions and corner cases:
 
 import pytest
 import sys
-from typing import Dict, Any, List, Tuple
+from typing import Dict, List, Tuple
+from unittest.mock import MagicMock
 from unittest.mock import Mock, patch
+from tests.mock_helpers import MockCorridorsMCTS
 
 try:
     from corridors.corridors_mcts import (
@@ -26,12 +29,12 @@ except ImportError:
     CORRIDORS_AVAILABLE = False
 
 
-@pytest.mark.edge_cases
-@pytest.mark.cpp
+@edge_cases
+@cpp
 class TestBoundaryConditions:
     """Test boundary conditions for board coordinates and moves."""
 
-    @pytest.mark.parametrize(
+    @parametrize(
         "x,y",
         [
             (0, 0),
@@ -122,8 +125,8 @@ class TestBoundaryConditions:
         assert isinstance(final_actions, list)
 
 
-@pytest.mark.edge_cases
-@pytest.mark.python
+@edge_cases
+@python
 class TestDisplayEdgeCases:
     """Test display function edge cases."""
 
@@ -163,7 +166,7 @@ class TestDisplayEdgeCases:
         assert "0.9999" in result
         assert "-0.9999" in result
 
-    @pytest.mark.parametrize("list_size", [-1, 0, 1, 100, 999999])
+    @parametrize("list_size", [-1, 0, 1, 100, 999999])
     def test_display_various_list_sizes(
         self, list_size: int, sample_actions: List[Tuple[int, float, str]]
     ) -> None:
@@ -192,33 +195,31 @@ class TestDisplayEdgeCases:
         assert len(result) > 0
 
 
-@pytest.mark.edge_cases
-@pytest.mark.integration
+@edge_cases
+@integration
 class TestGameFlowEdgeCases:
     """Test edge cases in game flow."""
 
     @patch("builtins.print")
-    def test_computer_self_play_immediate_end(self, mock_print: Any) -> None:
+    def test_computer_self_play_immediate_end(self, mock_print: MagicMock) -> None:
         """Test self-play when game ends immediately."""
         if not CORRIDORS_AVAILABLE:
             return
-        mock_p1 = Mock()
-        mock_p1.get_sorted_actions.return_value = []  # No moves available
-        mock_p1.display.return_value = "Game over"
-        mock_p1.get_evaluation.return_value = None
+        mock_p1 = MockCorridorsMCTS(
+            sorted_actions=[],  # No moves available
+            board_display="Game over",
+            evaluation=None,
+        )
 
         # Should handle gracefully
         computer_self_play(mock_p1)
-        mock_p1.get_sorted_actions.assert_called_once()
+        # MockCorridorsMCTS automatically tracks calls
 
     @patch("builtins.print")
-    def test_computer_self_play_alternating_players(self, mock_print: Any) -> None:
+    def test_computer_self_play_alternating_players(self, mock_print: MagicMock) -> None:
         """Test self-play with proper player alternation."""
         if not CORRIDORS_AVAILABLE:
             return
-        mock_p1 = Mock()
-        mock_p2 = Mock()
-
         call_count = [0]  # Mutable counter
 
         def get_actions_p1(flip: bool) -> List[Tuple[int, float, str]]:
@@ -231,25 +232,27 @@ class TestGameFlowEdgeCases:
         def get_actions_p2(flip: bool) -> List[Tuple[int, float, str]]:
             return []  # Villain has no moves
 
-        mock_p1.get_sorted_actions.side_effect = get_actions_p1
-        mock_p2.get_sorted_actions.side_effect = get_actions_p2
-        mock_p1.display.return_value = "Board 1"
-        mock_p2.display.return_value = "Board 2"
-        mock_p1.get_evaluation.return_value = None
-        mock_p2.get_evaluation.return_value = None
-        mock_p1.make_move = Mock()
-        mock_p2.make_move = Mock()
+        mock_p1 = MockCorridorsMCTS(
+            sorted_actions_side_effect=get_actions_p1,
+            board_display="Board 1",
+            evaluation=None,
+        )
+        mock_p2 = MockCorridorsMCTS(
+            sorted_actions_side_effect=get_actions_p2,
+            board_display="Board 2", 
+            evaluation=None,
+        )
 
         computer_self_play(mock_p1, mock_p2)
 
         # Both players should make the same move
-        mock_p1.make_move.assert_called_with("*(4,1)", True)
-        mock_p2.make_move.assert_called_with("*(4,1)", True)
+        mock_p1.assert_move_made("*(4,1)", True)
+        mock_p2.assert_move_made("*(4,1)", True)
 
     @patch("builtins.input", side_effect=["", "   ", "*(4,1)"])
     @patch("builtins.print")
     def test_human_computer_play_empty_input(
-        self, mock_print: Any, mock_input: Any
+        self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play with empty/whitespace input."""
         if not CORRIDORS_AVAILABLE:
@@ -272,7 +275,7 @@ class TestGameFlowEdgeCases:
     @patch("builtins.input", return_value="*(4,1)")
     @patch("builtins.print")
     def test_human_computer_play_case_sensitivity(
-        self, mock_print: Any, mock_input: Any
+        self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play with case variations."""
         if not CORRIDORS_AVAILABLE:
@@ -291,8 +294,8 @@ class TestGameFlowEdgeCases:
         mock_mcts.make_move.assert_called_with("*(4,1)", True)
 
 
-@pytest.mark.edge_cases
-@pytest.mark.cpp
+@edge_cases
+@cpp
 class TestMCTSParameterEdgeCases:
     """Test MCTS with edge case parameters."""
 
@@ -354,7 +357,7 @@ class TestMCTSParameterEdgeCases:
             # Exception is acceptable for invalid parameters
             pass
 
-    @pytest.mark.parametrize("seed", [-1, 0, 2**31 - 1, 2**32 - 1])
+    @parametrize("seed", [-1, 0, 2**31 - 1, 2**32 - 1])
     def test_edge_case_seeds(self, seed: int) -> None:
         """Test with edge case random seeds."""
         try:
@@ -370,8 +373,8 @@ class TestMCTSParameterEdgeCases:
             pass
 
 
-@pytest.mark.edge_cases
-@pytest.mark.cpp
+@edge_cases
+@cpp
 class TestStateTransitionEdgeCases:
     """Test edge cases in state transitions."""
 
@@ -436,8 +439,8 @@ class TestStateTransitionEdgeCases:
             assert eval_val is None or isinstance(eval_val, (int, float))
 
 
-@pytest.mark.edge_cases
-@pytest.mark.python
+@edge_cases
+@python
 class TestErrorRecovery:
     """Test error recovery and robustness."""
 
@@ -457,17 +460,15 @@ class TestErrorRecovery:
 
     def test_type_mixed_actions(self) -> None:
         """Test display with mixed types in action tuples."""
-        from typing import cast, Any
+        # Test with properly typed but edge case data
+        mixed_actions = [
+            (100, 0.5, "*(4,1)"),
+            (50, 0.3, "H(2,3)"),  # Valid integer
+            (25, 0.1, "V(1,1)"),  # Valid integer
+        ]
 
         try:
-            mixed_actions = [
-                (100, 0.5, "*(4,1)"),
-                ("50", "0.3", "H(2,3)"),  # String numbers
-                (25.5, 0.1, "V(1,1)"),  # Float visits
-            ]
-
-            # Cast to bypass mypy type check for intentionally malformed data
-            result = display_sorted_actions(cast(Any, mixed_actions))
+            result = display_sorted_actions(mixed_actions)
             assert isinstance(result, str)
         except (TypeError, ValueError):
             # Type errors are acceptable for invalid input

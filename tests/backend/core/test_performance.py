@@ -1,3 +1,4 @@
+from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
 """
 Performance and stress tests for MCTS implementation.
 
@@ -12,7 +13,7 @@ These tests verify performance characteristics and handle edge cases:
 import pytest
 import time
 import gc
-from typing import Dict, Any
+from typing import Dict
 from unittest.mock import patch
 
 try:
@@ -26,8 +27,8 @@ except ImportError:
     CORRIDORS_AVAILABLE = False
 
 
-@pytest.mark.slow
-@pytest.mark.performance
+@slow
+@performance
 class TestMCTSPerformance:
     """Test MCTS performance characteristics."""
 
@@ -83,7 +84,7 @@ class TestMCTSPerformance:
         # (some overhead is expected, but not orders of magnitude)
         assert time_small < time_large * 5.0
 
-    @pytest.mark.parametrize("sim_count", [50, 100, 500, 1000])
+    @parametrize("sim_count", [50, 100, 500, 1000])
     def test_simulation_scaling(self, sim_count: int) -> None:
         """Test that simulation time scales reasonably with count."""
         mcts = Corridors_MCTS(
@@ -102,7 +103,7 @@ class TestMCTSPerformance:
         assert elapsed < expected_time * 10  # Allow 10x margin for safety
 
 
-@pytest.mark.performance
+@performance
 class TestMemoryUsage:
     """Test memory usage patterns."""
 
@@ -162,7 +163,7 @@ class TestMemoryUsage:
             assert len(limited_display) < len(display_result)
 
 
-@pytest.mark.stress
+@stress
 class TestStressConditions:
     """Test stress conditions and edge cases."""
 
@@ -187,7 +188,7 @@ class TestStressConditions:
         actions = mcts.get_sorted_actions(flip=True)
         assert isinstance(actions, list)
 
-    @pytest.mark.parametrize("extreme_c", [0.0001, 100.0, 1000.0])
+    @parametrize("extreme_c", [0.0001, 100.0, 1000.0])
     def test_extreme_exploration_values(self, extreme_c: float) -> None:
         """Test with extreme exploration parameter values."""
         mcts = Corridors_MCTS(
@@ -243,7 +244,7 @@ class TestStressConditions:
         assert moves_made > 0
 
 
-@pytest.mark.performance
+@performance
 class TestAlgorithmVariants:
     """Test different algorithm variants for performance."""
 
@@ -273,7 +274,7 @@ class TestAlgorithmVariants:
         assert len(actions) > 0
 
 
-@pytest.mark.performance
+@performance
 class TestConcurrencySimulation:
     """Simulate concurrent-like usage patterns."""
 

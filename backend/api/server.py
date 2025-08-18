@@ -396,20 +396,19 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
     - Player connection/disconnection events
     """
     if game_manager is None or ws_manager is None:
-        await websocket.close(code=1011, reason="Server not initialized")
+        await websocket.close(code=1011)
         return
     game = await game_manager.get_game(game_id)
     if not game:
-        await websocket.close(code=4004, reason="Game not found")
+        await websocket.close(code=4004)
         return
 
     await ws_manager.connect(websocket, game_id)
 
     try:
         # Send initial game state
-        await websocket.send_json(
-            {"type": "game_state", "data": GameResponse.from_game_session(game).dict()}
-        )
+        game_response = GameResponse.from_game_session(game)
+        await ws_manager.broadcast_game_state(game_id, game_response)
 
         # Keep connection alive and handle incoming messages
         while True:
@@ -421,7 +420,9 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
             elif data.get("type") == "move":
                 # Alternative way to make moves via WebSocket
                 move_result = await game_manager.make_move(
-                    game_id=game_id, player_id=data["player_id"], action=data["action"]
+                    game_id=game_id,
+                    player_id=str(data["player_id"]),
+                    action=str(data["action"]),
                 )
                 await ws_manager.broadcast_move(game_id, move_result)
 
@@ -579,7 +580,7 @@ async def manifest() -> FileResponse:
     """Serve the PWA manifest file."""
     manifest_path = FRONTEND_BUILD_DIR / "manifest.json"
     if manifest_path.exists():
-        return FileResponse(manifest_path)
+        return FileResponse(str(manifest_path))
     raise HTTPException(status_code=404, detail="Manifest not found")
 
 
@@ -588,7 +589,7 @@ async def favicon() -> FileResponse:
     """Serve the favicon."""
     favicon_path = FRONTEND_BUILD_DIR / "favicon.ico"
     if favicon_path.exists():
-        return FileResponse(favicon_path)
+        return FileResponse(str(favicon_path))
     raise HTTPException(status_code=404, detail="Favicon not found")
 
 
@@ -597,7 +598,7 @@ async def robots() -> FileResponse:
     """Serve the robots.txt file."""
     robots_path = FRONTEND_BUILD_DIR / "robots.txt"
     if robots_path.exists():
-        return FileResponse(robots_path)
+        return FileResponse(str(robots_path))
     raise HTTPException(status_code=404, detail="Robots.txt not found")
 
 
@@ -624,7 +625,7 @@ async def serve_spa(
     # Serve index.html for all other routes (React Router will handle routing)
     index_path = FRONTEND_BUILD_DIR / "index.html"
     if index_path.exists():
-        return FileResponse(index_path, media_type="text/html")
+        return FileResponse(str(index_path), media_type="text/html")
 
     # Fallback if frontend build doesn't exist
     return {

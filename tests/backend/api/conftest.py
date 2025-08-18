@@ -2,10 +2,11 @@
 API-specific test fixtures and configuration.
 """
 import pytest
-from typing import AsyncGenerator, Generator, Any
+from typing import AsyncGenerator, Generator, Callable, List, Tuple, Dict
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
+from _pytest.monkeypatch import MonkeyPatch
 
 from backend.api.server import app
 from backend.api.game_manager import GameManager
@@ -17,6 +18,7 @@ from backend.api.models import (
     GameCreateRequest,
     Player,
 )
+from tests.mock_helpers import MockCorridorsMCTS
 
 
 # Remove session-scoped event loop - let pytest-asyncio handle it automatically
@@ -134,10 +136,10 @@ def invalid_moves() -> list[str]:
 
 
 @pytest.fixture(autouse=True)
-def mock_mcts(monkeypatch: Any) -> Any:
+def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[..., MockCorridorsMCTS]:
     """Mock all MCTS operations to prevent expensive computations during tests."""
     # Create a mock with fixed return values
-    mock_sorted_actions = [
+    mock_sorted_actions: List[Tuple[int, float, str]] = [
         (100, 0.8, "*(4,1)"),
         (80, 0.6, "*(3,0)"),
         (60, 0.4, "*(5,0)"),
@@ -147,37 +149,30 @@ def mock_mcts(monkeypatch: Any) -> Any:
     ]
 
     # Mock the MCTS constructor that returns a consistent mock
-    def mock_mcts_constructor(*_args: Any, **_kwargs: Any) -> MagicMock:
-        mock_mcts = MagicMock()
-        # Set up the mock with consistent return values
-        mock_mcts.get_sorted_actions = MagicMock(return_value=mock_sorted_actions)
-        mock_mcts.choose_best_action = MagicMock(return_value="*(4,1)")
-        mock_mcts.ensure_sims = MagicMock(return_value=None)
-        mock_mcts.get_best_move = MagicMock(return_value="*(4,1)")
-        mock_mcts.get_action_stats = MagicMock(
-            return_value={
-                "*(4,1)": {"visits": 100, "value": 0.8},
-                "*(3,0)": {"visits": 80, "value": 0.6},
-                "*(5,0)": {"visits": 60, "value": 0.4},
-                "H(4,0)": {"visits": 50, "value": 0.3},
-                "V(4,0)": {"visits": 40, "value": 0.2},
-                "H(3,1)": {"visits": 30, "value": 0.1},
-            }
+    def mock_mcts_constructor(*args: object, **kwargs: object) -> MockCorridorsMCTS:
+        # Set up action stats
+        action_stats: Dict[str, Dict[str, float]] = {
+            "*(4,1)": {"visits": 100, "value": 0.8},
+            "*(3,0)": {"visits": 80, "value": 0.6},
+            "*(5,0)": {"visits": 60, "value": 0.4},
+            "H(4,0)": {"visits": 50, "value": 0.3},
+            "V(4,0)": {"visits": 40, "value": 0.2},
+            "H(3,1)": {"visits": 30, "value": 0.1},
+        }
+        
+        return MockCorridorsMCTS(
+            sorted_actions=mock_sorted_actions,
+            best_action="*(4,1)",
+            best_move="*(4,1)",
+            board_display="Mock board display",
+            evaluation=None,
+            action_stats=action_stats,
         )
-        mock_mcts.display = MagicMock(return_value="Mock board display")
-        mock_mcts.get_evaluation = MagicMock(return_value=None)
-        mock_mcts.make_move = MagicMock(return_value=None)
-        return mock_mcts
 
     # Apply mocking to all relevant modules
     monkeypatch.setattr(
         "backend.api.game_manager.Corridors_MCTS", mock_mcts_constructor
     )
-    monkeypatch.setattr(
-        "corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
-    )
-
-    # Mock the import at the module level before any actual imports happen
     monkeypatch.setattr(
         "corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
     )

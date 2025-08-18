@@ -23,18 +23,37 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# ---- System deps: Python, Poetry, Node, build tooling ----
+# ---- System deps: Build tools first ----
 RUN apt-get update && apt-get install -y --no-install-recommends \
       curl ca-certificates git build-essential pkg-config make tini \
-      python3 python3-dev python3-venv python3-pip \
-    && curl -sSL https://install.python-poetry.org | python3 - \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+      software-properties-common gpg gpg-agent \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Remove system blinker packages to prevent conflicts
-RUN apt-get update && apt-get purge -y python3-blinker python3-blinker-doc || true \
-    && rm -rf /usr/lib/python3/dist-packages/blinker* || true \
+# ---- Install Python 3.12 from deadsnakes PPA ----
+RUN add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+      python3.12 python3.12-dev python3.12-venv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ---- Remove system Python packages that conflict and set up Python 3.12 as default ----
+RUN apt-get update \
+    && apt-get remove -y python3-blinker python3-blinker-doc || true \
+    && apt-get autoremove -y \
+    && rm -rf /usr/lib/python3/dist-packages/blinker* \
+    && rm -rf /usr/lib/python3.10/dist-packages/blinker* \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 100 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 100 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ---- Install pip and Poetry for Python 3.12 ----
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 \
+    && python3.12 -m pip install --upgrade pip setuptools wheel \
+    && curl -sSL https://install.python-poetry.org | python3.12 - \
+    && python3.12 -m pip install --force-reinstall --no-deps blinker
+
+# ---- Install Node.js ----
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ---- Install deps without relying on lock file ----
@@ -52,11 +71,11 @@ RUN scons
 # ---- Verify extension was built ----
 RUN ls -la /app/backend/python/corridors/_corridors_mcts.so && echo "✅ Extension built successfully"
 
-# Optional: some code expects this symlink for static assets
+# Optional: some code expects this syml for static assets
 WORKDIR /app
 RUN mkdir -p /home/mcts && ln -s /app/frontend /home/mcts/frontend || true
 
 # Start API server directly
 EXPOSE 8000
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python3", "-m", "backend.api.server"]
+CMD ["python", "-m", "backend.api.server"]

@@ -2,7 +2,7 @@
 Common test helper functions.
 """
 import asyncio
-from typing import Any, Dict, List
+from typing import Dict, List
 from unittest.mock import MagicMock
 
 
@@ -42,7 +42,7 @@ def create_mock_mcts(
     return mock_mcts
 
 
-def assert_valid_game_response(response_data: Dict[str, Any]) -> None:
+def assert_valid_game_response(response_data: Dict[str, object]) -> None:
     """
     Assert that a game response has all required fields.
 
@@ -71,7 +71,7 @@ def assert_valid_game_response(response_data: Dict[str, Any]) -> None:
             assert field in player, f"Missing player field: {field}"
 
 
-def assert_valid_move_response(response_data: Dict[str, Any]) -> None:
+def assert_valid_move_response(response_data: Dict[str, object]) -> None:
     """
     Assert that a move response has all required fields.
 
@@ -121,7 +121,7 @@ async def wait_for_condition(
     return False
 
 
-def extract_game_moves(game_data: Dict[str, Any]) -> List[str]:
+def extract_game_moves(game_data: Dict[str, object]) -> List[str]:
     """
     Extract move actions from a game response.
 

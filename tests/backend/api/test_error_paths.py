@@ -4,9 +4,9 @@ Tests specifically designed to hit error paths and exception handling.
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, AsyncMock
-from typing import Any
 from backend.api.models import PlayerType, GameStatus
 import asyncio
+from tests.pytest_marks import api
 
 
 class TestServerExceptionPaths:
@@ -14,7 +14,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.create_game")
     def test_create_game_exception(
-        self, mock_create_game: Any, test_client: TestClient
+        self, mock_create_game: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in create_game endpoint."""
         # Mock create_game to raise an exception
@@ -34,7 +34,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.list_games")
     def test_list_games_exception(
-        self, mock_list_games: Any, test_client: TestClient
+        self, mock_list_games: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in list_games endpoint."""
         mock_list_games.side_effect = Exception("Service unavailable")
@@ -44,7 +44,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.get_game")
     def test_get_game_exception(
-        self, mock_get_game: Any, test_client: TestClient
+        self, mock_get_game: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in get_game endpoint."""
         mock_get_game.side_effect = Exception("Connection timeout")
@@ -54,7 +54,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.delete_game")
     def test_delete_game_exception(
-        self, mock_delete_game: Any, test_client: TestClient
+        self, mock_delete_game: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in delete_game endpoint."""
         mock_delete_game.side_effect = Exception("Deletion failed")
@@ -115,7 +115,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.make_move")
     def test_make_move_value_error(
-        self, mock_make_move: Any, test_client: TestClient
+        self, mock_make_move: MagicMock, test_client: TestClient
     ) -> None:
         """Test ValueError handling in make_move."""
         # Create a game first
@@ -143,7 +143,7 @@ class TestServerExceptionPaths:
 
     @patch("backend.api.server.game_manager.make_move")
     def test_make_move_general_exception(
-        self, mock_make_move: Any, test_client: TestClient
+        self, mock_make_move: MagicMock, test_client: TestClient
     ) -> None:
         """Test general exception handling in make_move."""
         # Create a game first
@@ -175,7 +175,7 @@ class TestMatchmakingExceptionPaths:
 
     @patch("backend.api.server.game_manager.leave_matchmaking")
     def test_leave_queue_exception(
-        self, mock_leave: Any, test_client: TestClient
+        self, mock_leave: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in leave matchmaking queue."""
         mock_leave.side_effect = Exception("Queue removal failed")
@@ -195,7 +195,7 @@ class TestStatisticsExceptionPaths:
 
     @patch("backend.api.server.game_manager.get_leaderboard")
     def test_get_leaderboard_exception(
-        self, mock_leaderboard: Any, test_client: TestClient
+        self, mock_leaderboard: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in get_leaderboard."""
         mock_leaderboard.side_effect = Exception("Leaderboard service down")
@@ -205,7 +205,7 @@ class TestStatisticsExceptionPaths:
 
     @patch("backend.api.server.game_manager.get_player_stats")
     def test_get_player_stats_exception(
-        self, mock_stats: Any, test_client: TestClient
+        self, mock_stats: MagicMock, test_client: TestClient
     ) -> None:
         """Test exception handling in get_player_stats."""
         mock_stats.side_effect = Exception("Stats calculation failed")
@@ -219,7 +219,7 @@ class TestWebSocketExceptionPaths:
 
     @patch("backend.api.server.ws_manager.broadcast_game_created")
     def test_websocket_broadcast_failure_on_create(
-        self, mock_broadcast: Any, test_client: TestClient
+        self, mock_broadcast: MagicMock, test_client: TestClient
     ) -> None:
         """Test WebSocket broadcast failure during game creation."""
         mock_broadcast.side_effect = Exception("WebSocket broadcast failed")
@@ -239,7 +239,7 @@ class TestWebSocketExceptionPaths:
 
     @patch("backend.api.server.ws_manager.broadcast_move")
     def test_websocket_broadcast_failure_on_move(
-        self, mock_broadcast: Any, test_client: TestClient
+        self, mock_broadcast: MagicMock, test_client: TestClient
     ) -> None:
         """Test WebSocket broadcast failure during move."""
         # Create a game first

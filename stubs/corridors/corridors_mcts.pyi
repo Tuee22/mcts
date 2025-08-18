@@ -1,0 +1,57 @@
+"""Type stubs for corridors.corridors_mcts module."""
+from typing import Optional, List, Tuple, Dict, Union
+from . import CorridorsMCTSProtocol
+
+
+class Corridors_MCTS(CorridorsMCTSProtocol):
+    """Corridors MCTS implementation."""
+    
+    def __init__(
+        self,
+        c: float = 1.414,
+        seed: int = 42,
+        min_simulations: int = 100,
+        max_simulations: int = 1000,
+        sim_increment: int = 100,
+        use_rollout: bool = True,
+        eval_children: bool = False,
+        use_puct: bool = False,
+        use_probs: bool = False,
+        decide_using_visits: bool = True,
+        **kwargs: object
+    ) -> None: ...
+    
+    def make_move(self, action: str, flip: bool = False) -> None: ...
+    def get_legal_moves(self, flip: bool = False) -> List[str]: ...
+    def get_sorted_actions(self, flip: bool = False) -> List[Tuple[int, float, str]]: ...
+    def choose_best_action(self, epsilon: float = 0.0) -> str: ...
+    def ensure_sims(self, num_sims: int) -> None: ...
+    def get_evaluation(self) -> Optional[float]: ...
+    def display(self, flip: bool = False) -> str: ...
+    def reset(self) -> None: ...
+    def is_terminal(self) -> bool: ...
+    def get_winner(self) -> Optional[int]: ...
+    def get_best_move(self) -> str: ...
+    def get_action_stats(self) -> Dict[str, Dict[str, float]]: ...
+    
+    def __json__(self) -> Dict[str, Union[str, int, float, bool]]: ...
+
+
+def display_sorted_actions(
+    sorted_actions: List[Tuple[int, float, str]], 
+    list_size: int = 0
+) -> str: ...
+
+
+def computer_self_play(
+    p1: CorridorsMCTSProtocol,
+    p2: Optional[CorridorsMCTSProtocol] = None,
+    stop_on_eval: bool = False
+) -> None: ...
+
+
+def human_computer_play(
+    mcts: CorridorsMCTSProtocol,
+    human_plays_first: bool = True,
+    hide_humans_moves: bool = False
+) -> None: ...

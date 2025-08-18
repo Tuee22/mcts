@@ -5,9 +5,18 @@ Master test runner for the entire MCTS project.
 import subprocess
 import sys
 import argparse
+from typing import List, NamedTuple, Optional
 
 
-def run_command(cmd, description):
+class TestArgs(NamedTuple):
+    suite: str
+    type: str
+    coverage: bool
+    verbose: bool
+    parallel: Optional[int]
+
+
+def run_command(cmd: List[str], description: str) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
@@ -25,7 +34,7 @@ def run_command(cmd, description):
     return success
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run MCTS project tests")
     parser.add_argument(
         "--suite",
@@ -43,7 +52,16 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     parser.add_argument("--parallel", "-n", type=int, help="Run tests in parallel")
 
-    args = parser.parse_args()
+    parsed_args = parser.parse_args()
+    
+    # Convert to typed structure to avoid Any type issues
+    args = TestArgs(
+        suite=parsed_args.suite,
+        type=parsed_args.type,
+        coverage=parsed_args.coverage,
+        verbose=parsed_args.verbose,
+        parallel=parsed_args.parallel,
+    )
 
     # Base pytest command
     base_cmd = ["python", "-m", "pytest"]

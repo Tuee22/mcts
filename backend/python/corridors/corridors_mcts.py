@@ -1,18 +1,61 @@
 import sys
-import importlib
-
-# Prevent pybind11 double registration by checking if module is already loaded
-if "corridors._corridors_mcts" in sys.modules:
-    _corridors_mcts = sys.modules["corridors._corridors_mcts"]._corridors_mcts
-else:
-    from ._corridors_mcts import _corridors_mcts
 from math import sqrt
 import numpy as np
 import logging
-from typing import List, Tuple, Optional, Dict, Union, Any
+from typing import List, Tuple, Optional, Dict, Union, Protocol, Type
 
 
-class Corridors_MCTS(_corridors_mcts):
+# Define a protocol for the C++ extension base class
+class MCTSProtocol(Protocol):
+    def __init__(
+        self,
+        c: float,
+        seed: int,
+        min_simulations: int,
+        max_simulations: int,
+        sim_increment: int,
+        use_rollout: bool,
+        eval_children: bool,
+        use_puct: bool,
+        use_probs: bool,
+        decide_using_visits: bool,
+    ) -> None:
+        ...
+
+    def make_move(self, action: str, flip: bool = False) -> None:
+        ...
+
+    def get_sorted_actions(self, flip: bool = False) -> List[Tuple[int, float, str]]:
+        ...
+
+    def choose_best_action(self, epsilon: float = 0.0) -> str:
+        ...
+
+    def ensure_sims(self, num_sims: int) -> None:
+        ...
+
+    def get_evaluation(self) -> Optional[float]:
+        ...
+
+    def display(self, flip: bool = False) -> str:
+        ...
+
+
+# Import the C++ extension class
+try:
+    from . import _corridors_mcts as _ext_module
+
+    _corridors_mcts: Type[MCTSProtocol] = _ext_module._corridors_mcts
+except ImportError:
+    # Fallback if module is already loaded
+    _module = sys.modules.get("corridors._corridors_mcts")
+    if _module is not None:
+        _corridors_mcts = getattr(_module, "_corridors_mcts")
+    else:
+        raise ImportError("Could not load _corridors_mcts extension")
+
+
+class Corridors_MCTS:
 
     """
     Class manages state of an MCTS corridors instance.
@@ -72,7 +115,8 @@ class Corridors_MCTS(_corridors_mcts):
         use_probs: bool = False,
         decide_using_visits: bool = True,
     ) -> None:
-        super().__init__(
+        # Create the underlying C++ instance through composition
+        self._impl: MCTSProtocol = _corridors_mcts(
             c,
             seed,
             min_simulations,
@@ -86,20 +130,22 @@ class Corridors_MCTS(_corridors_mcts):
         )
 
     def __json__(self) -> Dict[str, str]:
-        return {"type": str(type(self)), "name": getattr(self, "name", "unnamed")}
+        name_attr: str = getattr(self, "name", "unnamed")
+        return {"type": str(type(self)), "name": name_attr}
 
     def display(self, flip: bool = False) -> str:
         """Provides an ASCII representation of the board from
         heros perspective. Flip will provide the same board
         from villain's perspective."""
-        return super().display(flip)
+        result: str = self._impl.display(flip)
+        return result
 
     def make_move(self, action_text: str, flip: bool = False) -> None:
         """Makes a move according to the following action text:
         *(X,Y)  - move hero's token to new coordinate (X,Y)
         H(X,Y)  - place a horizontal wall at intersection (X,Y)
         V(X,Y)  - place a vertical wall at intersection (X,Y)"""
-        return super().make_move(action_text, flip)
+        self._impl.make_move(action_text, flip)
 
     def get_sorted_actions(self, flip: bool = True) -> List[Tuple[int, float, str]]:
         """Gets a list of tuples which represent all legal moves.
@@ -111,22 +157,24 @@ class Corridors_MCTS(_corridors_mcts):
         1 - estimated evaluation
         2 - string to describe action (i.e. what you pass to make_move to make that choice)
         """
-        return super().get_sorted_actions(flip)
+        result: List[Tuple[int, float, str]] = self._impl.get_sorted_actions(flip)
+        return result
 
     def choose_best_action(self, epsilon: float = 0) -> str:
         """make an epsilon-greedy choice"""
-        return super().choose_best_action(epsilon)
+        result: str = self._impl.choose_best_action(epsilon)
+        return result
 
     def ensure_sims(self, sims: int) -> None:
         """blocking function that holds until at
         least 'sims' simulations have been performed"""
-        return super().ensure_sims(sims)
+        self._impl.ensure_sims(sims)
 
     def get_evaluation(self) -> Optional[float]:
         """Returns -1, 1, or None, depending on whether
         a non-terminal evaluation is available for this position"""
-        eval = super().get_evaluation()
-        return eval if eval else None
+        eval_result: Optional[float] = self._impl.get_evaluation()
+        return eval_result if eval_result else None
 
 
 def display_sorted_actions(

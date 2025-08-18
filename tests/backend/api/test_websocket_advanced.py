@@ -4,8 +4,8 @@ Advanced WebSocket manager tests to cover remaining uncovered lines.
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Any
 from fastapi import WebSocket
+from tests.pytest_marks import asyncio, websocket
 
 from backend.api.websocket_manager import WebSocketManager
 from backend.api.models import (
@@ -17,7 +17,7 @@ from backend.api.models import (
 )
 
 
-@pytest.mark.asyncio
+@asyncio
 class TestWebSocketManagerConnections:
     """Test WebSocket connection management."""
 
@@ -25,7 +25,7 @@ class TestWebSocketManagerConnections:
         self, ws_manager: WebSocketManager
     ) -> None:
         """Test proper connection and registration."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.accept = AsyncMock()
 
         await ws_manager.connect(websocket, "game1")
@@ -43,14 +43,14 @@ class TestWebSocketManagerConnections:
     ) -> None:
         """Test that connect broadcasts notification to other clients."""
         # Connect first client
-        websocket1 = MagicMock(spec=WebSocket)
+        websocket1 = MagicMock()
         websocket1.accept = AsyncMock()
         websocket1.send_json = AsyncMock()
 
         await ws_manager.connect(websocket1, "game1")
 
         # Connect second client
-        websocket2 = MagicMock(spec=WebSocket)
+        websocket2 = MagicMock()
         websocket2.accept = AsyncMock()
         websocket2.send_json = AsyncMock()
 
@@ -71,11 +71,11 @@ class TestWebSocketManagerConnections:
     ) -> None:
         """Test disconnect sends notification to remaining clients."""
         # Connect two clients
-        websocket1 = MagicMock(spec=WebSocket)
+        websocket1 = MagicMock()
         websocket1.accept = AsyncMock()
         websocket1.send_json = AsyncMock()
 
-        websocket2 = MagicMock(spec=WebSocket)
+        websocket2 = MagicMock()
         websocket2.accept = AsyncMock()
         websocket2.send_json = AsyncMock()
 
@@ -100,7 +100,7 @@ class TestWebSocketManagerConnections:
         self, ws_manager: WebSocketManager
     ) -> None:
         """Test that empty games are removed after all clients disconnect."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.accept = AsyncMock()
 
         await ws_manager.connect(websocket, "game1")
@@ -113,7 +113,7 @@ class TestWebSocketManagerConnections:
         assert websocket not in ws_manager.connection_games
 
 
-@pytest.mark.asyncio
+@asyncio
 class TestWebSocketManagerBroadcasting:
     """Test WebSocket broadcasting functionality."""
 
@@ -122,7 +122,7 @@ class TestWebSocketManagerBroadcasting:
         # Set up connections
         websockets = []
         for i in range(2):
-            ws = MagicMock(spec=WebSocket)
+            ws = MagicMock()
             ws.accept = AsyncMock()
             ws.send_json = AsyncMock()
             await ws_manager.connect(ws, "game1")
@@ -161,7 +161,7 @@ class TestWebSocketManagerBroadcasting:
 
     async def test_broadcast_game_state(self, ws_manager: WebSocketManager) -> None:
         """Test game state broadcasting."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.accept = AsyncMock()
         websocket.send_json = AsyncMock()
 
@@ -185,7 +185,7 @@ class TestWebSocketManagerBroadcasting:
         # Connect to different games
         websockets = []
         for i in range(3):
-            ws = MagicMock(spec=WebSocket)
+            ws = MagicMock()
             ws.accept = AsyncMock()
             ws.send_json = AsyncMock()
             await ws_manager.connect(ws, f"game{i}")
@@ -202,7 +202,7 @@ class TestWebSocketManagerBroadcasting:
 
     async def test_broadcast_game_ended(self, ws_manager: WebSocketManager) -> None:
         """Test game end broadcasting."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.accept = AsyncMock()
         websocket.send_json = AsyncMock()
 
@@ -218,7 +218,7 @@ class TestWebSocketManagerBroadcasting:
         assert call_args["data"]["winner"] == 1
 
 
-@pytest.mark.asyncio
+@asyncio
 class TestWebSocketManagerErrorHandling:
     """Test WebSocket error handling and edge cases."""
 
@@ -226,7 +226,7 @@ class TestWebSocketManagerErrorHandling:
         self, ws_manager: WebSocketManager
     ) -> None:
         """Test _send_json_safe handles exceptions properly."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.send_json = AsyncMock(side_effect=Exception("Send failed"))
 
         dead_connections: list[WebSocket] = []
@@ -241,7 +241,7 @@ class TestWebSocketManagerErrorHandling:
 
     async def test_send_json_safe_success(self, ws_manager: WebSocketManager) -> None:
         """Test _send_json_safe with successful send."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.send_json = AsyncMock()
 
         dead_connections: list[WebSocket] = []
@@ -259,11 +259,11 @@ class TestWebSocketManagerErrorHandling:
     ) -> None:
         """Test that _broadcast_to_game cleans up dead connections."""
         # Connect working and failing websockets
-        working_ws = MagicMock(spec=WebSocket)
+        working_ws = MagicMock()
         working_ws.accept = AsyncMock()
         working_ws.send_json = AsyncMock()
 
-        failing_ws = MagicMock(spec=WebSocket)
+        failing_ws = MagicMock()
         failing_ws.accept = AsyncMock()
         failing_ws.send_json = AsyncMock(side_effect=Exception("Send failed"))
 
@@ -289,14 +289,14 @@ class TestWebSocketManagerErrorHandling:
         # Set up connections in different games
         websockets = []
         for i in range(3):
-            ws = MagicMock(spec=WebSocket)
+            ws = MagicMock()
             ws.accept = AsyncMock()
             ws.send_json = AsyncMock()
             await ws_manager.connect(ws, f"game{i}")
             websockets.append(ws)
 
         # Add one more connection to game0
-        extra_ws = MagicMock(spec=WebSocket)
+        extra_ws = MagicMock()
         extra_ws.accept = AsyncMock()
         extra_ws.send_json = AsyncMock()
         await ws_manager.connect(extra_ws, "game0")
@@ -312,19 +312,19 @@ class TestWebSocketManagerErrorHandling:
         self, ws_manager: WebSocketManager
     ) -> None:
         """Test send_to_player falls back to broadcasting to game."""
-        websocket = MagicMock(spec=WebSocket)
+        websocket = MagicMock()
         websocket.accept = AsyncMock()
         websocket.send_json = AsyncMock()
 
         await ws_manager.connect(websocket, "game1")
 
-        await ws_manager.send_to_player("game1", "player1", {"type": "message"})
+        await ws_manager.send_to_player("game1", "player1", {"type": "pong"})
 
         # Should have sent message via broadcast
         websocket.send_json.assert_called()
 
 
-@pytest.mark.asyncio
+@asyncio
 class TestWebSocketManagerDisconnectAll:
     """Test disconnect_all functionality."""
 
@@ -336,7 +336,7 @@ class TestWebSocketManagerDisconnectAll:
         websockets = []
         for i in range(3):
             for j in range(2):  # 2 connections per game
-                ws = MagicMock(spec=WebSocket)
+                ws = MagicMock()
                 ws.accept = AsyncMock()
                 ws.close = AsyncMock()
                 await ws_manager.connect(ws, f"game{i}")
@@ -364,11 +364,11 @@ class TestWebSocketManagerDisconnectAll:
     ) -> None:
         """Test disconnect_all handles WebSocket close exceptions."""
         # Set up connections with different close behaviors
-        working_ws = MagicMock(spec=WebSocket)
+        working_ws = MagicMock()
         working_ws.accept = AsyncMock()
         working_ws.close = AsyncMock()
 
-        failing_ws = MagicMock(spec=WebSocket)
+        failing_ws = MagicMock()
         failing_ws.accept = AsyncMock()
         failing_ws.close = AsyncMock(side_effect=Exception("Close failed"))
 
@@ -393,7 +393,7 @@ class TestWebSocketManagerDisconnectAll:
 
         # Add some connections
         for i in range(5):
-            ws = MagicMock(spec=WebSocket)
+            ws = MagicMock()
             ws.accept = AsyncMock()
             await ws_manager.connect(ws, f"game{i % 2}")  # 2 games
 

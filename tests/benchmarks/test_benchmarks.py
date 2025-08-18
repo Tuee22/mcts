@@ -6,7 +6,7 @@ Run with: pytest tests/test_benchmarks.py --benchmark-only
 """
 
 import pytest
-from typing import Dict, Any
+from typing import Dict
 
 try:
     from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
