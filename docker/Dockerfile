@@ -4,9 +4,8 @@
 ARG TARGET=cpu
 
 # -------- Base stages --------
-FROM ubuntu:22.04 AS base-cpu
-FROM nvidia/cuda:12.6.2-devel-ubuntu22.04 AS base-cuda
-FROM ubuntu:22.04 AS base-arm
+FROM ubuntu:24.04 AS base-cpu
+FROM nvidia/cuda:12.6.2-devel-ubuntu24.04 AS base-cuda
 
 # Select the appropriate base stage
 FROM base-${TARGET} AS final
@@ -15,8 +14,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
     POETRY_VIRTUALENVS_CREATE=false \
-    PATH="/root/.local/bin:${PATH}" \
+    POETRY_VIRTUALENVS_IN_PROJECT=false \
+    POETRY_NO_INTERACTION=1 \
+    PATH="/opt/poetry/bin:/root/.local/bin:${PATH}" \
     CI=1 \
     NPM_CONFIG_FUND=false \
     NPM_CONFIG_AUDIT=false
@@ -29,9 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       software-properties-common gpg gpg-agent \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ---- Install Python 3.12 from deadsnakes PPA ----
-RUN add-apt-repository -y ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
+# ---- Install Python 3.12 ----
+RUN apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-dev python3.12-venv \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -46,10 +47,13 @@ RUN apt-get update \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ---- Install pip and Poetry for Python 3.12 ----
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 \
-    && python3.12 -m pip install --upgrade pip setuptools wheel \
-    && curl -sSL https://install.python-poetry.org | python3.12 - \
-    && python3.12 -m pip install --force-reinstall --no-deps blinker
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
+    && python3.12 get-pip.py --break-system-packages \
+    && rm get-pip.py \
+    && python3.12 -m pip install --break-system-packages --upgrade pip setuptools wheel \
+    && curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python3.12 - \
+    && ln -s /opt/poetry/bin/poetry /usr/local/bin/poetry \
+    && python3.12 -m pip install --break-system-packages --force-reinstall --no-deps blinker
 
 # ---- Install Node.js ----
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
