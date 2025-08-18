@@ -4,8 +4,8 @@
 ARG TARGET=cpu
 
 # -------- Base stages --------
-FROM ubuntu:24.04 AS base-cpu
-FROM nvidia/cuda:12.6.2-devel-ubuntu24.04 AS base-cuda
+FROM ubuntu:22.04 AS base-cpu
+FROM nvidia/cuda:12.6.2-devel-ubuntu22.04 AS base-cuda
 
 # Select the appropriate base stage
 FROM base-${TARGET} AS final
@@ -32,28 +32,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ---- Install Python 3.12 ----
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-dev python3.12-venv \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ---- Remove system Python packages that conflict and set up Python 3.12 as default ----
-RUN apt-get update \
-    && apt-get remove -y python3-blinker python3-blinker-doc || true \
-    && apt-get autoremove -y \
-    && rm -rf /usr/lib/python3/dist-packages/blinker* \
-    && rm -rf /usr/lib/python3.10/dist-packages/blinker* \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 100 \
+# ---- Set up Python 3.12 as default ----
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 100 \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 100 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && update-alternatives --install /usr/bin/python3-config python3-config /usr/bin/python3.12-config 100
 
 # ---- Install pip and Poetry for Python 3.12 ----
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
-    && python3.12 get-pip.py --break-system-packages \
+    && python3.12 get-pip.py \
     && rm get-pip.py \
-    && python3.12 -m pip install --break-system-packages --upgrade pip setuptools wheel \
+    && python3.12 -m pip install --upgrade pip setuptools wheel \
     && curl -sSL https://install.python-poetry.org | POETRY_HOME=/opt/poetry python3.12 - \
-    && ln -s /opt/poetry/bin/poetry /usr/local/bin/poetry \
-    && python3.12 -m pip install --break-system-packages --force-reinstall --no-deps blinker
+    && ln -s /opt/poetry/bin/poetry /usr/local/bin/poetry
 
 # ---- Install Node.js ----
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -62,11 +57,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 # ---- Install deps without relying on lock file ----
 COPY pyproject.toml /app/
-RUN poetry install --with dev --no-root --no-interaction --no-ansi
+RUN poetry install --with dev --no-root --no-interaction --no-ansi --without ml,data,viz,cuda
 
 # ---- Copy the rest of the repo and install the root package (scripts) ----
 COPY . /app
-RUN poetry install --with dev --no-interaction --no-ansi
+RUN poetry install --with dev --no-interaction --no-ansi --without ml,data,viz,cuda
 
 # ---- Build C++ extension using SCons ----
 WORKDIR /app/backend/core

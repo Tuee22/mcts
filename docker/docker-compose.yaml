@@ -4,7 +4,8 @@ services:
       context: ..
       dockerfile: ./docker/Dockerfile
       platforms:
-        - ${PLATFORM:-linux/amd64}
+        - linux/amd64
+        - linux/arm64
       args:
         TARGET: ${TARGET:-cpu}
     image: mcts:${TARGET:-cpu}
