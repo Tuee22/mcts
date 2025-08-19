@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.6
+mypy# syntax=docker/dockerfile:1.6
 
 # Build arguments must be defined before FROM to use in FROM
 ARG VARIANT=cpu
@@ -51,11 +51,14 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 # Install pip for Python 3.12
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 
-# Install Poetry
-RUN python3 -m pip install "poetry>=1.7"
+# Upgrade pip and install base tools
+RUN python3 -m pip install --upgrade pip wheel setuptools
+
+# Install Poetry from official installer
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
 # Copy dependency files first for better layer caching
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml /app/
 
 # Install Python dependencies (without root package)
 RUN poetry install --no-root --with dev --without ml,data,viz,cuda
@@ -68,13 +71,15 @@ RUN poetry install --with dev --without ml,data,viz,cuda
 
 # Build C++ extension using SCons
 WORKDIR /app/backend/core
-RUN scons || echo "Warning: C++ build failed, continuing for development"
+RUN scons
 
-# Verify extension was built (soft fail for development)
+# Verify extension was built (hard requirement)
 RUN if [ -f /app/backend/python/corridors/_corridors_mcts.so ]; then \
       echo "✅ Extension built successfully"; \
     else \
-      echo "⚠️  Extension not built, some tests may fail"; \
+      echo "❌ FATAL: C++ extension not built - _corridors_mcts.so missing"; \
+      echo "This indicates a build failure that must be resolved."; \
+      exit 1; \
     fi
 
 # Create symlink for static assets (optional, soft fail)
@@ -87,5 +92,5 @@ EXPOSE 8000
 # Use tini for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Default command - show versions and wait
-CMD ["bash", "-c", "poetry --version && python --version && echo 'MCTS container ready' && tail -f /dev/null"]
+# Default command - launch backend API server
+CMD ["python", "-m", "backend.api.server"]

@@ -1,5 +1,5 @@
 services:
-  # CPU service - no GPU requirements
+  # CPU service
   mcts:
     profiles: ["cpu"]
     build:
@@ -7,7 +7,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         VARIANT: cpu
-        BASE_IMAGE: ${CPU_BASE_IMAGE:-ubuntu:22.04}
+        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
     image: mcts:cpu
     ports:
       - target: 8000
@@ -23,17 +23,16 @@ services:
         source: ..
         target: /app
         read_only: false
-    command: ${APP_COMMAND:-bash -c "poetry --version && python --version && echo 'MCTS CPU container ready' && tail -f /dev/null"}
 
-  # GPU service - with NVIDIA runtime
+  # GPU service
   mcts-gpu:
-    profiles: ["gpu"]
+    profiles: ["gpu"]  
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         VARIANT: cuda
-        BASE_IMAGE: ${CUDA_BASE_IMAGE:-nvidia/cuda:12.6.2-devel-ubuntu22.04}
+        BASE_IMAGE: ${BASE_IMAGE:-nvidia/cuda:12.6.2-devel-ubuntu22.04}
     image: mcts:cuda
     deploy:
       resources:
@@ -57,4 +56,3 @@ services:
         source: ..
         target: /app
         read_only: false
-    command: ${APP_COMMAND:-bash -c "nvidia-smi || true; poetry --version && python --version && echo 'MCTS CUDA container ready' && tail -f /dev/null"}
