@@ -1,4 +1,4 @@
-mypy# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.6
 
 # Build arguments must be defined before FROM to use in FROM
 ARG VARIANT=cpu
