@@ -20,56 +20,71 @@ A high-performance Monte Carlo Tree Search (MCTS) implementation for the Corrido
 
 ### Quick Start Instructions
 
-**For CPU-only systems:**
+**Setup environment file:**
 ```bash
 git clone <repository-url>
 cd mcts/docker
-docker compose up -d
+cp .env.example .env
+# Edit .env to choose CPU or GPU profile
 ```
 
-**For systems with NVIDIA GPU:**
+**For CPU systems (AMD64 or ARM64/Apple Silicon):**
 ```bash
-git clone <repository-url>
-cd mcts/docker  
-TARGET=cuda RUNTIME=nvidia docker compose up -d
-```
-
-**For ARM64 systems (Apple Silicon, etc):**
-```bash
-git clone <repository-url>
 cd mcts/docker
-TARGET=arm PLATFORM=linux/arm64 docker compose up -d
+COMPOSE_PROFILES=cpu docker compose up --build -d
+docker compose exec mcts poetry run pytest -q
+```
+
+**For NVIDIA GPU systems (AMD64 only):**
+```bash
+cd mcts/docker
+COMPOSE_PROFILES=gpu docker compose up --build -d
+docker compose exec mcts-gpu nvidia-smi
+docker compose exec mcts-gpu poetry run pytest -q
 ```
 
 ### Docker Configuration
 
-The build system automatically selects the appropriate base image:
-- **CPU builds**: `ubuntu:22.04`  
-- **CUDA builds**: `nvidia/cuda:12.6.2-devel-ubuntu22.04`
-- **ARM builds**: `ubuntu:22.04` (with QEMU emulation)
+The build system uses profile-based configuration controlled entirely via `.env`:
+- **CPU profile**: Multi-arch support (AMD64/ARM64), uses `python:3.12-slim-bookworm`
+- **GPU profile**: AMD64 only with NVIDIA GPU, uses `nvidia/cuda:12.6.2-devel-ubuntu24.04`
 
-Configuration is handled via environment variables (see `docker/.env.example`):
+Note: CUDA builds on non-AMD64 architectures will fail early by design.
+
+Configuration is handled via environment variables in `.env`:
 
 ```bash
-# Copy and customize environment file
-cp docker/.env.example docker/.env
-# Edit .env to set TARGET, PLATFORM, RUNTIME, and PORT
+# Switch between profiles by editing .env
+COMPOSE_PROFILES=cpu    # or: gpu
+
+# Optional: Override base images
+CPU_BASE_IMAGE=python:3.12-slim-bookworm
+CUDA_BASE_IMAGE=nvidia/cuda:12.6.2-devel-ubuntu24.04
 ```
 
 ### Running Tests
 
-**All unit tests (130 tests):**
+**All unit tests:**
 ```bash
 # CPU container
 docker compose exec mcts poetry run pytest tests/backend/core/ -v
 
-# CUDA container  
-TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run pytest tests/backend/core/ -v
+# GPU container  
+docker compose exec mcts-gpu poetry run pytest tests/backend/core/ -v
+```
+
+**Quick test run:**
+```bash
+# CPU
+docker compose exec mcts poetry run pytest -q
+
+# GPU
+docker compose exec mcts-gpu poetry run pytest -q
 ```
 
 **GPU verification (CUDA only):**
 ```bash
-TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
+docker compose exec mcts-gpu nvidia-smi
 ```
 
 ### Access the Environment
@@ -77,14 +92,17 @@ TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
 Once the container is running:
 
 ```bash
-# Access the container shell
+# Access the container shell (CPU)
 docker compose exec mcts bash
+
+# Access the container shell (GPU)
+docker compose exec mcts-gpu bash
 
 # Run interactive Python session
 docker compose exec mcts python3
 
 # Check container logs
-docker compose logs mcts
+docker compose logs mcts      # or mcts-gpu for GPU profile
 ```
 
 The project directory is mounted for live development.

@@ -1,19 +1,46 @@
 services:
+  # CPU service - no GPU requirements
   mcts:
+    profiles: ["cpu"]
     build:
       context: ..
-      dockerfile: ./docker/Dockerfile
-      platforms:
-        - ${PLATFORM:-linux/amd64}
+      dockerfile: docker/Dockerfile
       args:
-        TARGET: ${TARGET:-cpu}
-    image: mcts:${TARGET:-cpu}
+        VARIANT: cpu
+        BASE_IMAGE: ${CPU_BASE_IMAGE:-ubuntu:22.04}
+    image: mcts:cpu
+    ports:
+      - target: 8000
+        published: ${PORT:-8000}
+        protocol: tcp
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app/backend/python
+      - NPM_CONFIG_YES=true
+    volumes:
+      # Mount entire project for live development
+      - type: bind
+        source: ..
+        target: /app
+        read_only: false
+    command: ${APP_COMMAND:-bash -c "poetry --version && python --version && echo 'MCTS CPU container ready' && tail -f /dev/null"}
+
+  # GPU service - with NVIDIA runtime
+  mcts-gpu:
+    profiles: ["gpu"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        VARIANT: cuda
+        BASE_IMAGE: ${CUDA_BASE_IMAGE:-nvidia/cuda:12.6.2-devel-ubuntu22.04}
+    image: mcts:cuda
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              count: ${GPU_COUNT:-all}
               capabilities: [gpu]
     ports:
       - target: 8000
@@ -23,32 +50,11 @@ services:
     environment:
       - PYTHONPATH=/app/backend/python
       - NPM_CONFIG_YES=true
-      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-void}
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
     volumes:
-      # Bind mount source code but preserve built artifacts
+      # Mount entire project for live development
       - type: bind
-        source: ../backend/api
-        target: /app/backend/api
+        source: ..
+        target: /app
         read_only: false
-      - type: bind
-        source: ../backend/core
-        target: /app/backend/core
-        read_only: false
-      - type: bind
-        source: ../backend/python/corridors/corridors_mcts.py
-        target: /app/backend/python/corridors/corridors_mcts.py
-        read_only: false
-      - type: bind
-        source: ../backend/python/corridors/__init__.py
-        target: /app/backend/python/corridors/__init__.py
-        read_only: false
-      - type: bind
-        source: ../backend/python/corridors/_corridors_mcts.pyi
-        target: /app/backend/python/corridors/_corridors_mcts.pyi
-        read_only: false
-      # Note: Do NOT bind mount the .so file - let it stay from the image build
-      # Bind mount tests
-      - type: bind
-        source: ../tests
-        target: /app/tests
-        read_only: false
+    command: ${APP_COMMAND:-bash -c "nvidia-smi || true; poetry --version && python --version && echo 'MCTS CUDA container ready' && tail -f /dev/null"}
