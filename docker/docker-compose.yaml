@@ -8,6 +8,13 @@ services:
       args:
         TARGET: ${TARGET:-cpu}
     image: mcts:${TARGET:-cpu}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     ports:
       - target: 8000
         published: ${PORT:-8000}
