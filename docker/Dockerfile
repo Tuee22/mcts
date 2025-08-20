@@ -81,9 +81,9 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev --without ml,data,viz,cuda
 
-# Build C++ extension using SCons as root
+# Skip C++ build during image creation - will be built on container start
+# This ensures the module is compiled for the runtime architecture
 WORKDIR /app/backend/core
-RUN scons
 
 # Fix ownership of all built files
 RUN chown -R ${USER_ID}:${GROUP_ID} /app
@@ -91,14 +91,8 @@ RUN chown -R ${USER_ID}:${GROUP_ID} /app
 # Switch to user for runtime
 USER ${USER_ID}:${GROUP_ID}
 
-# Verify extension was built (hard requirement)
-RUN if [ -f /app/backend/python/corridors/_corridors_mcts.so ]; then \
-      echo "✅ Extension built successfully"; \
-    else \
-      echo "❌ FATAL: C++ extension not built - _corridors_mcts.so missing"; \
-      echo "This indicates a build failure that must be resolved."; \
-      exit 1; \
-    fi
+# Verify scons is available for runtime build
+RUN which scons && echo "✅ SCons available for runtime build"
 
 # Create symlink for static assets (optional, soft fail)
 WORKDIR /app
@@ -110,5 +104,5 @@ EXPOSE 8000
 # Use tini for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Default command - launch backend API server
-CMD ["python", "-m", "backend.api.server"]
+# Default command - clean and rebuild C++ to ensure correct architecture, then launch backend API server
+CMD ["sh", "-c", "cd /app/backend/core && scons -c -Q && scons -Q && cd /app && exec python -m backend.api.server"]

@@ -1,63 +1,24 @@
 services:
-  # CPU service
   mcts:
-    profiles: ["cpu"]
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         VARIANT: cpu
-        BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
-        USERNAME: ${USERNAME:-mcts}
+        BASE_IMAGE: ubuntu:22.04
+        USER_ID: 1000
+        GROUP_ID: 1000
+        USERNAME: mcts
     image: mcts:cpu
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+    user: "1000:1000"
     ports:
       - target: 8000
-        published: ${PORT:-8000}
+        published: 8000
         protocol: tcp
     restart: unless-stopped
     environment:
       - PYTHONPATH=/app/backend/python
       - NPM_CONFIG_YES=true
-    volumes:
-      # Mount entire project for live development
-      - type: bind
-        source: ..
-        target: /app
-        read_only: false
-
-  # GPU service
-  mcts-gpu:
-    profiles: ["gpu"]  
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      args:
-        VARIANT: cuda
-        BASE_IMAGE: ${BASE_IMAGE:-nvidia/cuda:12.6.2-devel-ubuntu22.04}
-        USER_ID: ${USER_ID:-1000}
-        GROUP_ID: ${GROUP_ID:-1000}
-        USERNAME: ${USERNAME:-mcts}
-    image: mcts:cuda
-    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: ${GPU_COUNT:-all}
-              capabilities: [gpu]
-    ports:
-      - target: 8000
-        published: ${PORT:-8000}
-        protocol: tcp
-    restart: unless-stopped
-    environment:
-      - PYTHONPATH=/app/backend/python
-      - NPM_CONFIG_YES=true
-      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
     volumes:
       # Mount entire project for live development
       - type: bind

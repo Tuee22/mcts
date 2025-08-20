@@ -20,71 +20,52 @@ A high-performance Monte Carlo Tree Search (MCTS) implementation for the Corrido
 
 ### Quick Start Instructions
 
-**Setup environment file:**
 ```bash
 git clone <repository-url>
 cd mcts/docker
-cp .env.example .env
-# Edit .env to choose CPU or GPU profile
 ```
 
 **For CPU systems (AMD64 or ARM64/Apple Silicon):**
 ```bash
-cd mcts/docker
-COMPOSE_PROFILES=cpu docker compose up --build -d
+docker compose up -d
 docker compose exec mcts poetry run pytest -q
 ```
 
 **For NVIDIA GPU systems (AMD64 only):**
 ```bash
-cd mcts/docker
-COMPOSE_PROFILES=gpu docker compose up --build -d
-docker compose exec mcts-gpu nvidia-smi
-docker compose exec mcts-gpu poetry run pytest -q
+docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
+docker compose exec mcts nvidia-smi
+docker compose exec mcts poetry run pytest -q
 ```
 
 ### Docker Configuration
 
-The build system uses profile-based configuration controlled entirely via `.env`:
-- **CPU profile**: Multi-arch support (AMD64/ARM64), uses `python:3.12-slim-bookworm`
-- **GPU profile**: AMD64 only with NVIDIA GPU, uses `nvidia/cuda:12.6.2-devel-ubuntu24.04`
+The build system supports two configurations:
+- **CPU**: Multi-arch support (AMD64/ARM64), uses Ubuntu 22.04 base
+- **GPU**: AMD64 only with NVIDIA GPU, uses NVIDIA CUDA 12.6.2 base
 
-Note: CUDA builds on non-AMD64 architectures will fail early by design.
-
-Configuration is handled via environment variables in `.env`:
-
+For GPU builds, use both compose files together:
 ```bash
-# Switch between profiles by editing .env
-COMPOSE_PROFILES=cpu    # or: gpu
-
-# Optional: Override base images
-CPU_BASE_IMAGE=python:3.12-slim-bookworm
-CUDA_BASE_IMAGE=nvidia/cuda:12.6.2-devel-ubuntu24.04
+docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
 ```
+
+Note: The development environment automatically rebuilds the C++ extension on container start to ensure compatibility with the runtime architecture.
 
 ### Running Tests
 
 **All unit tests:**
 ```bash
-# CPU container
 docker compose exec mcts poetry run pytest tests/backend/core/ -v
-
-# GPU container  
-docker compose exec mcts-gpu poetry run pytest tests/backend/core/ -v
 ```
 
 **Quick test run:**
 ```bash
-# CPU
 docker compose exec mcts poetry run pytest -q
-
-# GPU
-docker compose exec mcts-gpu poetry run pytest -q
 ```
 
 **GPU verification (CUDA only):**
 ```bash
-docker compose exec mcts-gpu nvidia-smi
+docker compose exec mcts nvidia-smi
 ```
 
 ### Access the Environment
@@ -92,17 +73,14 @@ docker compose exec mcts-gpu nvidia-smi
 Once the container is running:
 
 ```bash
-# Access the container shell (CPU)
+# Access the container shell
 docker compose exec mcts bash
-
-# Access the container shell (GPU)
-docker compose exec mcts-gpu bash
 
 # Run interactive Python session
 docker compose exec mcts python3
 
 # Check container logs
-docker compose logs mcts      # or mcts-gpu for GPU profile
+docker compose logs mcts
 ```
 
 The project directory is mounted for live development.
@@ -244,9 +222,9 @@ poetry run pytest tests/backend/api/test_server.py       # API endpoints
 
 **GPU Testing (CUDA only):**
 ```bash
-# CUDA container with GPU verification
-TARGET=cuda RUNTIME=nvidia docker compose exec mcts poetry run test-all
-TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi
+# With GPU verification
+docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml exec mcts poetry run test-all
+docker compose exec mcts nvidia-smi
 ```
 
 ### Code Quality
@@ -338,11 +316,12 @@ Corridors is a two-player board game where players race to reach the opposite si
 
 **Docker Issues:**
 - For GPU support, ensure NVIDIA Docker runtime is installed: `sudo apt install nvidia-docker2`
-- CUDA builds require nvidia runtime: `TARGET=cuda RUNTIME=nvidia docker compose up -d`
-- Check if nvidia-smi works: `TARGET=cuda RUNTIME=nvidia docker compose exec mcts nvidia-smi`
+- GPU builds require using both compose files: `-f docker-compose.yaml -f docker-compose.gpu.yaml`
+- Check if nvidia-smi works: `docker compose exec mcts nvidia-smi`
 - Use `docker compose logs mcts` to debug startup issues
 - For ARM builds on x86, expect slower performance due to QEMU emulation
 - Check available platforms: `docker buildx ls`
+- The C++ module is rebuilt on container start for architecture compatibility
 
 **Import Errors:**
 - Verify C++ module was built successfully (`_corridors_mcts.so`)

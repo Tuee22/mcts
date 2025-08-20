@@ -15,8 +15,8 @@ poetry install --with dev
 
 # Docker development (recommended)
 cd docker
-TARGET=cpu docker compose up -d  # For CPU-only build
-TARGET=cuda docker compose up -d # For GPU-enabled build (AMD64 only)
+docker compose up -d  # For CPU-only build
+docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d # For GPU build (AMD64 only)
 ```
 
 ### Building C++ Components
