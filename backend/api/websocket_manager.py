@@ -19,23 +19,24 @@ from .types import (
     OutgoingWebSocketMessage,
     PlayerConnectedMessage,
     PlayerDisconnectedMessage,
+    WebSocketProtocol,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class WebSocketManager:
-    """Manages WebSocket connections for real-time game updates."""
+    """Manages WebSocketProtocol connections for real-time game updates."""
 
     def __init__(self) -> None:
-        # game_id -> set of WebSocket connections
-        self.active_connections: Dict[str, Set[WebSocket]] = {}
-        # WebSocket -> game_id mapping
-        self.connection_games: Dict[WebSocket, str] = {}
+        # game_id -> set of WebSocketProtocol connections
+        self.active_connections: Dict[str, Set[WebSocketProtocol]] = {}
+        # WebSocketProtocol -> game_id mapping
+        self.connection_games: Dict[WebSocketProtocol, str] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket, game_id: str) -> None:
-        """Accept and register a new WebSocket connection."""
+    async def connect(self, websocket: WebSocketProtocol, game_id: str) -> None:
+        """Accept and register a new WebSocketProtocol connection."""
         await websocket.accept()
 
         async with self._lock:
@@ -45,7 +46,7 @@ class WebSocketManager:
             self.active_connections[game_id].add(websocket)
             self.connection_games[websocket] = game_id
 
-            logger.info(f"WebSocket connected to game {game_id}")
+            logger.info(f"WebSocketProtocol connected to game {game_id}")
 
             # Notify other clients
             message: PlayerConnectedMessage = {
@@ -61,8 +62,8 @@ class WebSocketManager:
                 exclude=websocket,
             )
 
-    async def disconnect(self, websocket: WebSocket, game_id: str) -> None:
-        """Remove a WebSocket connection."""
+    async def disconnect(self, websocket: WebSocketProtocol, game_id: str) -> None:
+        """Remove a WebSocketProtocol connection."""
         async with self._lock:
             if game_id in self.active_connections:
                 self.active_connections[game_id].discard(websocket)
@@ -73,7 +74,7 @@ class WebSocketManager:
             if websocket in self.connection_games:
                 del self.connection_games[websocket]
 
-            logger.info(f"WebSocket disconnected from game {game_id}")
+            logger.info(f"WebSocketProtocol disconnected from game {game_id}")
 
             # Notify remaining clients
             if game_id in self.active_connections:
@@ -164,7 +165,7 @@ class WebSocketManager:
         self, game_id: str, player_id: str, message: OutgoingWebSocketMessage
     ) -> None:
         """Send a message to a specific player (if connected)."""
-        # This would require tracking player_id -> WebSocket mapping
+        # This would require tracking player_id -> WebSocketProtocol mapping
         # For now, broadcast to all in game
         await self._broadcast_to_game(game_id, message)
 
@@ -172,7 +173,7 @@ class WebSocketManager:
         self,
         game_id: str,
         message: OutgoingWebSocketMessage,
-        exclude: Optional[WebSocket] = None,
+        exclude: Optional[WebSocketProtocol] = None,
     ) -> None:
         """Broadcast a message to all connections for a specific game."""
         if game_id not in self.active_connections:
@@ -180,7 +181,7 @@ class WebSocketManager:
 
         # Create tasks for all sends
         tasks = []
-        dead_connections: List[WebSocket] = []
+        dead_connections: List[WebSocketProtocol] = []
 
         for connection in self.active_connections[game_id]:
             if connection != exclude:
@@ -203,7 +204,7 @@ class WebSocketManager:
             all_connections.update(connections)
 
         tasks = []
-        dead_connections: List[WebSocket] = []
+        dead_connections: List[WebSocketProtocol] = []
 
         for connection in all_connections:
             tasks.append(self._send_json_safe(connection, message, dead_connections))
@@ -219,17 +220,17 @@ class WebSocketManager:
 
     async def _send_json_safe(
         self,
-        websocket: WebSocket,
+        websocket: WebSocketProtocol,
         message: OutgoingWebSocketMessage,
-        dead_connections: List[WebSocket],
+        dead_connections: List[WebSocketProtocol],
     ) -> None:
-        """Safely send JSON message to a WebSocket."""
+        """Safely send JSON message to a WebSocketProtocol."""
         try:
-            # Convert TypedDict to dict for WebSocket API compatibility
+            # Convert TypedDict to dict for WebSocketProtocol API compatibility
             message_dict = dict(message)
             await websocket.send_json(message_dict)
         except Exception as e:
-            logger.warning(f"Failed to send message to WebSocket: {e}")
+            logger.warning(f"Failed to send message to WebSocketProtocol: {e}")
             dead_connections.append(websocket)
 
     def get_connection_count(self) -> int:
@@ -241,8 +242,8 @@ class WebSocketManager:
         return len(self.active_connections.get(game_id, set()))
 
     async def disconnect_all(self) -> None:
-        """Disconnect all WebSocket connections (for shutdown)."""
-        all_connections: List[WebSocket] = []
+        """Disconnect all WebSocketProtocol connections (for shutdown)."""
+        all_connections: List[WebSocketProtocol] = []
         for connections in self.active_connections.values():
             all_connections.extend(connections)
 
@@ -250,7 +251,7 @@ class WebSocketManager:
             try:
                 await conn.close()
             except Exception as e:
-                logger.error(f"Error closing WebSocket: {e}")
+                logger.error(f"Error closing WebSocketProtocol: {e}")
 
         self.active_connections.clear()
         self.connection_games.clear()

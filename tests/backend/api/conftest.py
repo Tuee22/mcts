@@ -137,7 +137,7 @@ def invalid_moves() -> list[str]:
 
 
 @pytest.fixture(autouse=True)
-def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[..., MockCorridorsMCTS]:
+def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[[], MockCorridorsMCTS]:
     """Mock all MCTS operations to prevent expensive computations during tests."""
     # Create a mock with fixed return values
     mock_sorted_actions: List[Tuple[int, float, str]] = [

@@ -56,11 +56,13 @@ def main() -> None:
 
     # Convert to typed structure to avoid Any type issues
     args = TestArgs(
-        suite=parsed_args.suite,
-        type=parsed_args.type,
-        coverage=parsed_args.coverage,
-        verbose=parsed_args.verbose,
-        parallel=parsed_args.parallel,
+        suite=str(parsed_args.suite),
+        type=str(parsed_args.type),
+        coverage=bool(parsed_args.coverage),
+        verbose=bool(parsed_args.verbose),
+        parallel=(
+            parsed_args.parallel if isinstance(parsed_args.parallel, int) else None
+        ),
     )
 
     # Base pytest command

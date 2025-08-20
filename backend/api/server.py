@@ -73,7 +73,9 @@ FRONTEND_BUILD_DIR = Path("/home/mcts/frontend/build")
 if FRONTEND_BUILD_DIR.exists():
     # Mount static assets first (CSS, JS, images)
     app.mount(
-        "/static", StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")), name="static"
+        "/static",
+        StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
+        name="static",
     )
 
     # Serve other static files (favicon, manifest, etc.)
@@ -411,6 +413,9 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
             data = await websocket.receive_json()
 
             # Handle different message types
+            if not isinstance(data, dict):
+                continue  # Skip non-dict messages
+
             if data.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})
             elif data.get("type") == "move":
@@ -536,6 +541,9 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
                 data = await websocket.receive_json()
 
                 # Handle different message types
+                if not isinstance(data, dict):
+                    continue  # Skip non-dict messages
+
                 if data.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
                 elif data.get("type") == "create_game":

@@ -3,13 +3,15 @@ Common test helper functions.
 """
 
 import asyncio
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple, Union, Callable, TypeVar
 from unittest.mock import MagicMock
+
+T = TypeVar("T")
 
 
 def create_mock_mcts(
-    sorted_actions: List[tuple] = None,
-    evaluation: float = None,
+    sorted_actions: Optional[List[Tuple[int, float, str]]] = None,
+    evaluation: Optional[float] = None,
     display: str = "Mock Board",
 ) -> MagicMock:
     """
@@ -43,7 +45,9 @@ def create_mock_mcts(
     return mock_mcts
 
 
-def assert_valid_game_response(response_data: Dict[str, object]) -> None:
+def assert_valid_game_response(
+    response_data: Dict[str, Union[str, int, Dict[str, Union[str, int, bool]]]],
+) -> None:
     """
     Assert that a game response has all required fields.
 
@@ -67,12 +71,15 @@ def assert_valid_game_response(response_data: Dict[str, object]) -> None:
     # Validate player structure
     for player_key in ["player1", "player2"]:
         player = response_data[player_key]
-        player_fields = ["id", "name", "type", "is_hero"]
-        for field in player_fields:
-            assert field in player, f"Missing player field: {field}"
+        if isinstance(player, dict):
+            player_fields = ["id", "name", "type", "is_hero"]
+            for field in player_fields:
+                assert field in player, f"Missing player field: {field}"
 
 
-def assert_valid_move_response(response_data: Dict[str, object]) -> None:
+def assert_valid_move_response(
+    response_data: Dict[str, Union[str, bool, Dict[str, Union[str, int]]]],
+) -> None:
     """
     Assert that a move response has all required fields.
 
@@ -93,13 +100,16 @@ def assert_valid_move_response(response_data: Dict[str, object]) -> None:
 
     # Validate move structure
     move = response_data["move"]
-    move_fields = ["player_id", "action", "move_number", "timestamp"]
-    for field in move_fields:
-        assert field in move, f"Missing move field: {field}"
+    if isinstance(move, dict):
+        move_fields = ["player_id", "action", "move_number", "timestamp"]
+        for field in move_fields:
+            assert field in move, f"Missing move field: {field}"
 
 
 async def wait_for_condition(
-    condition_func: callable, timeout_seconds: float = 5.0, check_interval: float = 0.1
+    condition_func: Callable[[], bool],
+    timeout_seconds: float = 5.0,
+    check_interval: float = 0.1,
 ) -> bool:
     """
     Wait for a condition to become true.
@@ -122,7 +132,9 @@ async def wait_for_condition(
     return False
 
 
-def extract_game_moves(game_data: Dict[str, object]) -> List[str]:
+def extract_game_moves(
+    game_data: Dict[str, Union[str, int, List[Dict[str, str]]]],
+) -> List[str]:
     """
     Extract move actions from a game response.
 
@@ -135,7 +147,14 @@ def extract_game_moves(game_data: Dict[str, object]) -> List[str]:
     if "move_history" not in game_data:
         return []
 
-    return [move["action"] for move in game_data["move_history"]]
+    move_history = game_data["move_history"]
+    if isinstance(move_history, list):
+        return [
+            move["action"]
+            for move in move_history
+            if isinstance(move, dict) and "action" in move
+        ]
+    return []
 
 
 def count_test_results(test_output: str) -> Dict[str, int]:

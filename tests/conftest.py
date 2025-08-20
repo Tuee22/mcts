@@ -11,7 +11,12 @@ import numpy as np
 import pytest
 
 # Always use the corridors module - stubs should handle the typing
-from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+try:
+    from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+
+    CORRIDORS_AVAILABLE = True
+except ImportError:
+    CORRIDORS_AVAILABLE = False
 
 
 class MCTSParams(TypedDict):
@@ -188,22 +193,30 @@ class MCTSTestHelper:
         return False
 
     @staticmethod
-    def validate_sorted_actions(actions: List[Tuple[int, float, str]]) -> bool:
+    def validate_sorted_actions(actions: List[Tuple[object, ...]]) -> bool:
         """Validate sorted actions structure and ordering."""
         if not actions:
             return True
 
-        # Check structure
+        # Check structure - validate each action
         for action in actions:
             if len(action) != 3:
                 return False
             visits, equity, action_str = action
+
+            # Check visits type and value
             if not isinstance(visits, int) or visits < 0:
                 return False
+
+            # Check equity type
             if not isinstance(equity, (int, float)):
                 return False
+
+            # Check action string type
             if not isinstance(action_str, str):
                 return False
+
+            # Check action format
             if not MCTSTestHelper.validate_action_format(action_str):
                 return False
 
@@ -212,7 +225,13 @@ class MCTSTestHelper:
         equities = [a[1] for a in actions]
         # Check that equities are in non-increasing order (allowing for equal values)
         for i in range(len(equities) - 1):
-            if equities[i] < equities[i + 1]:
+            current_equity = equities[i]
+            next_equity = equities[i + 1]
+            if not isinstance(current_equity, (int, float)) or not isinstance(
+                next_equity, (int, float)
+            ):
+                return False
+            if current_equity < next_equity:
                 return False
         return True
 

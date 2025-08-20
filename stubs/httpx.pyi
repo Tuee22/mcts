@@ -21,13 +21,13 @@ class Response:
         json: Optional[object] = None,
         **kwargs: object,
     ) -> None: ...
-    
+
     status_code: int
     headers: Dict[str, str]
     content: bytes
     text: str
     url: str
-    
+
     def json(self) -> object: ...
     def raise_for_status(self) -> None: ...
 
@@ -43,7 +43,7 @@ class Request:
         json: Optional[object] = None,
         **kwargs: object,
     ) -> None: ...
-    
+
     method: str
     url: str
     headers: Dict[str, str]
@@ -63,7 +63,6 @@ class AsyncClient:
         transport: Optional[object] = None,
         **kwargs: object,
     ) -> None: ...
-    
     async def get(
         self,
         url: str,
@@ -75,7 +74,6 @@ class AsyncClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     async def post(
         self,
         url: str,
@@ -90,7 +88,6 @@ class AsyncClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     async def put(
         self,
         url: str,
@@ -105,7 +102,6 @@ class AsyncClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     async def delete(
         self,
         url: str,
@@ -117,11 +113,11 @@ class AsyncClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     async def aclose(self) -> None: ...
-    
     async def __aenter__(self) -> "AsyncClient": ...
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
+    async def __aexit__(
+        self, exc_type: object, exc_val: object, exc_tb: object
+    ) -> None: ...
 
 class Client:
     def __init__(
@@ -137,7 +133,6 @@ class Client:
         transport: Optional[object] = None,
         **kwargs: object,
     ) -> None: ...
-    
     def get(
         self,
         url: str,
@@ -149,7 +144,6 @@ class Client:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def post(
         self,
         url: str,
@@ -164,9 +158,7 @@ class Client:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def close(self) -> None: ...
-    
     def __enter__(self) -> "Client": ...
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...
 
@@ -181,7 +173,6 @@ def get(
     timeout: Optional[float] = None,
     **kwargs: object,
 ) -> Response: ...
-
 def post(
     url: str,
     data: Optional[Union[str, bytes, Dict[str, object]]] = None,

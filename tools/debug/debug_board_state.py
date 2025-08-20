@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Debug the actual board state after wall moves."""
 
+from typing import Optional
+
 try:
-    from python.corridors.corridors_mcts import Corridors_MCTS
+    from corridors.corridors_mcts import Corridors_MCTS
 except ImportError:
     print("Could not import Corridors_MCTS")
     exit(1)
 
 
-def print_board_analysis(name, mcts):
+def print_board_analysis(name: str, mcts: Corridors_MCTS) -> None:
     print(f"=== {name} ===")
     display = mcts.display(flip=False)
     print("Board state:")

@@ -15,13 +15,10 @@ T = TypeVar("T", bound="BaseModel")
 
 class BaseModel:
     def __init__(self, **data: object) -> None: ...
-    
     @classmethod
     def model_validate(cls: Type[T], obj: object) -> T: ...
-    
-    @classmethod 
+    @classmethod
     def model_validate_json(cls: Type[T], json_data: Union[str, bytes]) -> T: ...
-    
     def model_dump(
         self,
         include: Optional[Union[set[str], Dict[str, object]]] = None,
@@ -33,7 +30,6 @@ class BaseModel:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> Dict[str, object]: ...
-    
     def model_dump_json(
         self,
         include: Optional[Union[set[str], Dict[str, object]]] = None,
@@ -45,19 +41,15 @@ class BaseModel:
         round_trip: bool = False,
         warnings: bool = True,
     ) -> str: ...
-    
     def dict(self, **kwargs: object) -> Dict[str, object]: ...
     def json(self, **kwargs: object) -> str: ...
-    
     @classmethod
     def parse_obj(cls: Type[T], obj: object) -> T: ...
-    
     @classmethod
     def parse_raw(cls: Type[T], b: Union[str, bytes], **kwargs: object) -> T: ...
-    
     @classmethod
     def model_rebuild(cls) -> None: ...
-    
+
     model_config: ClassVar[Dict[str, object]]
 
 class ValidationError(ValueError):
@@ -98,7 +90,7 @@ class FieldInfo:
         max_length: Optional[int] = None,
         **kwargs: object,
     ) -> None: ...
-    
+
     # Allow FieldInfo to be treated as compatible with various types
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
@@ -146,7 +138,6 @@ class validator:
         whole: Optional[bool] = None,
         allow_reuse: bool = False,
     ) -> None: ...
-    
     def __call__(self, func: object) -> object: ...
 
 class root_validator:
@@ -156,7 +147,6 @@ class root_validator:
         skip_on_failure: bool = False,
         allow_reuse: bool = False,
     ) -> None: ...
-    
     def __call__(self, func: object) -> object: ...
 
 # Field validators (Pydantic v2 style)
@@ -167,7 +157,6 @@ class field_validator:
         mode: str = "before",
         check_fields: bool = True,
     ) -> None: ...
-    
     def __call__(self, func: object) -> object: ...
 
 # Config class

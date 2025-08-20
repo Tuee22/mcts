@@ -37,10 +37,7 @@ from unittest.mock import Mock
 
 import pytest
 
-try:
-    from tests.conftest import MCTSParams
-except ImportError:
-    MCTSParams = Dict[str, str | int | bool]
+from tests.conftest import MCTSParams
 
 try:
     from corridors.corridors_mcts import Corridors_MCTS
@@ -213,7 +210,9 @@ class TestMCTSActions:
 
         actions = mcts.get_sorted_actions(flip=True)
         for _, _, action_str in actions:
-            assert mcts_helper.validate_action_format(action_str)
+            from tests.conftest import MCTSTestHelper
+
+            assert MCTSTestHelper.validate_action_format(action_str)
 
     def test_choose_best_action(self, fast_mcts_params: MCTSParams) -> None:
         """Test choosing best action."""

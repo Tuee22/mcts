@@ -2,7 +2,7 @@
 """Debug by checking what board.is_terminal() returns."""
 
 try:
-    from python.corridors.corridors_mcts import Corridors_MCTS
+    from corridors.corridors_mcts import Corridors_MCTS
 except ImportError:
     print("Could not import Corridors_MCTS")
     exit(1)

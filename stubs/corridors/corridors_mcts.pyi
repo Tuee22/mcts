@@ -13,7 +13,6 @@ class Corridors_MCTS(CorridorsMCTSProtocol):
         seed: int = 42,
         min_simulations: int = 100,
         max_simulations: int = 1000,
-        sim_increment: int = 100,
         use_rollout: bool = True,
         eval_children: bool = False,
         use_puct: bool = False,

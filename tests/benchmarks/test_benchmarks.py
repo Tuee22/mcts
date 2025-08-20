@@ -5,9 +5,11 @@ These tests focus purely on wall-clock timing with statistical analysis.
 Run with: pytest tests/test_benchmarks.py --benchmark-only
 """
 
-from typing import Dict
+from typing import Dict, List, Tuple
 
 import pytest
+from pytest_benchmark import BenchmarkFixture
+from _pytest.config import Config
 
 try:
     from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
@@ -22,7 +24,9 @@ class TestMCTSBenchmarks:
     """Benchmark core MCTS operations."""
 
     @pytest.mark.parametrize("sim_count", [100, 500, 1000, 2000])
-    def test_simulation_performance(self, benchmark, sim_count: int):
+    def test_simulation_performance(
+        self, benchmark: BenchmarkFixture, sim_count: int
+    ) -> None:
         """Benchmark MCTS simulation time scaling."""
         mcts = Corridors_MCTS(
             c=1.4,
@@ -31,7 +35,7 @@ class TestMCTSBenchmarks:
             max_simulations=sim_count,
         )
 
-        def run_simulations():
+        def run_simulations() -> List[Tuple[int, float, str]]:
             mcts.ensure_sims(sim_count)
             return mcts.get_sorted_actions(flip=True)
 
@@ -42,35 +46,35 @@ class TestMCTSBenchmarks:
         total_visits = sum(a[0] for a in actions)
         assert total_visits >= sim_count * 0.9  # Allow some tolerance
 
-    def test_action_retrieval_performance(self, benchmark):
+    def test_action_retrieval_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark action retrieval speed."""
         mcts = Corridors_MCTS(
             c=1.4, seed=42, min_simulations=1000, max_simulations=1000
         )
         mcts.ensure_sims(1000)  # Pre-compute
 
-        def get_actions():
+        def get_actions() -> List[Tuple[int, float, str]]:
             return mcts.get_sorted_actions(flip=True)
 
         actions = benchmark(get_actions)
         assert len(actions) > 0
 
-    def test_display_performance(self, benchmark):
+    def test_display_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark board display generation."""
         mcts = Corridors_MCTS(c=1.4, seed=42, min_simulations=500, max_simulations=500)
         mcts.ensure_sims(500)
 
-        def generate_display():
+        def generate_display() -> str:
             return mcts.display(flip=False)
 
         display = benchmark(generate_display)
         assert isinstance(display, str)
         assert len(display) > 0
 
-    def test_move_execution_performance(self, benchmark):
+    def test_move_execution_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark move execution speed."""
 
-        def execute_moves():
+        def execute_moves() -> int:
             mcts = Corridors_MCTS(
                 c=1.4, seed=123, min_simulations=100, max_simulations=100
             )
@@ -90,10 +94,12 @@ class TestMCTSBenchmarks:
         assert moves > 0
 
     @pytest.mark.parametrize("c_value", [0.1, 1.0, 2.0, 10.0])
-    def test_exploration_parameter_impact(self, benchmark, c_value: float):
+    def test_exploration_parameter_impact(
+        self, benchmark: BenchmarkFixture, c_value: float
+    ) -> None:
         """Benchmark impact of different exploration parameters."""
 
-        def run_with_c():
+        def run_with_c() -> List[Tuple[int, float, str]]:
             mcts = Corridors_MCTS(
                 c=c_value,
                 seed=42,
@@ -106,10 +112,10 @@ class TestMCTSBenchmarks:
         actions = benchmark(run_with_c)
         assert len(actions) > 0
 
-    def test_complete_game_performance(self, benchmark):
+    def test_complete_game_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark complete game from start to finish."""
 
-        def play_complete_game():
+        def play_complete_game() -> int:
             p1 = Corridors_MCTS(
                 c=1.4, seed=111, min_simulations=200, max_simulations=200
             )
@@ -150,10 +156,10 @@ class TestMCTSBenchmarks:
         moves = benchmark(play_complete_game)
         assert moves > 5  # Should make reasonable number of moves
 
-    def test_rollout_performance(self, benchmark):
+    def test_rollout_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark random rollout performance specifically."""
 
-        def run_rollout_simulation():
+        def run_rollout_simulation() -> int:
             mcts = Corridors_MCTS(
                 c=1.4,
                 seed=42,
@@ -184,10 +190,10 @@ class TestMCTSBenchmarks:
         moves = benchmark(run_rollout_simulation)
         assert moves >= 0
 
-    def test_self_play_benchmark(self, benchmark):
+    def test_self_play_benchmark(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark self-play game performance with computer vs computer."""
 
-        def run_self_play():
+        def run_self_play() -> int:
             import io
             import sys
 
@@ -245,10 +251,12 @@ class TestMCTSBenchmarks:
         assert moves > 0
 
     @pytest.mark.parametrize("sim_count", [50, 200, 500])
-    def test_random_rollout_scaling(self, benchmark, sim_count: int):
+    def test_random_rollout_scaling(
+        self, benchmark: BenchmarkFixture, sim_count: int
+    ) -> None:
         """Benchmark random rollout performance at different simulation counts."""
 
-        def run_random_rollouts():
+        def run_random_rollouts() -> int:
             mcts = Corridors_MCTS(
                 c=1.4,
                 seed=42,
@@ -288,19 +296,21 @@ class TestMCTSBenchmarks:
 class TestPythonFunctionBenchmarks:
     """Benchmark pure Python functions."""
 
-    def test_display_sorted_actions_performance(self, benchmark):
+    def test_display_sorted_actions_performance(
+        self, benchmark: BenchmarkFixture
+    ) -> None:
         """Benchmark action display formatting."""
         # Create large action list
         actions = [(1000 - i, 0.9 - i * 0.01, f"*(4,{i%9})") for i in range(100)]
 
-        def format_actions():
+        def format_actions() -> str:
             return display_sorted_actions(actions)
 
         result = benchmark(format_actions)
         assert isinstance(result, str)
         assert len(result) > 0
 
-    def test_display_sorted_actions_scaling(self, benchmark):
+    def test_display_sorted_actions_scaling(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark display performance with very large action lists."""
         # Simulate a position with many possible moves
         actions = [
@@ -308,7 +318,7 @@ class TestPythonFunctionBenchmarks:
             for i in range(1000)
         ]
 
-        def format_large_list():
+        def format_large_list() -> str:
             return display_sorted_actions(actions, list_size=50)  # Limit display
 
         result = benchmark(format_large_list)
@@ -316,7 +326,7 @@ class TestPythonFunctionBenchmarks:
 
 
 # Custom benchmark configuration for this module
-def pytest_configure(config):
+def pytest_configure(config: Config) -> None:
     """Configure benchmark settings."""
     if hasattr(config, "option") and hasattr(config.option, "benchmark_disable"):
         # Only configure if pytest-benchmark is available

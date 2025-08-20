@@ -5,9 +5,10 @@ Convenience script to run API tests with various options.
 import argparse
 import subprocess
 import sys
+from typing import List
 
 
-def run_command(cmd, description):
+def run_command(cmd: List[str], description: str) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
@@ -23,7 +24,7 @@ def run_command(cmd, description):
         return True
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run API tests")
     parser.add_argument(
         "--type",
@@ -93,7 +94,7 @@ def main():
     cmd = base_cmd + test_files + markers
 
     # Run the tests
-    success = run_command(cmd, f"{args.type.title()} API tests")
+    success = run_command(cmd, f"{str(args.type).title()} API tests")
 
     if args.coverage and success:
         print(f"\n📊 Coverage report generated at: htmlcov-api/index.html")

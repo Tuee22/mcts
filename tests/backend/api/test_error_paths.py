@@ -33,7 +33,11 @@ class TestServerExceptionPaths:
             },
         )
         assert response.status_code == 500
-        assert "Database connection failed" in response.json()["detail"]
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        detail = json_response["detail"]
+        assert isinstance(detail, str)
+        assert "Database connection failed" in detail
 
     @patch("backend.api.server.game_manager.list_games")
     def test_list_games_exception(
@@ -77,11 +81,16 @@ class TestServerExceptionPaths:
                 "player2_name": "Bob",
             },
         )
-        game_id = response.json()["game_id"]
-        player1_id = response.json()["player1"]["id"]
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        game_id = json_response["game_id"]
+        player1_data = json_response["player1"]
+        assert isinstance(player1_data, dict)
+        player1_id = player1_data["id"]
 
         # Mock the game to be finished
         with patch("backend.api.server.game_manager.get_game") as mock_get_game:
+            assert isinstance(mock_get_game, MagicMock)
             mock_game = MagicMock()
             mock_game.status = GameStatus.COMPLETED
             mock_get_game.return_value = mock_game
@@ -91,7 +100,11 @@ class TestServerExceptionPaths:
                 json={"action": "*(4,1)", "player_id": player1_id},
             )
             assert response.status_code == 400
-            assert "not in progress" in response.json()["detail"]
+            json_error_response = response.json()
+            assert isinstance(json_error_response, dict)
+            detail = json_error_response["detail"]
+            assert isinstance(detail, str)
+            assert "not in progress" in detail
 
     def test_make_move_wrong_turn(self, test_client: TestClient) -> None:
         """Test making move when it's not player's turn."""
@@ -105,8 +118,12 @@ class TestServerExceptionPaths:
                 "player2_name": "Bob",
             },
         )
-        game_id = response.json()["game_id"]
-        player2_id = response.json()["player2"]["id"]  # Wrong player
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        game_id = json_response["game_id"]
+        player2_data = json_response["player2"]
+        assert isinstance(player2_data, dict)
+        player2_id = player2_data["id"]  # Wrong player
 
         # Try to make move with wrong player
         response = test_client.post(
@@ -114,7 +131,11 @@ class TestServerExceptionPaths:
             json={"action": "*(4,1)", "player_id": player2_id},
         )
         assert response.status_code == 403
-        assert "Not your turn" in response.json()["detail"]
+        json_error_response = response.json()
+        assert isinstance(json_error_response, dict)
+        detail = json_error_response["detail"]
+        assert isinstance(detail, str)
+        assert "Not your turn" in detail
 
     @patch("backend.api.server.game_manager.make_move")
     def test_make_move_value_error(
@@ -131,8 +152,12 @@ class TestServerExceptionPaths:
                 "player2_name": "Bob",
             },
         )
-        game_id = response.json()["game_id"]
-        player1_id = response.json()["player1"]["id"]
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        game_id = json_response["game_id"]
+        player1_data = json_response["player1"]
+        assert isinstance(player1_data, dict)
+        player1_id = player1_data["id"]
 
         # Mock make_move to raise ValueError
         mock_make_move.side_effect = ValueError("Invalid move")
@@ -142,7 +167,11 @@ class TestServerExceptionPaths:
             json={"action": "invalid", "player_id": player1_id},
         )
         assert response.status_code == 400
-        assert "Invalid move" in response.json()["detail"]
+        json_error_response = response.json()
+        assert isinstance(json_error_response, dict)
+        detail = json_error_response["detail"]
+        assert isinstance(detail, str)
+        assert "Invalid move" in detail
 
     @patch("backend.api.server.game_manager.make_move")
     def test_make_move_general_exception(
@@ -159,8 +188,12 @@ class TestServerExceptionPaths:
                 "player2_name": "Bob",
             },
         )
-        game_id = response.json()["game_id"]
-        player1_id = response.json()["player1"]["id"]
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        game_id = json_response["game_id"]
+        player1_data = json_response["player1"]
+        assert isinstance(player1_data, dict)
+        player1_id = player1_data["id"]
 
         # Mock make_move to raise general exception
         mock_make_move.side_effect = Exception("Server error")
@@ -170,7 +203,11 @@ class TestServerExceptionPaths:
             json={"action": "*(4,1)", "player_id": player1_id},
         )
         assert response.status_code == 500
-        assert "Internal server error" in response.json()["detail"]
+        json_error_response = response.json()
+        assert isinstance(json_error_response, dict)
+        detail = json_error_response["detail"]
+        assert isinstance(detail, str)
+        assert "Internal server error" in detail
 
 
 class TestMatchmakingExceptionPaths:
@@ -255,15 +292,21 @@ class TestWebSocketExceptionPaths:
                 "player2_name": "Bob",
             },
         )
-        game_id = response.json()["game_id"]
-        player1_id = response.json()["player1"]["id"]
+        json_response = response.json()
+        assert isinstance(json_response, dict)
+        game_id = json_response["game_id"]
+        player1_data = json_response["player1"]
+        assert isinstance(player1_data, dict)
+        player1_id = player1_data["id"]
 
         mock_broadcast.side_effect = Exception("WebSocket broadcast failed")
 
         # Get legal moves first
         response = test_client.get(f"/games/{game_id}/legal-moves")
         legal_moves_response = response.json()
+        assert isinstance(legal_moves_response, dict)
         legal_moves = legal_moves_response.get("legal_moves", [])
+        assert isinstance(legal_moves, list)
 
         if legal_moves:
             # Move should still succeed even if WebSocket broadcast fails

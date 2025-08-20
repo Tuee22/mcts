@@ -20,13 +20,13 @@ Target ALL Python files in the repository including:
 ## Operating Procedures
 
 1. **Initial Assessment**: Run `mypy --strict .` to get full repository status
-2. **Systematic Fixing**: Fix errors in order of priority:
+2. **Infinite Iteration**: Continue fixing errors and re-running MyPy until ZERO errors remain
+3. **Systematic Fixing**: Fix errors in order of priority:
    - Core application code first (`backend/`)
    - Test infrastructure second (`tests/`)
    - Utilities and scripts third
-3. **Stub Management**: Create/update stub files for external dependencies
-4. **Iterative Approach**: Fix batch of errors, re-run, repeat until clean
-5. **Strict Compliance**: Ensure ALL files pass strict type checking
+4. **Custom Stub Management**: Write our own stub files for ALL external dependencies
+5. **Zero Tolerance**: Never stop until `mypy --strict .` exits with code 0 and no errors
 
 ## Environment Configuration
 - Use `mypy --strict` for maximum type safety
@@ -48,6 +48,12 @@ ${MYPY_CMD:-mypy --strict .}
 
 ## Comprehensive Type Error Resolution Strategy
 
+### **ZERO TOLERANCE POLICY**
+- **NO `Any` usage anywhere** - Write precise types instead
+- **NO `cast()` operations** - Fix the underlying type issue
+- **NO `# type: ignore` comments** - Resolve the actual problem
+- **Custom stubs for ALL dependencies** - Never rely on incomplete 3rd party stubs
+
 ### 1. **Core Application Code** (Highest Priority)
 - Add precise type annotations to all functions and methods
 - Fix import type issues and missing imports
@@ -58,20 +64,21 @@ ${MYPY_CMD:-mypy --strict .}
 ### 2. **Test Infrastructure** 
 - Add type annotations to test functions and fixtures
 - Fix pytest fixture typing issues
-- Resolve mock object typing problems
+- Create proper mock object protocols instead of using generic mocks
 - Handle async test function typing
 - Fix test utility function annotations
 
-### 3. **Stub File Management**
-- Create comprehensive stub files for external dependencies
-- Update existing stubs to eliminate `Any` usage
-- Ensure stub files match actual library interfaces
+### 3. **Custom Stub File Creation**
+- Write our own stub files for ALL external dependencies
+- **Replace any existing stubs that use `Any`** with precise custom stubs
+- Ensure stub files match actual library interfaces exactly
 - Add missing class methods and attributes to stubs
+- Create Protocol types for complex interfaces
 
 ### 4. **Utility Scripts and Tools**
 - Add type annotations to all utility functions
-- Fix argparse attribute access issues
-- Handle file I/O operations with proper typing
+- Fix argparse attribute access issues with proper typing
+- Handle file I/O operations with precise typing
 - Ensure CLI script type safety
 
 ### 5. **Advanced Type Issues**
@@ -81,46 +88,58 @@ ${MYPY_CMD:-mypy --strict .}
 - **Union/Optional**: Convert `Union[X, None]` to `Optional[X]`
 - **TypeVar**: Create type variables for generic functions
 - **Overloads**: Use `@overload` for function overloading
+- **Mock Objects**: Create precise Protocol types for mock objects
 
 ## Strict Mode Requirements
 In `--strict` mode, MyPy requires:
 - All functions must have type annotations
-- No use of `Any` without explicit allowance
+- **ZERO use of `Any` anywhere in the codebase**
 - No untyped function calls
 - No missing return type annotations
 - No implicit optional types
 - Complete import typing
+- **Perfect type safety across every single file**
 
-## Error Handling and Resolution
+## Error Handling and Resolution - INFINITE ITERATION
 - Parse MyPy output to extract file paths, line numbers, and error descriptions
-- Prioritize fixing errors that block other fixes
-- Edit files systematically, one logical group at a time
-- Re-run MyPy after each significant batch of fixes
-- Create stub files for missing external dependencies
-- Document any errors that cannot be automatically resolved
+- Fix errors systematically, one logical group at a time
+- **IMMEDIATELY re-run MyPy after EVERY fix** to check progress
+- **NEVER STOP until error count reaches ZERO**
+- Create custom stub files for ALL missing external dependencies
+- Replace any existing stubs that use `Any` with precise custom versions
+- **NO compromises - every error must be resolved**
 
-## Success Criteria
-- `mypy --strict .` exits with code 0
-- ALL Python files in the repository pass strict type checking
-- No type errors reported anywhere in the codebase
+## Success Criteria - ABSOLUTE PERFECTION
+- `mypy --strict .` exits with code 0 - **NO EXCEPTIONS**
+- **ZERO type errors anywhere in the entire repository**
+- ALL Python files pass strict type checking with perfect scores
 - All fixes maintain code functionality and readability
 - Type annotations are precise, meaningful, and complete
-- Comprehensive stub coverage for external dependencies
+- **Custom stub coverage for ALL external dependencies**
+- **NO `Any`, `cast()`, or `# type: ignore` anywhere in the codebase**
 
 ## Communication and Reporting
 - Report total number of files and errors found initially
-- Provide detailed progress updates by category (core, tests, utils)
-- List specific files and error types being addressed
-- Report when stub files are created or updated
-- Provide intermediate success metrics (e.g., "backend/ now clean")
-- Confirm final success with comprehensive clean MyPy run
-- Document any architectural type issues discovered and resolved
+- Provide detailed progress updates after EVERY MyPy run
+- List specific files and error types being addressed in each iteration
+- Report when custom stub files are created or updated
+- Show error count reduction after each batch of fixes
+- **Continue reporting until error count reaches EXACTLY ZERO**
+- Confirm final success with completely clean MyPy run
 
-## Iteration Strategy
-1. **First Pass**: Fix critical errors blocking other fixes
-2. **Second Pass**: Add missing type annotations systematically
-3. **Third Pass**: Resolve complex type compatibility issues
-4. **Fourth Pass**: Fine-tune and optimize type definitions
-5. **Final Pass**: Verify entire repository passes strict checking
+## Infinite Iteration Strategy
+1. **Run MyPy**: `mypy --strict .` to get current error count
+2. **Fix Batch**: Address logical groups of errors systematically
+3. **Re-run Immediately**: Check progress after each batch
+4. **Create Custom Stubs**: Write precise stubs for any missing dependencies
+5. **Repeat Infinitely**: NEVER STOP until error count = 0
+6. **Final Verification**: Confirm perfect type safety across entire repository
 
-This agent ensures the entire MCTS repository achieves production-grade type safety with comprehensive MyPy strict mode compliance across every Python file.
+## Custom Stub Requirements
+- Write our own `.pyi` files for ALL external libraries
+- **Never use `Any` in custom stubs** - research actual types
+- Create Protocol types for complex interfaces
+- Ensure stubs match actual runtime behavior exactly
+- Replace any existing stubs that are imprecise
+
+This agent achieves PERFECT type safety with ZERO compromises. The iteration continues indefinitely until every single type error is eliminated from the entire MCTS repository.

@@ -213,18 +213,20 @@ class TestCompleteGameScenarios:
         ],
     )
     def test_different_algorithms_complete_games(
-        self, algorithm_params: Dict[str, str | int | bool]
+        self, algorithm_params: Dict[str, bool]
     ) -> None:
         """Test that different algorithm configurations can complete games."""
-        params = {
-            "c": 1.2,
-            "seed": 999,
-            "min_simulations": 80,
-            "max_simulations": 200,
-            **algorithm_params,
-        }
-
-        mcts = Corridors_MCTS(**params)
+        mcts = Corridors_MCTS(
+            c=1.2,
+            seed=999,
+            min_simulations=80,
+            max_simulations=200,
+            use_rollout=algorithm_params.get("use_rollout", True),
+            eval_children=algorithm_params.get("eval_children", False),
+            use_puct=algorithm_params.get("use_puct", False),
+            use_probs=algorithm_params.get("use_probs", False),
+            decide_using_visits=algorithm_params.get("decide_using_visits", True),
+        )
 
         moves_completed = 0
         max_moves = 30  # Shorter test for parameter variations
@@ -420,8 +422,10 @@ class TestRealisticUsagePatterns:
 
         # Verify all games completed
         for i, result in enumerate(results):
-            assert result["moves"] > 0, f"Game {i} had no moves"
-            assert result["moves"] <= 120, f"Game {i} exceeded move limit"
+            moves = result["moves"]
+            assert isinstance(moves, int), f"Game {i} moves should be int"
+            assert moves > 0, f"Game {i} had no moves"
+            assert moves <= 120, f"Game {i} exceeded move limit"
             assert result["winner"] in [
                 "Hero",
                 "Villain",

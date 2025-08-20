@@ -147,11 +147,22 @@ class PropertyMock(MagicMock):
         name: Optional[str] = None,
         **kwargs: object,
     ) -> None: ...
-    def __get__(self, obj: object, obj_type: Optional[Type[object]] = None) -> object: ...
+    def __get__(
+        self, obj: object, obj_type: Optional[Type[object]] = None
+    ) -> object: ...
     def __set__(self, obj: object, value: object) -> None: ...
 
 def call(*args: object, **kwargs: object) -> _Call:
     """Create a _Call object for use with assert_has_calls."""
+    ...
+
+def create_autospec(
+    spec: object,
+    spec_set: bool = False,
+    instance: bool = False,
+    **kwargs: object,
+) -> MagicMock:
+    """Create a mock with the same interface as the spec object."""
     ...
 
 # Export all main classes and functions
@@ -164,4 +175,5 @@ __all__ = [
     "patch_object",
     "call",
     "_Call",
+    "create_autospec",
 ]

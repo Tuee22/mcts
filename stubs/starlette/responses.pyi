@@ -1,6 +1,6 @@
 """Type stubs for Starlette responses."""
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 class Response:
     def __init__(
@@ -13,6 +13,7 @@ class Response:
     status_code: int
     headers: Dict[str, str]
     media_type: Optional[str]
+    def json(self) -> Dict[str, object]: ...
 
 class JSONResponse(Response):
     def __init__(

@@ -6,9 +6,10 @@ import argparse
 import os
 import subprocess
 import sys
+from typing import List, Optional
 
 
-def run_command(cmd, description, cwd=None):
+def run_command(cmd: List[str], description: str, cwd: Optional[str] = None) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
@@ -28,7 +29,7 @@ def run_command(cmd, description, cwd=None):
     return success
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run all MCTS project tests (Python + Frontend)"
     )

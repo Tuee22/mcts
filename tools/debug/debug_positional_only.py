@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Debug by forcing positional moves only."""
 
+from typing import List, Tuple
+
 try:
-    from python.corridors.corridors_mcts import Corridors_MCTS
+    from corridors.corridors_mcts import Corridors_MCTS
 except ImportError:
     print("Could not import Corridors_MCTS")
     exit(1)
 
 
-def get_positional_actions(mcts, flip):
+def get_positional_actions(
+    mcts: Corridors_MCTS, flip: bool
+) -> List[Tuple[int, float, str]]:
     """Get only positional actions (moves starting with '*')."""
     all_actions = mcts.get_sorted_actions(flip=flip)
     return [action for action in all_actions if action[2].startswith("*")]

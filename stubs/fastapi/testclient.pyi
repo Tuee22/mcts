@@ -25,7 +25,6 @@ class TestClient:
         follow_redirects: bool = False,
         **kwargs: object,
     ) -> None: ...
-    
     def get(
         self,
         url: str,
@@ -37,7 +36,6 @@ class TestClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def post(
         self,
         url: str,
@@ -52,7 +50,6 @@ class TestClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def put(
         self,
         url: str,
@@ -67,7 +64,6 @@ class TestClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def delete(
         self,
         url: str,
@@ -79,7 +75,6 @@ class TestClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def patch(
         self,
         url: str,
@@ -94,7 +89,6 @@ class TestClient:
         timeout: Optional[float] = None,
         **kwargs: object,
     ) -> Response: ...
-    
     def websocket_connect(
         self,
         url: str,
@@ -104,6 +98,5 @@ class TestClient:
         auth: Optional[object] = None,
         **kwargs: object,
     ) -> ContextManager[object]: ...
-    
     def __enter__(self) -> "TestClient": ...
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None: ...

@@ -1,8 +1,31 @@
 """Type definitions for the API module."""
 
-from typing import Dict, List, Literal, Optional, Protocol, Tuple, Union
+from typing import (
+    Any,
+    Awaitable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    Tuple,
+    Union,
+    runtime_checkable,
+)
 
 from typing_extensions import TypedDict
+
+
+@runtime_checkable
+class WebSocketProtocol(Protocol):
+    """Protocol for WebSocket interface."""
+
+    async def accept(self) -> None: ...
+    async def close(self, code: int = 1000) -> None: ...
+    async def send_text(self, data: str) -> None: ...
+    async def send_json(self, data: object) -> None: ...
+    async def receive_text(self) -> str: ...
+    async def receive_json(self) -> object: ...
 
 
 class CorridorsMCTSProtocol(Protocol):

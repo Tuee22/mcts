@@ -5,9 +5,10 @@ Test runner for core MCTS and board logic tests.
 import argparse
 import subprocess
 import sys
+from typing import List
 
 
-def run_command(cmd, description):
+def run_command(cmd: List[str], description: str) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
@@ -23,7 +24,7 @@ def run_command(cmd, description):
         return True
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run core MCTS tests")
     parser.add_argument(
         "--type",
@@ -81,7 +82,7 @@ def main():
     cmd = base_cmd + test_paths + markers
 
     # Run the tests
-    success = run_command(cmd, f"{args.type.title()} core tests")
+    success = run_command(cmd, f"{str(args.type).title()} core tests")
 
     if args.coverage and success:
         print(f"\n📊 Coverage report generated at: htmlcov-core/index.html")

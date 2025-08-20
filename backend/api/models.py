@@ -39,7 +39,7 @@ class MCTSSettings(BaseModel):
     """MCTS algorithm configuration."""
 
     c: float = 0.158  # Exploration parameter
-    min_simulations: int = 10000  # Minimum 100 
+    min_simulations: int = 10000  # Minimum 100
     max_simulations: int = 10000  # Minimum 100
     use_rollout: bool = True
     eval_children: bool = False
@@ -48,18 +48,18 @@ class MCTSSettings(BaseModel):
     decide_using_visits: bool = True
     seed: Optional[int] = None
 
-    @field_validator('min_simulations')
+    @field_validator("min_simulations")
     @classmethod
     def validate_min_simulations(cls, v: int) -> int:
         if v < 100:
-            raise ValueError('min_simulations must be >= 100')
+            raise ValueError("min_simulations must be >= 100")
         return v
 
-    @field_validator('max_simulations')
+    @field_validator("max_simulations")
     @classmethod
     def validate_max_simulations(cls, v: int) -> int:
         if v < 100:
-            raise ValueError('max_simulations must be >= 100')
+            raise ValueError("max_simulations must be >= 100")
         return v
 
 
@@ -92,11 +92,11 @@ class Position(BaseModel):
     x: int  # Range: 0-8
     y: int  # Range: 0-8
 
-    @field_validator('x', 'y')
+    @field_validator("x", "y")
     @classmethod
     def validate_coordinates(cls, v: int) -> int:
         if v < 0 or v > 8:
-            raise ValueError('Coordinates must be in range 0-8')
+            raise ValueError("Coordinates must be in range 0-8")
         return v
 
 

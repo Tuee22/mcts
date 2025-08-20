@@ -7,9 +7,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional
 
 
-def run_command(cmd, description, cwd=None):
+def run_command(cmd: List[str], description: str, cwd: Optional[str] = None) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
@@ -29,7 +30,7 @@ def run_command(cmd, description, cwd=None):
     return success
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Run frontend tests for MCTS project")
     parser.add_argument("--coverage", action="store_true", help="Run with coverage")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
