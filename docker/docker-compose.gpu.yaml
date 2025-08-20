@@ -1,0 +1,16 @@
+services:
+  mcts:
+    build:
+      args:
+        VARIANT: cuda
+        BASE_IMAGE: nvidia/cuda:12.6.2-devel-ubuntu22.04
+    image: mcts:cuda
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
