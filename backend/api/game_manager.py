@@ -1,27 +1,28 @@
 import asyncio
 import logging
-from typing import Dict, List, Optional, Union, Tuple
-from datetime import datetime
-import sys
 import os
+import sys
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple, Union
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from corridors.corridors_mcts import Corridors_MCTS
+
 from .models import (
-    GameSession,
-    GameStatus,
-    GameMode,
-    PlayerType,
-    Player,
-    Move,
-    BoardState,
-    Position,
-    GameSettings,
-    MCTSSettings,
-    MoveResponse,
     AnalysisResult,
+    BoardState,
+    GameMode,
+    GameSession,
+    GameSettings,
+    GameStatus,
+    MCTSSettings,
+    Move,
+    MoveResponse,
+    Player,
+    PlayerType,
+    Position,
 )
 
 # Rebuild the model now that Corridors_MCTS is available

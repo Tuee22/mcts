@@ -1,6 +1,6 @@
 """Type stubs for the C++ _corridors_mcts module."""
 
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 class _corridors_mcts:
     """C++ MCTS implementation for Corridors game."""

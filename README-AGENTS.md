@@ -19,10 +19,11 @@ Each stage must complete successfully before proceeding to the next. If any stag
 - **Fixes**: Code style and formatting issues
 
 ### 2. `@mypy-type-checker`
-- **Purpose**: Python type checking and error resolution
-- **Commands**: `mypy` (customizable via `MYPY_CMD`)
-- **Approach**: Iterates until exit code 0, prefers precise fixes over `Any`/suppressions
-- **Fixes**: Type annotations, import issues, type mismatches
+- **Purpose**: Comprehensive Python type checking and error resolution across entire repository
+- **Commands**: `mypy --strict .` (customizable via `MYPY_CMD`)
+- **Scope**: ALL Python files including backend/, tests/, tools/, and utilities
+- **Approach**: Iterates until exit code 0 in strict mode, prefers precise fixes over `Any`/suppressions
+- **Fixes**: Type annotations, import issues, type mismatches, stub file creation/updates
 
 ### 3. `@builder-docker`
 - **Purpose**: Docker container building and build error resolution
@@ -103,7 +104,7 @@ export ALWAYS_BUILD=0
 export ALWAYS_TEST=1
 
 # Use strict mypy settings
-export MYPY_CMD="mypy --strict --disallow-untyped-defs"
+export MYPY_CMD="mypy --strict . --disallow-untyped-defs"
 
 # Verbose test output
 export TEST_CMD="pytest -v --tb=short"

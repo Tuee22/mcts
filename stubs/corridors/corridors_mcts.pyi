@@ -1,6 +1,7 @@
 """Type stubs for corridors.corridors_mcts module."""
 
-from typing import Optional, List, Tuple, Dict, Union
+from typing import Dict, List, Optional, Tuple, Union
+
 from . import CorridorsMCTSProtocol
 
 class Corridors_MCTS(CorridorsMCTSProtocol):

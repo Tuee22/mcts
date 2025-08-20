@@ -1,6 +1,7 @@
 """Type definitions for the API module."""
 
-from typing import Protocol, Optional, List, Tuple, Dict, Union, Literal
+from typing import Dict, List, Literal, Optional, Protocol, Tuple, Union
+
 from typing_extensions import TypedDict
 
 

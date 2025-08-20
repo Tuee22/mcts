@@ -2,9 +2,9 @@
 """
 Master test runner for the entire MCTS project.
 """
+import argparse
 import subprocess
 import sys
-import argparse
 from typing import List, NamedTuple, Optional
 
 

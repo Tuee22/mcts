@@ -1,6 +1,6 @@
 """Type stubs for starlette.middleware.cors."""
 
-from typing import Union, List, Optional
+from typing import List, Optional, Union
 
 class CORSMiddleware:
     def __init__(

@@ -2,9 +2,9 @@
 """
 Test runner for core MCTS and board logic tests.
 """
+import argparse
 import subprocess
 import sys
-import argparse
 
 
 def run_command(cmd, description):

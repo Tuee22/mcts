@@ -1,23 +1,23 @@
 from tests.pytest_marks import (
-    python,
-    display,
-    integration,
-    unit,
-    parametrize,
-    cpp,
-    board,
-    mcts,
-    slow,
-    performance,
-    stress,
-    edge_cases,
-    asyncio,
     api,
-    websocket,
-    game_manager,
-    models,
-    endpoints,
+    asyncio,
     benchmark,
+    board,
+    cpp,
+    display,
+    edge_cases,
+    endpoints,
+    game_manager,
+    integration,
+    mcts,
+    models,
+    parametrize,
+    performance,
+    python,
+    slow,
+    stress,
+    unit,
+    websocket,
 )
 
 """
@@ -30,16 +30,17 @@ These tests verify that all components work together correctly:
 - System behavior under realistic conditions
 """
 
-import pytest
 import time
 from typing import Dict, List, Tuple
 from unittest.mock import Mock, patch
 
+import pytest
+
 try:
     from corridors.corridors_mcts import (
         Corridors_MCTS,
-        display_sorted_actions,
         computer_self_play,
+        display_sorted_actions,
         human_computer_play,
     )
 

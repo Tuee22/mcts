@@ -1,6 +1,6 @@
 """Type stubs for Starlette responses."""
 
-from typing import Dict, Union, Optional, List
+from typing import Dict, List, Optional, Union
 
 class Response:
     def __init__(

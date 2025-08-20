@@ -1,6 +1,7 @@
 """Type stubs for Starlette."""
 
-from typing import Dict, List, Optional, Union, Callable, Awaitable
+from typing import Awaitable, Callable, Dict, List, Optional, Union
+
 from .responses import Response
 
 class Request:

@@ -1,6 +1,6 @@
 """Type stubs for FastAPI responses."""
 
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 class FileResponse:
     def __init__(

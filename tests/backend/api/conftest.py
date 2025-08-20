@@ -2,25 +2,25 @@
 API-specific test fixtures and configuration.
 """
 
-import pytest
-from typing import AsyncGenerator, Generator, Callable, List, Tuple, Dict
+from typing import AsyncGenerator, Callable, Dict, Generator, List, Tuple
 from unittest.mock import MagicMock
+
+import pytest
+from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from _pytest.monkeypatch import MonkeyPatch
 
-from backend.api.server import app
 from backend.api.game_manager import GameManager
-from backend.api.websocket_manager import WebSocketManager
 from backend.api.models import (
+    GameCreateRequest,
     GameSettings,
     MCTSSettings,
-    PlayerType,
-    GameCreateRequest,
     Player,
+    PlayerType,
 )
+from backend.api.server import app
+from backend.api.websocket_manager import WebSocketManager
 from tests.mock_helpers import MockCorridorsMCTS
-
 
 # Remove session-scoped event loop - let pytest-asyncio handle it automatically
 

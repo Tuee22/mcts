@@ -1,6 +1,7 @@
 #!python
-from sys import prefix
 from shutil import copyfile
+from sys import prefix
+
 project_name = "_numeric_limits"
 source_files=['main.cpp']
 

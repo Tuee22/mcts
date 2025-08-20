@@ -1,23 +1,23 @@
 from tests.pytest_marks import (
-    python,
-    display,
-    integration,
-    unit,
-    parametrize,
-    cpp,
-    board,
-    mcts,
-    slow,
-    performance,
-    stress,
-    edge_cases,
-    asyncio,
     api,
-    websocket,
-    game_manager,
-    models,
-    endpoints,
+    asyncio,
     benchmark,
+    board,
+    cpp,
+    display,
+    edge_cases,
+    endpoints,
+    game_manager,
+    integration,
+    mcts,
+    models,
+    parametrize,
+    performance,
+    python,
+    slow,
+    stress,
+    unit,
+    websocket,
 )
 
 """
@@ -30,18 +30,19 @@ These tests cover unusual conditions and corner cases:
 - Algorithm edge conditions
 """
 
-import pytest
 import sys
 from typing import Dict, List, Tuple
-from unittest.mock import MagicMock
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 from tests.mock_helpers import MockCorridorsMCTS
 
 try:
     from corridors.corridors_mcts import (
         Corridors_MCTS,
-        display_sorted_actions,
         computer_self_play,
+        display_sorted_actions,
         human_computer_play,
     )
 

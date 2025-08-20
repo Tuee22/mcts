@@ -2,11 +2,13 @@
 Tests specifically designed to hit error paths and exception handling.
 """
 
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock, AsyncMock
-from backend.api.models import PlayerType, GameStatus
-import asyncio
+
+from backend.api.models import GameStatus, PlayerType
 from tests.pytest_marks import api
 
 

@@ -1,23 +1,23 @@
 from tests.pytest_marks import (
-    python,
-    display,
-    integration,
-    unit,
-    parametrize,
-    cpp,
-    board,
-    mcts,
-    slow,
-    performance,
-    stress,
-    edge_cases,
-    asyncio,
     api,
-    websocket,
-    game_manager,
-    models,
-    endpoints,
+    asyncio,
     benchmark,
+    board,
+    cpp,
+    display,
+    edge_cases,
+    endpoints,
+    game_manager,
+    integration,
+    mcts,
+    models,
+    parametrize,
+    performance,
+    python,
+    slow,
+    stress,
+    unit,
+    websocket,
 )
 
 """
@@ -32,9 +32,10 @@ These tests verify the core board logic implemented in C++:
 - Hash generation
 """
 
-import pytest
 from typing import Dict, List, Tuple
 from unittest.mock import Mock
+
+import pytest
 
 try:
     from tests.conftest import MCTSParams

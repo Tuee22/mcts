@@ -1,51 +1,52 @@
 from tests.pytest_marks import (
-    python,
-    display,
-    integration,
-    unit,
-    parametrize,
-    cpp,
-    board,
-    mcts,
-    slow,
-    performance,
-    stress,
-    edge_cases,
-    asyncio,
     api,
-    websocket,
-    game_manager,
-    models,
-    endpoints,
+    asyncio,
     benchmark,
+    board,
+    cpp,
+    display,
+    edge_cases,
+    endpoints,
+    game_manager,
+    integration,
+    mcts,
+    models,
+    parametrize,
+    performance,
+    python,
+    slow,
+    stress,
+    unit,
+    websocket,
 )
 
 """
 Tests for API models and validation.
 """
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from backend.api.models import (
-    PlayerType,
-    GameStatus,
-    GameMode,
-    MCTSSettings,
-    GameSettings,
-    Player,
-    Position,
-    Move,
+    AnalysisResult,
     BoardState,
-    GameSession,
     GameCreateRequest,
+    GameMode,
     GameResponse,
+    GameSession,
+    GameSettings,
+    GameStatus,
+    MatchmakingRequest,
+    MCTSSettings,
+    Move,
     MoveRequest,
     MoveResponse,
-    AnalysisResult,
-    WebSocketMessage,
-    MatchmakingRequest,
+    Player,
     PlayerStats,
+    PlayerType,
+    Position,
+    WebSocketMessage,
 )
 
 

@@ -2,9 +2,9 @@
 """
 Convenience script to run API tests with various options.
 """
+import argparse
 import subprocess
 import sys
-import argparse
 
 
 def run_command(cmd, description):

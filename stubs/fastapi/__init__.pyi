@@ -1,24 +1,24 @@
 """Type stubs for FastAPI."""
 
+from contextlib import AbstractAsyncContextManager
 from typing import (
-    TypeVar,
-    Callable,
-    Union,
     Awaitable,
+    Callable,
+    ContextManager,
+    Dict,
+    List,
+    Optional,
     Protocol,
     Type,
-    Dict,
-    Optional,
-    List,
-    object,
-    ContextManager,
+    TypeVar,
+    Union,
 )
-from contextlib import AbstractAsyncContextManager
-from starlette.responses import Response
-from pydantic import BaseModel
 
-F = TypeVar("F", bound=Callable[..., object])
-AsyncF = TypeVar("AsyncF", bound=Callable[..., Awaitable[object]])
+from pydantic import BaseModel
+from starlette.responses import Response
+
+F = TypeVar("F")
+AsyncF = TypeVar("AsyncF")
 AppType = TypeVar("AppType")
 
 class HTTPException(Exception):
@@ -42,7 +42,7 @@ class WebSocket:
     async def accept(self) -> None: ...
     async def close(self, code: int = 1000) -> None: ...
     async def receive_text(self) -> str: ...
-    async def receive_json(self) -> object: ...
+    async def receive_json(self) -> Dict[str, object]: ...
     async def send_text(self, data: str) -> None: ...
     async def send_json(self, data: object) -> None: ...
 
@@ -79,7 +79,7 @@ class FastAPI:
         ] = None,
         on_startup: Optional[List[Callable[[], object]]] = None,
         on_shutdown: Optional[List[Callable[[], object]]] = None,
-        lifespan: Optional[Callable[[object], object]] = None,
+        lifespan: Optional[object] = None,
         terms_of_service: Optional[str] = None,
         contact: Optional[Dict[str, Union[object, str]]] = None,
         license_info: Optional[Dict[str, Union[object, str]]] = None,
@@ -135,11 +135,11 @@ class Request:
 class BackgroundTasks:
     def add_task(
         self,
-        func: Callable[..., None],
-        *args: Union[str, int, bool, None],
-        **kwargs: Union[str, int, bool, None],
+        func: object,
+        *args: object,
+        **kwargs: object,
     ) -> None: ...
 
 def Depends(
-    dependency: Optional[Callable[..., Union[str, int, BaseModel, None]]] = None,
-) -> Union[str, int, BaseModel, None]: ...
+    dependency: Optional[object] = None,
+) -> object: ...

@@ -1,18 +1,16 @@
 """Type stubs for pytest."""
 
 from typing import (
-    TypeVar,
     Callable,
-    Union,
-    Generator,
-    Iterator,
-    Optional,
     Dict,
+    Iterator,
     List,
-    Any,
-    overload,
-    Type,
     NoReturn,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    overload,
 )
 
 T = TypeVar("T")
@@ -61,7 +59,6 @@ class _MarkRegistry:
     ) -> MarkDecorator: ...
 
     # Standard marks
-    parametrize: MarkDecorator
     skip: MarkDecorator
     skipif: MarkDecorator
     xfail: MarkDecorator
@@ -111,17 +108,22 @@ def approx(
 ) -> float: ...
 
 class RaisesContext:
-    def __enter__(self) -> "ExceptionInfo[Exception]": ...
+    def __enter__(self) -> "ExceptionInfo": ...
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool: ...
 
 def raises(
     expected_exception: Type[Exception], *, match: Optional[str] = None
 ) -> RaisesContext: ...
 
-class ExceptionInfo(Generator[None, None, None]):
+class ExceptionInfo:
     def __init__(self, excinfo: tuple[type, Exception, object]) -> None: ...
-    def __enter__(self) -> "ExceptionInfo[Exception]": ...
+    def __enter__(self) -> "ExceptionInfo": ...
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> bool: ...
+    
+    # Key attributes
+    value: Exception
+    type: Type[Exception]
+    traceback: object
 
 def fail(msg: str = "", pytrace: bool = True) -> NoReturn: ...
 def skip(msg: str = "") -> NoReturn: ...

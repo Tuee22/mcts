@@ -2,10 +2,10 @@
 """
 Frontend test runner for MCTS project.
 """
+import argparse
+import os
 import subprocess
 import sys
-import os
-import argparse
 from pathlib import Path
 
 

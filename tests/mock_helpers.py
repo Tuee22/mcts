@@ -1,7 +1,7 @@
 """Type-safe mock helpers for testing."""
 
-from typing import Optional, List, Tuple, Dict, Protocol, Callable
 from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Optional, Protocol, Tuple
 
 
 class CorridorsMCTSInterface(Protocol):

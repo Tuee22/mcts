@@ -9,19 +9,21 @@ These tests focus on Python-side functionality:
 - Utility functions
 """
 
-import pytest
 import io
 import sys
-from unittest.mock import patch, MagicMock
-from typing import Dict, List, Tuple, Generator
-from tests.pytest_marks import python, display, integration, unit, parametrize
+from typing import Dict, Generator, List, Tuple
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from tests.mock_helpers import MockCorridorsMCTS
+from tests.pytest_marks import display, integration, parametrize, python, unit
 
 try:
     from corridors.corridors_mcts import (
         Corridors_MCTS,
-        display_sorted_actions,
         computer_self_play,
+        display_sorted_actions,
         human_computer_play,
     )
 
@@ -481,8 +483,8 @@ class TestErrorHandling:
         # These imports should work
         from corridors.corridors_mcts import (
             Corridors_MCTS,
-            display_sorted_actions,
             computer_self_play,
+            display_sorted_actions,
             human_computer_play,
         )
 

@@ -3,14 +3,14 @@
 Post-change hook that enforces Black → MyPy → Build → Tests pipeline
 Runs after Edit, Write, or MultiEdit operations
 """
-import os
-import sys
-import subprocess
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 # Environment variables for customization
-MYPY_CMD = os.getenv("MYPY_CMD", "poetry run mypy")
+MYPY_CMD = os.getenv("MYPY_CMD", "poetry run mypy --strict .")
 TEST_CMD = os.getenv("TEST_CMD", "poetry run pytest -q")
 BUILD_CMD = os.getenv("BUILD_CMD", "docker build -t project-ci .")
 ALWAYS_BUILD = os.getenv("ALWAYS_BUILD", "").lower() in ("1", "true", "yes")

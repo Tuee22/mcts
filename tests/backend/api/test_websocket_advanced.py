@@ -2,20 +2,21 @@
 Advanced WebSocket manager tests to cover remaining uncovered lines.
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import WebSocket
-from tests.pytest_marks import asyncio, websocket
 
-from backend.api.websocket_manager import WebSocketManager
+import pytest
+from fastapi import WebSocket
+
 from backend.api.models import (
-    MoveResponse,
     GameResponse,
+    GameSession,
+    MoveResponse,
     Player,
     PlayerType,
-    GameSession,
 )
+from backend.api.websocket_manager import WebSocketManager
+from tests.pytest_marks import asyncio, websocket
 
 
 @asyncio
@@ -170,6 +171,18 @@ class TestWebSocketManagerBroadcasting:
 
         # Create mock game response
         game_response = MagicMock(spec=GameResponse)
+        game_response.game_id = "game1"
+        game_response.status = "in_progress"
+        game_response.player1 = MagicMock()
+        game_response.player1.id = "player1"
+        game_response.player2 = MagicMock()
+        game_response.player2.id = "player2"
+        game_response.current_turn = 1
+        game_response.move_count = 0
+        game_response.board_display = None
+        game_response.winner = None
+        game_response.created_at = MagicMock()
+        game_response.created_at.isoformat.return_value = "2023-01-01T00:00:00"
         game_response.dict.return_value = {"game_id": "game1", "status": "in_progress"}
 
         await ws_manager.broadcast_game_state("game1", game_response)
@@ -215,7 +228,7 @@ class TestWebSocketManagerBroadcasting:
         call_args = websocket.send_json.call_args[0][0]
         assert call_args["type"] == "game_ended"
         assert call_args["data"]["game_id"] == "game1"
-        assert call_args["data"]["reason"] == "resignation"
+        assert call_args["data"]["game_status"] == "resignation"
         assert call_args["data"]["winner"] == 1
 
 

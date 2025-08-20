@@ -1,38 +1,38 @@
-from fastapi import (
-    FastAPI,
-    HTTPException,
-    WebSocket,
-    WebSocketDisconnect,
-    Depends,
-    BackgroundTasks,
-    Request,
-)
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-from typing import Dict, Optional, List, Union
 import asyncio
-import uuid
-from datetime import datetime
 import logging
 import os
+import uuid
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
+from typing import AsyncGenerator, Dict, List, Optional, Union
 
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from .game_manager import GameManager
 from .models import (
     GameCreateRequest,
+    GameListResponse,
     GameResponse,
+    GameSession,
+    GameSettings,
+    GameStatus,
     MoveRequest,
     MoveResponse,
-    GameStatus,
-    PlayerType,
     Player,
-    GameSession,
-    GameListResponse,
-    GameSettings,
+    PlayerType,
 )
-from .game_manager import GameManager
 from .websocket_manager import WebSocketManager
 
 logging.basicConfig(level=logging.INFO)
@@ -73,11 +73,11 @@ FRONTEND_BUILD_DIR = Path("/home/mcts/frontend/build")
 if FRONTEND_BUILD_DIR.exists():
     # Mount static assets first (CSS, JS, images)
     app.mount(
-        "/static", StaticFiles(directory=FRONTEND_BUILD_DIR / "static"), name="static"
+        "/static", StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")), name="static"
     )
 
     # Serve other static files (favicon, manifest, etc.)
-    app.mount("/assets", StaticFiles(directory=FRONTEND_BUILD_DIR), name="assets")
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="assets")
 
 # CORS configuration
 app.add_middleware(
@@ -333,10 +333,6 @@ async def get_position_analysis(
         # Ensure depth is not None
         analysis_depth = depth if depth is not None else 10000
         analysis = await game_manager.analyze_position(game_id, analysis_depth)
-
-        # Ensure analysis is a dict before using .get()
-        if not isinstance(analysis, dict):
-            analysis = {}
 
         sorted_actions = analysis.get("sorted_actions", [])
         best_moves = sorted_actions[:10] if isinstance(sorted_actions, list) else []

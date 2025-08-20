@@ -1,6 +1,6 @@
 #!python
-import subprocess
 import os
+import subprocess
 
 project_name = "_corridors_mcts"
 
@@ -27,10 +27,14 @@ python_includes = []
 python_libs = []
 
 if not test:
-    # Get python config for Python 3.12 - fail if not available
-    python_includes = subprocess.check_output(['python3.12-config', '--includes'], 
+    # Get python config for current Python version
+    python_includes = subprocess.check_output(['python3-config', '--includes'], 
                                              universal_newlines=True).strip().split()
     python_includes = [flag[2:] for flag in python_includes if flag.startswith('-I')]
+    
+    # Get python linker flags (use --embed for proper library linking)
+    python_libs = subprocess.check_output(['python3-config', '--embed', '--ldflags'], 
+                                         universal_newlines=True).strip().split()
     
     # Add pybind11 includes if available
     try:
@@ -79,7 +83,7 @@ else:
     extra_args = {
         'SHLIBPREFIX': '',
         'CPPPATH': python_includes,
-        'LIBS': python_libs
+        'LINKFLAGS': python_libs
     }
 
 if test:

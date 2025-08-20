@@ -2,13 +2,13 @@
 Pytest configuration and fixtures for MCTS testing.
 """
 
-import pytest
-import numpy as np
-from math import sqrt
-from typing import Dict, List, Tuple, TypedDict, Optional
-
 # Approach that completely avoids assignment issues by setting up module constants
 import sys
+from math import sqrt
+from typing import Dict, List, Optional, Tuple, TypedDict
+
+import numpy as np
+import pytest
 
 # Always use the corridors module - stubs should handle the typing
 from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions

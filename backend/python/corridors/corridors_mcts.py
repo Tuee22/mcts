@@ -1,8 +1,9 @@
+import logging
 import sys
 from math import sqrt
+from typing import Dict, List, Optional, Protocol, Tuple, Type, Union
+
 import numpy as np
-import logging
-from typing import List, Tuple, Optional, Dict, Union, Protocol, Type
 
 
 # Define a protocol for the C++ extension base class

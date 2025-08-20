@@ -1,6 +1,7 @@
 #!python
-from sys import prefix
 from shutil import copyfile
+from sys import prefix
+
 project_name = "_limit_compare"
 source_files=['main.cpp']
 

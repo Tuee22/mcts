@@ -5,8 +5,9 @@ These tests focus purely on wall-clock timing with statistical analysis.
 Run with: pytest tests/test_benchmarks.py --benchmark-only
 """
 
-import pytest
 from typing import Dict
+
+import pytest
 
 try:
     from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
@@ -187,9 +188,10 @@ class TestMCTSBenchmarks:
         """Benchmark self-play game performance with computer vs computer."""
 
         def run_self_play():
-            from corridors.corridors_mcts import computer_self_play
             import io
             import sys
+
+            from corridors.corridors_mcts import computer_self_play
 
             # Capture output to avoid printing during benchmark
             old_stdout = sys.stdout

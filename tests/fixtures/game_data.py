@@ -4,7 +4,6 @@ Sample game data for testing.
 
 from backend.api.models import GameSettings, MCTSSettings, PlayerType
 
-
 # Common game configurations
 FAST_GAME_SETTINGS = GameSettings(
     mcts_settings=MCTSSettings(

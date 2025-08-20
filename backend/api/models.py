@@ -1,11 +1,13 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List, Dict, Literal, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 if TYPE_CHECKING:
     from corridors.corridors_mcts import Corridors_MCTS
+
+import uuid
 from datetime import datetime
 from enum import Enum
-import uuid
 
 
 class PlayerType(str, Enum):
@@ -36,37 +38,49 @@ class GameMode(str, Enum):
 class MCTSSettings(BaseModel):
     """MCTS algorithm configuration."""
 
-    c: float = Field(default=0.158, description="Exploration parameter")
-    min_simulations: int = Field(default=10000, ge=100)
-    max_simulations: int = Field(default=10000, ge=100)
-    use_rollout: bool = Field(default=True)
-    eval_children: bool = Field(default=False)
-    use_puct: bool = Field(default=False)
-    use_probs: bool = Field(default=False)
-    decide_using_visits: bool = Field(default=True)
-    seed: Optional[int] = Field(default=None)
+    c: float = 0.158  # Exploration parameter
+    min_simulations: int = 10000  # Minimum 100 
+    max_simulations: int = 10000  # Minimum 100
+    use_rollout: bool = True
+    eval_children: bool = False
+    use_puct: bool = False
+    use_probs: bool = False
+    decide_using_visits: bool = True
+    seed: Optional[int] = None
+
+    @field_validator('min_simulations')
+    @classmethod
+    def validate_min_simulations(cls, v: int) -> int:
+        if v < 100:
+            raise ValueError('min_simulations must be >= 100')
+        return v
+
+    @field_validator('max_simulations')
+    @classmethod
+    def validate_max_simulations(cls, v: int) -> int:
+        if v < 100:
+            raise ValueError('max_simulations must be >= 100')
+        return v
 
 
 class GameSettings(BaseModel):
     """Game configuration settings."""
 
-    time_limit_seconds: Optional[int] = Field(
-        default=None, description="Time limit per player"
-    )
-    mcts_settings: MCTSSettings = Field(default_factory=MCTSSettings)
-    allow_hints: bool = Field(default=True)
-    allow_analysis: bool = Field(default=True)
-    auto_save: bool = Field(default=True)
+    time_limit_seconds: Optional[int] = None  # Time limit per player
+    mcts_settings: MCTSSettings = MCTSSettings()
+    allow_hints: bool = True
+    allow_analysis: bool = True
+    auto_save: bool = True
 
 
 class Player(BaseModel):
     """Player information."""
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = str(uuid.uuid4())  # Will be overridden during creation
     name: str
     type: PlayerType
     is_hero: bool  # True for player 1, False for player 2
-    walls_remaining: int = Field(default=10)
+    walls_remaining: int = 10
     time_remaining: Optional[float] = None
 
     model_config = ConfigDict(use_enum_values=True)
@@ -75,8 +89,15 @@ class Player(BaseModel):
 class Position(BaseModel):
     """Board position."""
 
-    x: int = Field(ge=0, le=8)
-    y: int = Field(ge=0, le=8)
+    x: int  # Range: 0-8
+    y: int  # Range: 0-8
+
+    @field_validator('x', 'y')
+    @classmethod
+    def validate_coordinates(cls, v: int) -> int:
+        if v < 0 or v > 8:
+            raise ValueError('Coordinates must be in range 0-8')
+        return v
 
 
 class Move(BaseModel):
@@ -84,7 +105,7 @@ class Move(BaseModel):
 
     player_id: str
     action: str  # Format: *(X,Y), H(X,Y), or V(X,Y)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = datetime.utcnow()  # Will be overridden during creation
     move_number: int
     time_taken: Optional[float] = None
     evaluation: Optional[float] = None  # AI evaluation after move11
@@ -105,7 +126,7 @@ class BoardState(BaseModel):
 class GameSession(BaseModel):
     """Complete game session data."""
 
-    game_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    game_id: str = str(uuid.uuid4())  # Will be overridden during creation
     status: GameStatus = GameStatus.WAITING
     mode: GameMode
     player1: Player
@@ -114,14 +135,12 @@ class GameSession(BaseModel):
     move_history: List[Move] = []
     board_state: Optional[BoardState] = None
     settings: GameSettings
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = datetime.utcnow()  # Will be overridden during creation
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     winner: Optional[int] = None  # 1 or 2
     termination_reason: Optional[str] = None
-    mcts_instance: Optional["Corridors_MCTS"] = Field(
-        default=None, exclude=True
-    )  # Internal MCTS object
+    mcts_instance: Optional["Corridors_MCTS"] = None  # Internal MCTS object
 
     model_config = ConfigDict(use_enum_values=True, arbitrary_types_allowed=True)
 
@@ -239,7 +258,7 @@ class WebSocketMessage(BaseModel):
 
     type: str  # "move", "game_state", "player_joined", "game_ended", etc.
     data: Dict[str, Union[str, int, float, bool, None]]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = datetime.utcnow()  # Will be overridden during creation
 
 
 class MatchmakingRequest(BaseModel):

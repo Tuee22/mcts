@@ -2,10 +2,10 @@
 """
 Combined test runner for Python and Frontend tests.
 """
+import argparse
+import os
 import subprocess
 import sys
-import os
-import argparse
 
 
 def run_command(cmd, description, cwd=None):

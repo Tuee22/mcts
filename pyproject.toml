@@ -164,8 +164,8 @@ follow_imports = "normal"
 show_error_context = true
 show_column_numbers = true
 pretty = true
-# Check all Python files in the project
-files = ["backend/api/", "tests/"]
+# Check all Python files in the project - comprehensive coverage
+files = ["backend/", "tests/", "tools/"]
 # Check corridors as a top-level module  
 mypy_path = ["stubs", "backend/python"]
 # Exclude backend/python from direct checking since it's handled via stubs
