@@ -8,7 +8,11 @@ services:
       args:
         VARIANT: cpu
         BASE_IMAGE: ${BASE_IMAGE:-ubuntu:22.04}
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+        USERNAME: ${USERNAME:-mcts}
     image: mcts:cpu
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     ports:
       - target: 8000
         published: ${PORT:-8000}
@@ -33,7 +37,11 @@ services:
       args:
         VARIANT: cuda
         BASE_IMAGE: ${BASE_IMAGE:-nvidia/cuda:12.6.2-devel-ubuntu22.04}
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+        USERNAME: ${USERNAME:-mcts}
     image: mcts:cuda
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     deploy:
       resources:
         reservations:
