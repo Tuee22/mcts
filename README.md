@@ -41,12 +41,24 @@ docker compose exec mcts poetry run pytest -q
 ### Docker Configuration
 
 The build system supports two configurations:
-- **CPU**: Multi-arch support (AMD64/ARM64), uses Ubuntu 22.04 base
-- **GPU**: AMD64 only with NVIDIA GPU, uses NVIDIA CUDA 12.6.2 base
 
-For GPU builds, use both compose files together:
+**CPU Build (`docker-compose.yaml`):**
+- Multi-arch support (AMD64/ARM64)
+- Uses Ubuntu 22.04 base image
+- Command: `docker compose up -d`
+
+**GPU Build (`docker-compose.yaml` + `docker-compose.gpu.yaml`):**
+- AMD64 only with NVIDIA GPU support
+- Uses NVIDIA CUDA 12.6.2 base image  
+- Command: `docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d`
+
+**Architecture Detection:**
 ```bash
-docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
+# Verify which image you're using
+docker compose exec mcts cat /etc/os-release | head -2
+
+# Check for CUDA (GPU builds only)
+docker compose exec mcts nvcc --version
 ```
 
 Note: The development environment automatically rebuilds the C++ extension on container start to ensure compatibility with the runtime architecture.
@@ -316,8 +328,9 @@ Corridors is a two-player board game where players race to reach the opposite si
 
 **Docker Issues:**
 - For GPU support, ensure NVIDIA Docker runtime is installed: `sudo apt install nvidia-docker2`
-- GPU builds require using both compose files: `-f docker-compose.yaml -f docker-compose.gpu.yaml`
+- GPU builds require both compose files: `docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d`
 - Check if nvidia-smi works: `docker compose exec mcts nvidia-smi`
+- Verify your image: `docker compose exec mcts cat /etc/os-release | head -2`
 - Use `docker compose logs mcts` to debug startup issues
 - For ARM builds on x86, expect slower performance due to QEMU emulation
 - Check available platforms: `docker buildx ls`
