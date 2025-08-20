@@ -79,8 +79,6 @@ gmon.out
 .env.local
 .env.*.local
 
-# Claude AI
-.claude/
 
 # OS generated files
 .DS_Store

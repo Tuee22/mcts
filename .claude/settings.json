@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "PostToolUse": {
+      "command": "python3 .claude/hooks/on-change-chain.py",
+      "triggers": ["Edit", "Write", "MultiEdit"],
+      "description": "Automatically runs Black → MyPy → Build → Tests chain after code changes"
+    }
+  }
+}
