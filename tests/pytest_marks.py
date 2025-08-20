@@ -1,4 +1,5 @@
 """Pytest mark definitions with proper typing."""
+
 import pytest
 
 # Export all the marks we need - mypy will see these as dynamic attributes

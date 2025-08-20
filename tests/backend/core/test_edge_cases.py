@@ -1,4 +1,25 @@
-from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
+from tests.pytest_marks import (
+    python,
+    display,
+    integration,
+    unit,
+    parametrize,
+    cpp,
+    board,
+    mcts,
+    slow,
+    performance,
+    stress,
+    edge_cases,
+    asyncio,
+    api,
+    websocket,
+    game_manager,
+    models,
+    endpoints,
+    benchmark,
+)
+
 """
 Edge case and boundary condition tests for MCTS implementation.
 
@@ -216,7 +237,9 @@ class TestGameFlowEdgeCases:
         # MockCorridorsMCTS automatically tracks calls
 
     @patch("builtins.print")
-    def test_computer_self_play_alternating_players(self, mock_print: MagicMock) -> None:
+    def test_computer_self_play_alternating_players(
+        self, mock_print: MagicMock
+    ) -> None:
         """Test self-play with proper player alternation."""
         if not CORRIDORS_AVAILABLE:
             return
@@ -239,7 +262,7 @@ class TestGameFlowEdgeCases:
         )
         mock_p2 = MockCorridorsMCTS(
             sorted_actions_side_effect=get_actions_p2,
-            board_display="Board 2", 
+            board_display="Board 2",
             evaluation=None,
         )
 

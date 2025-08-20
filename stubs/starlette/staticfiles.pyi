@@ -1,4 +1,5 @@
 """Type stubs for starlette.staticfiles."""
+
 from typing import Union
 
 class StaticFiles:

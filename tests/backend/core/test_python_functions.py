@@ -3,7 +3,7 @@ Unit tests for pure Python functions in the MCTS corridors module.
 
 These tests focus on Python-side functionality:
 - Display formatting
-- Game flow control  
+- Game flow control
 - Self-play mechanics
 - Human-computer interaction
 - Utility functions
@@ -230,7 +230,9 @@ class TestComputerSelfPlay:
         mock_p1.assert_called_make_move()
 
         # Should print winning message
-        print_calls: List[str] = [str(call[0][0]) for call in mock_print.call_args_list if call[0]]
+        print_calls: List[str] = [
+            str(call[0][0]) for call in mock_print.call_args_list if call[0]
+        ]
         winning_messages = [msg for msg in print_calls if "wins!" in str(msg)]
         assert len(winning_messages) > 0
 
@@ -301,7 +303,9 @@ class TestHumanComputerPlay:
         mock_mcts.assert_move_made("*(4,1)", True)
 
         # Should have printed "Illegal move!"
-        print_calls: List[str] = [str(call[0][0]) for call in mock_print.call_args_list if call[0]]
+        print_calls: List[str] = [
+            str(call[0][0]) for call in mock_print.call_args_list if call[0]
+        ]
         illegal_messages = [msg for msg in print_calls if "Illegal move!" in str(msg)]
         assert len(illegal_messages) > 0
 
@@ -360,7 +364,9 @@ class TestHumanComputerPlay:
 class TestCorridorsMCTSPythonMethods:
     """Test Python-specific methods in Corridors_MCTS class."""
 
-    def test_json_serialization(self, fast_mcts_params: Dict[str, str | int | bool]) -> None:
+    def test_json_serialization(
+        self, fast_mcts_params: Dict[str, str | int | bool]
+    ) -> None:
         """Test __json__ method for serialization."""
         if not CORRIDORS_AVAILABLE:
             return
@@ -397,7 +403,9 @@ class TestCorridorsMCTSPythonMethods:
         result = mcts.get_evaluation()
         assert result is None or isinstance(result, float)
 
-    def test_method_delegation(self, fast_mcts_params: Dict[str, str | int | bool]) -> None:
+    def test_method_delegation(
+        self, fast_mcts_params: Dict[str, str | int | bool]
+    ) -> None:
         """Test that methods properly delegate to parent class."""
         if not CORRIDORS_AVAILABLE:
             return
@@ -455,14 +463,14 @@ class TestErrorHandling:
         # Test function robustness with edge cases
         # These tests verify the function handles invalid input gracefully
         # Note: We expect these to raise exceptions with invalid data
-        
+
         with pytest.raises((IndexError, TypeError, AttributeError)):
             # Test with incomplete tuples
             incomplete_data = [(100,)]  # Missing win_rate and action
             display_sorted_actions(incomplete_data)  # Will fail gracefully
 
         with pytest.raises((IndexError, TypeError, AttributeError)):
-            # Test with non-tuple data  
+            # Test with non-tuple data
             invalid_data = [100]  # Not a tuple at all
             display_sorted_actions(invalid_data)  # Will fail gracefully
 

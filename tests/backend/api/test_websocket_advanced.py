@@ -1,6 +1,7 @@
 """
 Advanced WebSocket manager tests to cover remaining uncovered lines.
 """
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

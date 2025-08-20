@@ -1,4 +1,25 @@
-from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
+from tests.pytest_marks import (
+    python,
+    display,
+    integration,
+    unit,
+    parametrize,
+    cpp,
+    board,
+    mcts,
+    slow,
+    performance,
+    stress,
+    edge_cases,
+    asyncio,
+    api,
+    websocket,
+    game_manager,
+    models,
+    endpoints,
+    benchmark,
+)
+
 """
 Integration tests for the complete MCTS system.
 

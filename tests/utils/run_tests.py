@@ -53,7 +53,7 @@ def main() -> None:
     parser.add_argument("--parallel", "-n", type=int, help="Run tests in parallel")
 
     parsed_args = parser.parse_args()
-    
+
     # Convert to typed structure to avoid Any type issues
     args = TestArgs(
         suite=parsed_args.suite,

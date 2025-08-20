@@ -1,4 +1,5 @@
 """Type stubs for CORS middleware."""
+
 from typing import List, Optional, Union
 
 class CORSMiddleware:
@@ -6,7 +7,7 @@ class CORSMiddleware:
         self,
         app: object,
         allow_origins: Union[List[str], bool] = False,
-        allow_methods: Union[List[str], bool] = False, 
+        allow_methods: Union[List[str], bool] = False,
         allow_headers: Union[List[str], bool] = False,
         allow_credentials: bool = False,
         allow_origin_regex: Optional[str] = None,

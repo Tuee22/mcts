@@ -1,4 +1,25 @@
-from tests.pytest_marks import python, display, integration, unit, parametrize, cpp, board, mcts, slow, performance, stress, edge_cases, asyncio, api, websocket, game_manager, models, endpoints, benchmark
+from tests.pytest_marks import (
+    python,
+    display,
+    integration,
+    unit,
+    parametrize,
+    cpp,
+    board,
+    mcts,
+    slow,
+    performance,
+    stress,
+    edge_cases,
+    asyncio,
+    api,
+    websocket,
+    game_manager,
+    models,
+    endpoints,
+    benchmark,
+)
+
 """
 Unit tests for C++ board functions accessible via Python bindings.
 
@@ -167,9 +188,7 @@ class TestMCTSActions:
             assert isinstance(equity, (int, float))
             assert isinstance(action_str, str) and len(action_str) > 0
 
-    def test_get_sorted_actions_structure(
-        self, fast_mcts_params: MCTSParams
-    ) -> None:
+    def test_get_sorted_actions_structure(self, fast_mcts_params: MCTSParams) -> None:
         """Test structure of sorted actions."""
         mcts = Corridors_MCTS(**fast_mcts_params)
         mcts.ensure_sims(15)

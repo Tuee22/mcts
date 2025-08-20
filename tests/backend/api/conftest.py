@@ -1,6 +1,7 @@
 """
 API-specific test fixtures and configuration.
 """
+
 import pytest
 from typing import AsyncGenerator, Generator, Callable, List, Tuple, Dict
 from unittest.mock import MagicMock
@@ -159,7 +160,7 @@ def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[..., MockCorridorsMCTS]:
             "V(4,0)": {"visits": 40, "value": 0.2},
             "H(3,1)": {"visits": 30, "value": 0.1},
         }
-        
+
         return MockCorridorsMCTS(
             sorted_actions=mock_sorted_actions,
             best_action="*(4,1)",

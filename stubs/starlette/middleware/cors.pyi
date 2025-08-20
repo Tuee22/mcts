@@ -1,4 +1,5 @@
 """Type stubs for starlette.middleware.cors."""
+
 from typing import Union, List, Optional
 
 class CORSMiddleware:
@@ -9,5 +10,5 @@ class CORSMiddleware:
         allow_methods: Optional[List[str]] = None,
         allow_headers: Optional[List[str]] = None,
         allow_credentials: bool = False,
-        **kwargs: object
+        **kwargs: object,
     ) -> None: ...

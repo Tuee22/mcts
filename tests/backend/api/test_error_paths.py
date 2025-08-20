@@ -1,6 +1,7 @@
 """
 Tests specifically designed to hit error paths and exception handling.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, AsyncMock

@@ -1,4 +1,5 @@
 """Type stubs for the C++ _corridors_mcts module."""
+
 from typing import List, Tuple, Optional
 
 class _corridors_mcts:

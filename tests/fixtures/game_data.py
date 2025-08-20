@@ -1,6 +1,7 @@
 """
 Sample game data for testing.
 """
+
 from backend.api.models import GameSettings, MCTSSettings, PlayerType
 
 
