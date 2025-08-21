@@ -273,30 +273,6 @@ class TestGameFlowEdgeCases:
         mock_p1.assert_move_made("*(4,1)", True)
         mock_p2.assert_move_made("*(4,1)", True)
 
-    @patch("builtins.input", side_effect=["", "   ", "*(4,1)"])
-    @patch("builtins.print")
-    def test_human_computer_play_empty_input(
-        self, mock_print: MagicMock, mock_input: MagicMock
-    ) -> None:
-        """Test human-computer play with empty/whitespace input."""
-        if not CORRIDORS_AVAILABLE:
-            return
-        # Skip complex function testing due to mock signature issues
-        # This is an integration test that would be better tested with real objects
-        pytest.skip("Skipping complex mock test - tested in integration")
-
-    @patch("builtins.input", return_value="*(4,1)")
-    @patch("builtins.print")
-    def test_human_computer_play_case_sensitivity(
-        self, mock_print: MagicMock, mock_input: MagicMock
-    ) -> None:
-        """Test human-computer play with case variations."""
-        if not CORRIDORS_AVAILABLE:
-            return
-        # Skip complex function testing due to mock signature issues
-        # This is an integration test that would be better tested with real objects
-        pytest.skip("Skipping complex mock test - tested in integration")
-
 
 @edge_cases
 @cpp

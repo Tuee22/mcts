@@ -1,7 +1,6 @@
 """Type definitions for the API module."""
 
 from typing import (
-    Any,
     Awaitable,
     Dict,
     List,

@@ -183,6 +183,14 @@ scripts/test/
 mypy-reports/
 .mypy_cache/
 
+# Flake8 cache
+.flake8_cache/
+flake8-report/
+
+# Type checking reports
+type-check-results/
+.type-safety-cache/
+
 # Local development files
 .local/
 .tmp/

@@ -241,6 +241,8 @@ docker compose exec mcts nvidia-smi
 
 ### Code Quality
 
+This project enforces strict type safety with zero tolerance for `Any`, `cast`, or `type: ignore`.
+
 ```bash
 # Format code
 poetry run black . && poetry run isort .
@@ -248,8 +250,33 @@ poetry run black . && poetry run isort .
 # Check formatting
 poetry run black --check .
 
-# Type checking
-poetry run mypy python/ tests/
+# Type checking with strict mode
+poetry run mypy --strict .
+
+# Run custom type safety checker (no Any, cast, or type: ignore)
+poetry run check-type-safety
+
+# Run flake8 linting
+flake8 .
+
+# Run all type and quality checks
+bash tools/run_type_checks.sh
+```
+
+#### Type Safety Enforcement
+
+The codebase maintains 100% type safety through:
+
+1. **MyPy Strict Mode**: Configured with `disallow_any_explicit = true` in `pyproject.toml`
+2. **Custom Type Safety Checker**: `tools/check_type_safety.py` enforces:
+   - No usage of `Any` type (imports or annotations)
+   - No usage of `cast` function
+   - No `type: ignore` comments
+3. **Flake8 Integration**: Style and import checking via `.flake8` configuration
+
+Run the complete type checking pipeline:
+```bash
+docker compose exec mcts bash /app/tools/run_type_checks.sh
 ```
 
 ## Game Rules: Corridors

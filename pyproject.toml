@@ -211,6 +211,9 @@ test-python-core = "tests.utils.run_core_tests:main"
 test-frontend = "tests.utils.run_frontend_tests:main"
 test-all = "tests.utils.run_all_tests:main"
 
+# Type safety checker
+check-type-safety = "tools.check_type_safety:main"
+
 [tool.poetry.extras]
 api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]
 

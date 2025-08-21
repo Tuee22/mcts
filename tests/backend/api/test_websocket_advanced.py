@@ -25,67 +25,63 @@ class MockWebSocket:
     """Mock WebSocket for testing that implements the WebSocket interface."""
 
     def __init__(self) -> None:
-        self._accept = AsyncMock()
-        self._send_text = AsyncMock()
-        self._send_json = AsyncMock()
-        self._close = AsyncMock()
-        self._receive_text = AsyncMock()
-        self._receive_json = AsyncMock()
+        self._accept_mock = MagicMock()
+        self._send_text_mock = MagicMock()
+        self._send_json_mock = MagicMock()
+        self._close_mock = MagicMock()
+        self._receive_text_mock = MagicMock(return_value="")
+        self._receive_json_mock = MagicMock(return_value={})
 
     # Implement protocol methods
     async def accept(self) -> None:
         """Mock accept method."""
-        await self._accept()
-        return None
+        self._accept_mock()
 
     async def close(self, code: int = 1000) -> None:
         """Mock close method."""
-        await self._close(code)
-        return None
+        self._close_mock(code)
 
     async def send_text(self, data: str) -> None:
         """Mock send_text method."""
-        await self._send_text(data)
-        return None
+        self._send_text_mock(data)
 
     async def send_json(self, data: object) -> None:
         """Mock send_json method."""
-        await self._send_json(data)
-        return None
+        self._send_json_mock(data)
 
     async def receive_text(self) -> str:
         """Mock receive_text method."""
-        result = await self._receive_text()
+        result = self._receive_text_mock()
         return str(result) if result is not None else ""
 
     async def receive_json(self) -> object:
         """Mock receive_json method."""
-        return await self._receive_json()
+        return self._receive_json_mock()
 
     # Expose mock objects for assertions
     @property
-    def mock_accept(self) -> AsyncMock:
-        return self._accept
+    def mock_accept(self) -> MagicMock:
+        return self._accept_mock
 
     @property
-    def mock_send_text(self) -> AsyncMock:
-        return self._send_text
+    def mock_send_text(self) -> MagicMock:
+        return self._send_text_mock
 
     @property
-    def mock_send_json(self) -> AsyncMock:
-        return self._send_json
+    def mock_send_json(self) -> MagicMock:
+        return self._send_json_mock
 
     @property
-    def mock_close(self) -> AsyncMock:
-        return self._close
+    def mock_close(self) -> MagicMock:
+        return self._close_mock
 
     @property
-    def mock_receive_text(self) -> AsyncMock:
-        return self._receive_text
+    def mock_receive_text(self) -> MagicMock:
+        return self._receive_text_mock
 
     @property
-    def mock_receive_json(self) -> AsyncMock:
-        return self._receive_json
+    def mock_receive_json(self) -> MagicMock:
+        return self._receive_json_mock
 
 
 def create_mock_websocket() -> MockWebSocket:
@@ -326,7 +322,7 @@ class TestWebSocketManagerErrorHandling:
     ) -> None:
         """Test _send_json_safe handles exceptions properly."""
         websocket = MockWebSocket()
-        websocket._send_json.side_effect = Exception("Send failed")
+        websocket._send_json_mock.side_effect = Exception("Send failed")
 
         dead_connections: List[WebSocketProtocol] = []
 
@@ -368,7 +364,7 @@ class TestWebSocketManagerErrorHandling:
         working_ws = create_mock_websocket()
 
         failing_ws = MockWebSocket()
-        failing_ws._send_json.side_effect = Exception("Send failed")
+        failing_ws._send_json_mock.side_effect = Exception("Send failed")
 
         await ws_manager.connect(working_ws, "game1")
         await ws_manager.connect(failing_ws, "game1")
@@ -448,7 +444,7 @@ class TestWebSocketManagerDisconnectAll:
         for i in range(3):
             for j in range(2):  # 2 connections per game
                 ws = create_mock_websocket()
-                ws._close = AsyncMock()
+                ws._close_mock = MagicMock()
                 await ws_manager.connect(ws, f"game{i}")
                 websockets.append(ws)
 
@@ -475,10 +471,10 @@ class TestWebSocketManagerDisconnectAll:
         """Test disconnect_all handles WebSocket close exceptions."""
         # Set up connections with different close behaviors
         working_ws = create_mock_websocket()
-        working_ws._close = AsyncMock()
+        working_ws._close_mock = MagicMock()
 
         failing_ws = create_mock_websocket()
-        failing_ws._close = AsyncMock(side_effect=Exception("Close failed"))
+        failing_ws._close_mock = MagicMock(side_effect=Exception("Close failed"))
 
         await ws_manager.connect(working_ws, "game1")
         await ws_manager.connect(failing_ws, "game1")
