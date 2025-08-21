@@ -50,7 +50,8 @@ RUN --mount=type=cache,target=/var/cache/apt,id=mcts-apt-${VARIANT} \
 
 # Set Python 3.12 as default
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 100 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 100
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 100 \
+    && update-alternatives --install /usr/bin/python3-config python3-config /usr/bin/python3.12-config 100
 
 # Install pip for Python 3.12
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
