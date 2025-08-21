@@ -37,35 +37,44 @@ scons sanitize=1        # Build with AddressSanitizer
 ```
 
 ### Testing
+**IMPORTANT: All tests MUST be run inside Docker containers**
+
 ```bash
-# Run all tests
-poetry run test
-# or
-pytest
+# Start Docker services first
+cd docker && docker compose up -d
 
-# Test categories
-poetry run test-fast      # Exclude slow tests
-poetry run test-slow      # Only slow tests  
-poetry run test-integration # Integration tests
-poetry run test-python    # Pure Python tests
-poetry run test-cpp       # C++ binding tests
-poetry run test-performance # Performance tests
-poetry run test-edge-cases # Edge case tests
+# Run all tests (inside container)
+docker compose exec mcts pytest
 
-# Benchmarking
-poetry run benchmark        # Run benchmarks
-poetry run benchmark-compare # Compare benchmark results
+# Test categories (inside container)
+docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
+docker compose exec mcts pytest -m "slow"        # Only slow tests  
+docker compose exec mcts pytest -m "integration" # Integration tests
+docker compose exec mcts pytest -m "python"     # Pure Python tests
+docker compose exec mcts pytest -m "cpp"        # C++ binding tests
+docker compose exec mcts pytest -m "performance" # Performance tests
+docker compose exec mcts pytest -m "edge_cases"  # Edge case tests
+
+# Benchmarking (inside container)
+docker compose exec mcts pytest --benchmark-only # Run benchmarks
 ```
 
 ### Code Quality
-```bash
-# Format code
-poetry run format       # Format with black + isort
-poetry run lint         # Format check only
-poetry run lint-check   # Check formatting without changes
+**IMPORTANT: All quality commands MUST be run inside Docker containers**
 
-# Type checking  
-poetry run typecheck    # Run mypy on backend/ and tests/
+```bash
+# Start Docker services first
+cd docker && docker compose up -d
+
+# Format code (inside container)
+docker compose exec mcts black .
+docker compose exec mcts isort .
+
+# Type checking (inside container)  
+docker compose exec mcts mypy --strict .
+
+# Alternative: Run all quality checks in one command
+docker compose exec mcts bash -c "black . && isort . && mypy --strict ."
 ```
 
 ## Architecture
@@ -128,6 +137,8 @@ This repository uses Claude Code agents and automated quality assurance hooks fo
 
 Every code change triggers an automated pipeline: **Format → Type Check → Build → Tests**
 
+**CRITICAL: All pipeline stages run inside Docker containers**
+
 The pipeline runs automatically after Edit, Write, or MultiEdit operations and provides specific agent recommendations when stages fail:
 
 ```bash
@@ -135,6 +146,8 @@ The pipeline runs automatically after Edit, Write, or MultiEdit operations and p
 📋 Run agent: @mypy-type-checker
 🔄 Or fix issues manually and retry
 ```
+
+All agents and hooks automatically execute commands inside the mcts Docker container.
 
 ### Available Agents
 
@@ -154,10 +167,10 @@ The pipeline runs automatically after Edit, Write, or MultiEdit operations and p
 Control the automated pipeline with environment variables:
 
 ```bash
-export MCTS_FORMAT_CMD="black ."
-export MCTS_TYPECHECK_CMD="mypy --strict ."
-export MCTS_BUILD_CMD="docker build -t mcts-ci ."
-export MCTS_TEST_CMD="pytest -q"
+export MCTS_FORMAT_CMD="docker compose exec mcts black ."
+export MCTS_TYPECHECK_CMD="docker compose exec mcts mypy --strict ."
+export MCTS_BUILD_CMD="docker compose build"
+export MCTS_TEST_CMD="docker compose exec mcts pytest -q"
 export MCTS_SKIP_BUILD="false"
 export MCTS_SKIP_TESTS="false"
 export MCTS_VERBOSE="true"

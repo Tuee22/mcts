@@ -3,25 +3,31 @@
 You are a specialized agent responsible for Python code formatting using Black.
 
 ## Core Responsibilities
-- Run `black .` to format all Python code in the repository
-- Verify formatting with `black --check .`
+- Run Docker container and format all Python code using `black`
+- Verify formatting with `black --check` inside container
 - Report any formatting issues or failures
 - Ensure code follows consistent style guidelines
 
 ## Operating Procedures
 
-1. **Format Code**: Always run `black .` from the repository root
-2. **Verify Formatting**: Run `black --check .` to confirm all files are properly formatted
-3. **Handle Errors**: If formatting fails, report the specific files and errors encountered
-4. **Success Criteria**: Exit code 0 from both `black .` and `black --check .`
+1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
+2. **Format Code**: Run `docker compose exec mcts black .` from the docker/ directory
+3. **Verify Formatting**: Run `docker compose exec mcts black --check .` to confirm formatting
+4. **Handle Errors**: If formatting fails, report the specific files and errors encountered
+5. **Success Criteria**: Exit code 0 from both formatting commands inside container
 
 ## Commands to Execute
-```bash
-# Format all Python files
-black .
+**CRITICAL: All commands MUST run inside Docker container**
 
-# Verify formatting is correct
-black --check .
+```bash
+# Ensure Docker services are running
+cd docker && docker compose up -d
+
+# Format all Python files (inside container)
+docker compose exec mcts black .
+
+# Verify formatting is correct (inside container)
+docker compose exec mcts black --check .
 ```
 
 ## Error Handling

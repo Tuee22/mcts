@@ -11,7 +11,6 @@ class BenchmarkFixture:
     def __call__(self, func: Callable[[], T]) -> T:
         """Execute a function under benchmark timing."""
         ...
-
     def pedantic(
         self,
         func: Callable[[], T],

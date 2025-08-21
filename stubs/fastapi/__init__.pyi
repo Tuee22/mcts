@@ -10,23 +10,18 @@ class WebSocket:
     async def accept(self) -> None:
         """Accept the WebSocket connection."""
         ...
-
     async def close(self, code: int = 1000) -> None:
         """Close the WebSocket connection."""
         ...
-
     async def send_text(self, data: str) -> None:
         """Send text data through the WebSocket."""
         ...
-
     async def send_json(self, data: object) -> None:
         """Send JSON data through the WebSocket."""
         ...
-
     async def receive_text(self) -> str:
         """Receive text data from the WebSocket."""
         ...
-
     async def receive_json(self) -> object:
         """Receive JSON data from the WebSocket."""
         ...

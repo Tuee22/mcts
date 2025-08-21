@@ -5,10 +5,10 @@ Robust staged pipeline for Claude Code post-change enforcement.
 Enforces: Format → Type Check → Conditional Build → Conditional Tests
 
 Environment Variables:
-  MCTS_FORMAT_CMD     - Formatting command (default: black .)
-  MCTS_TYPECHECK_CMD  - Type checking command (default: mypy --strict .)
-  MCTS_BUILD_CMD      - Build command (default: docker build -t mcts-ci .)
-  MCTS_TEST_CMD       - Test command (default: pytest -q)
+  MCTS_FORMAT_CMD     - Formatting command (default: docker compose exec mcts-dev black .)
+  MCTS_TYPECHECK_CMD  - Type checking command (default: docker compose exec mcts-dev mypy --strict .)
+  MCTS_BUILD_CMD      - Build command (default: docker compose build)
+  MCTS_TEST_CMD       - Test command (default: docker compose exec mcts-dev pytest -q)
   MCTS_SKIP_BUILD     - Skip build stage if "true" (default: auto-detect)
   MCTS_SKIP_TESTS     - Skip test stage if "true" (default: "false")
   MCTS_VERBOSE        - Verbose output if "true" (default: "false")
@@ -33,7 +33,7 @@ from typing import Dict, List, Optional, Set, Tuple
 STAGES = {
     "format": {
         "name": "Format",
-        "default_cmd": "black .",
+        "default_cmd": "docker compose exec mcts black .",
         "env_var": "MCTS_FORMAT_CMD",
         "agent": "@formatter-black",
         "exit_code": 1,
@@ -41,7 +41,7 @@ STAGES = {
     },
     "typecheck": {
         "name": "Type Check",
-        "default_cmd": "mypy --strict .",
+        "default_cmd": "docker compose exec mcts mypy --strict .",
         "env_var": "MCTS_TYPECHECK_CMD",
         "agent": "@mypy-type-checker",
         "exit_code": 2,
@@ -49,7 +49,7 @@ STAGES = {
     },
     "build": {
         "name": "Build",
-        "default_cmd": "docker build -t mcts-ci .",
+        "default_cmd": "docker compose build",
         "env_var": "MCTS_BUILD_CMD",
         "agent": "@builder-docker",
         "exit_code": 3,
@@ -57,7 +57,7 @@ STAGES = {
     },
     "test": {
         "name": "Test",
-        "default_cmd": "pytest -q",
+        "default_cmd": "docker compose exec mcts pytest -q",
         "env_var": "MCTS_TEST_CMD",
         "agent": "@tester-pytest",
         "exit_code": 4,
@@ -204,6 +204,42 @@ def should_run_tests(changed_files: Set[str]) -> bool:
     return False
 
 
+def ensure_docker_services() -> bool:
+    """Ensure Docker services are running."""
+    docker_dir = Path.cwd() / "docker"
+    if not docker_dir.exists():
+        print("⚠️  Docker directory not found, assuming host execution")
+        return True
+
+    try:
+        # Check if services are already running
+        result = subprocess.run(
+            ["docker", "compose", "ps", "--services", "--filter", "status=running"],
+            cwd=docker_dir,
+            text=True,
+            capture_output=True,
+        )
+
+        if result.returncode == 0 and "mcts" in result.stdout:
+            log_verbose("Docker services already running")
+            return True
+
+        # Start services if not running
+        print("🐳 Starting Docker services...")
+        result = subprocess.run(
+            ["docker", "compose", "up", "-d"],
+            cwd=docker_dir,
+            text=True,
+            capture_output=False,
+        )
+
+        return result.returncode == 0
+
+    except Exception as e:
+        print(f"❌ Docker service error: {e}")
+        return False
+
+
 def run_stage(stage_key: str) -> bool:
     """
     Run a single stage of the pipeline.
@@ -215,6 +251,13 @@ def run_stage(stage_key: str) -> bool:
     log_banner(stage["name"], stage["description"])
     print(f"Command: {command}")
 
+    # Ensure Docker services are running for container commands
+    if "docker compose exec" in command:
+        if not ensure_docker_services():
+            print("❌ Failed to start Docker services")
+            print(f"📋 Run agent: {stage['agent']}")
+            return False
+
     # Check if tool is available
     if not check_tool_available(command):
         print(f"❌ TOOL NOT FOUND: {command.split()[0]}")
@@ -224,9 +267,15 @@ def run_stage(stage_key: str) -> bool:
 
     # Run the command
     try:
+        # Determine working directory based on command type
+        if "docker compose" in command:
+            work_dir = Path.cwd() / "docker"
+        else:
+            work_dir = Path.cwd()
+
         result = subprocess.run(
             command.split(),
-            cwd=Path.cwd(),
+            cwd=work_dir,
             text=True,
             capture_output=False,  # Show output in real-time
         )

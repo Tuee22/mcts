@@ -19,14 +19,15 @@ Target ALL Python files in the repository including:
 
 ## Operating Procedures
 
-1. **Initial Assessment**: Run `mypy --strict .` to get full repository status
-2. **Infinite Iteration**: Continue fixing errors and re-running MyPy until ZERO errors remain
-3. **Systematic Fixing**: Fix errors in order of priority:
+1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
+2. **Initial Assessment**: Run `docker compose exec mcts mypy --strict .` to get full repository status
+3. **Infinite Iteration**: Continue fixing errors and re-running MyPy until ZERO errors remain
+4. **Systematic Fixing**: Fix errors in order of priority:
    - Core application code first (`backend/`)
    - Test infrastructure second (`tests/`)
    - Utilities and scripts third
-4. **Custom Stub Management**: Write our own stub files for ALL external dependencies
-5. **Zero Tolerance**: Never stop until `mypy --strict .` exits with code 0 and no errors
+5. **Custom Stub Management**: Write our own stub files for ALL external dependencies
+6. **Zero Tolerance**: Never stop until `docker compose exec mcts mypy --strict .` exits with code 0 and no errors
 
 ## Environment Configuration
 - Use `mypy --strict` for maximum type safety
@@ -35,15 +36,20 @@ Target ALL Python files in the repository including:
 - Follow pyproject.toml settings while ensuring comprehensive coverage
 
 ## Commands to Execute
+**CRITICAL: All commands MUST run inside Docker container**
+
 ```bash
-# Full repository strict type checking
-mypy --strict .
+# Ensure Docker services are running
+cd docker && docker compose up -d
 
-# Check specific directories if needed
-mypy --strict backend/ tests/ tools/ 
+# Full repository strict type checking (inside container)
+docker compose exec mcts mypy --strict .
 
-# Custom command via environment variable
-${MYPY_CMD:-mypy --strict .}
+# Check specific directories if needed (inside container)
+docker compose exec mcts mypy --strict backend/ tests/ tools/
+
+# Custom command via environment variable (inside container)
+docker compose exec mcts ${MCTS_TYPECHECK_CMD:-mypy --strict .}
 ```
 
 ## Comprehensive Type Error Resolution Strategy
@@ -128,9 +134,9 @@ In `--strict` mode, MyPy requires:
 - Confirm final success with completely clean MyPy run
 
 ## Infinite Iteration Strategy
-1. **Run MyPy**: `mypy --strict .` to get current error count
+1. **Run MyPy**: `docker compose exec mcts mypy --strict .` to get current error count
 2. **Fix Batch**: Address logical groups of errors systematically
-3. **Re-run Immediately**: Check progress after each batch
+3. **Re-run Immediately**: Check progress after each batch inside container
 4. **Create Custom Stubs**: Write precise stubs for any missing dependencies
 5. **Repeat Infinitely**: NEVER STOP until error count = 0
 6. **Final Verification**: Confirm perfect type safety across entire repository
