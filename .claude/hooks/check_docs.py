@@ -6,7 +6,7 @@ Verifies that documentation files (.gitignore, .dockerignore, README.md, etc.)
 are up-to-date with the current codebase structure and recent changes.
 """
 
-# Test comment to trigger hook
+# Test comment to trigger hook - testing workaround
 
 import os
 import re
