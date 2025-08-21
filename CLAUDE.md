@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## **Environment Rules**
+
+**CRITICAL: ALL shell commands MUST execute inside the Docker container, never on the host.**
+
+- **Container**: All commands run in the `mcts` Docker service
+- **Auto-start**: If the container is not running, it will be started automatically
+- **Fail-closed**: Commands must never run on the host; if container is unavailable, execution fails with clear error
+- **Workdir**: Container workdir `/app` maps to repository root and is volume-mounted for live development
+
 ## Project Overview
 
 This is a Monte Carlo Tree Search (MCTS) implementation for the Corridors board game, featuring a high-performance C++ backend with Python bindings. The project combines advanced MCTS algorithms with efficient board representation and supports both traditional UCT and modern PUCT (Alpha-Zero style) formulations.

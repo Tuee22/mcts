@@ -2,6 +2,14 @@
 
 This document provides an overview of all available Claude Code agents for the MCTS project, their purposes, and when to use them.
 
+## **CONTAINER EXECUTION POLICY**
+
+**ALL AGENTS EXECUTE COMMANDS INSIDE THE DOCKER CONTAINER**
+- Container: `mcts` service from `docker/docker-compose.yaml`
+- Workdir: `/app` (mapped to repository root)
+- Auto-start: Container started automatically if not running
+- Fail-closed: Never execute commands on host system
+
 ## Core Quality Assurance Agents
 
 ### @formatter-black

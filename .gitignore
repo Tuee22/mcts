@@ -131,3 +131,6 @@ poetry.lock
 # MyPy reports and cache
 mypy-reports/
 .mypy_cache/
+
+# Claude Code logs
+.claude/logs/
