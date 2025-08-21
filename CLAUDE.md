@@ -113,3 +113,72 @@ For any game to work with the MCTS template, it must implement:
 - SCons build system supports multiple configurations (debug, profile, sanitize)
 - Docker containers provide GCC-13, Python 3.12, and all required dependencies
 - Poetry manages Python dependencies with strict version pinning for reproducibility
+
+## Claude Code Integration
+
+This repository uses Claude Code agents and automated quality assurance hooks for development.
+
+### Automated Quality Pipeline
+
+Every code change triggers an automated pipeline: **Format → Type Check → Build → Tests**
+
+The pipeline runs automatically after Edit, Write, or MultiEdit operations and provides specific agent recommendations when stages fail:
+
+```bash
+❌ Type Check FAILED (exit code: 2)
+📋 Run agent: @mypy-type-checker
+🔄 Or fix issues manually and retry
+```
+
+### Available Agents
+
+#### Core Quality Assurance
+- **@formatter-black**: Python code formatting with Black (PEP 8 compliance)
+- **@mypy-type-checker**: Comprehensive type checking with zero tolerance policy
+- **@builder-docker**: Docker container builds for development and CI
+- **@tester-pytest**: Test suite execution and validation
+
+#### Specialized Build Agents
+- **@builder-cpu**: CPU-only Docker builds for development/CI
+- **@builder-gpu**: GPU-enabled Docker builds (AMD64 only)
+- **@no-git-commits**: Policy agent preventing automatic git commits
+
+### Environment Configuration
+
+Control the automated pipeline with environment variables:
+
+```bash
+export MCTS_FORMAT_CMD="black ."
+export MCTS_TYPECHECK_CMD="mypy --strict ."
+export MCTS_BUILD_CMD="docker build -t mcts-ci ."
+export MCTS_TEST_CMD="pytest -q"
+export MCTS_SKIP_BUILD="false"
+export MCTS_SKIP_TESTS="false"
+export MCTS_VERBOSE="true"
+export MCTS_FAIL_FAST="true"
+```
+
+### Development Workflow
+
+1. **Code changes**: Post-change hook automatically runs quality pipeline
+2. **Pipeline failures**: Use recommended agents to fix issues
+3. **Manual quality check**: Run agents proactively before committing
+4. **Zero tolerance**: MyPy agent iterates until zero type errors
+
+### Agent Documentation
+
+- **Agent Registry**: `.claude/AGENTS.md` - Complete agent documentation
+- **Machine-Readable**: `.claude/agents.json` - Programmatic agent definitions
+- **Hook Configuration**: `.claude/settings.json` - Pipeline settings
+
+### Quality Standards
+
+This project enforces strict quality standards:
+
+- **Formatting**: Black formatter with PEP 8 compliance
+- **Type Safety**: MyPy strict mode with zero tolerance for Any, cast(), type: ignore
+- **Testing**: Comprehensive pytest suite with 95%+ coverage
+- **Build Validation**: Docker containers for consistent environments
+- **Custom Type Stubs**: Project maintains custom stubs to eliminate Any usage
+
+The automated pipeline ensures all contributions meet these standards before integration.

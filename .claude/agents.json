@@ -1,0 +1,233 @@
+{
+  "version": "1.0",
+  "description": "Machine-readable registry of Claude Code agents for MCTS project",
+  "updated": "2025-08-20",
+  "agents": {
+    "formatter-black": {
+      "name": "Black Code Formatter",
+      "file": "formatter-black.md",
+      "category": "quality",
+      "priority": 1,
+      "commands": ["black .", "black --check ."],
+      "triggers": ["python_files", "format_errors"],
+      "environment_vars": ["MCTS_FORMAT_CMD"],
+      "description": "Python code formatting with Black PEP 8 compliance",
+      "dependencies": ["black"],
+      "exit_codes": {
+        "0": "success",
+        "1": "format_required",
+        "123": "internal_error"
+      }
+    },
+    "mypy-type-checker": {
+      "name": "MyPy Type Checker",
+      "file": "mypy-type-checker.md", 
+      "category": "quality",
+      "priority": 2,
+      "commands": ["mypy --strict ."],
+      "triggers": ["python_files", "type_errors"],
+      "environment_vars": ["MCTS_TYPECHECK_CMD", "MYPY_CONFIG_FILE"],
+      "description": "Comprehensive static type checking with zero tolerance policy",
+      "dependencies": ["mypy"],
+      "policies": {
+        "zero_tolerance": true,
+        "infinite_iteration": true,
+        "no_any_types": true,
+        "no_cast_usage": true,
+        "no_type_ignore": true,
+        "custom_stubs_required": true
+      },
+      "exit_codes": {
+        "0": "no_errors",
+        "1": "type_errors_found",
+        "2": "fatal_error"
+      }
+    },
+    "builder-docker": {
+      "name": "Docker Builder",
+      "file": "builder-docker.md",
+      "category": "build",
+      "priority": 3,
+      "commands": ["docker build -t mcts-ci ."],
+      "triggers": ["build_surface_files", "build_errors"],
+      "environment_vars": ["MCTS_BUILD_CMD", "DOCKER_BUILDKIT"],
+      "description": "Docker container builds for development and CI",
+      "dependencies": ["docker"],
+      "build_surface": [
+        "Dockerfile",
+        "docker-compose.yaml",
+        "docker-compose.yml",
+        "requirements.txt",
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",
+        "poetry.lock",
+        "Pipfile",
+        "Pipfile.lock",
+        "backend/core/**",
+        "docker/**"
+      ],
+      "exit_codes": {
+        "0": "build_success",
+        "1": "build_failed",
+        "125": "docker_daemon_error"
+      }
+    },
+    "tester-pytest": {
+      "name": "Pytest Test Runner",
+      "file": "tester-pytest.md",
+      "category": "validation",
+      "priority": 4,
+      "commands": ["pytest -q"],
+      "triggers": ["python_files", "test_failures"],
+      "environment_vars": ["MCTS_TEST_CMD", "PYTEST_ARGS"],
+      "description": "Comprehensive test suite execution and validation",
+      "dependencies": ["pytest"],
+      "test_types": [
+        "unit",
+        "integration", 
+        "performance",
+        "edge_cases",
+        "cpp_bindings"
+      ],
+      "exit_codes": {
+        "0": "all_tests_passed",
+        "1": "tests_failed", 
+        "2": "test_execution_interrupted",
+        "3": "internal_error",
+        "4": "pytest_usage_error",
+        "5": "no_tests_collected"
+      }
+    },
+    "no-git-commits": {
+      "name": "No Git Commits Policy",
+      "file": "no-git-commits.md",
+      "category": "policy",
+      "priority": 0,
+      "commands": [],
+      "triggers": ["always"],
+      "environment_vars": [],
+      "description": "Ensures agents never make git commits automatically",
+      "dependencies": [],
+      "policies": {
+        "no_git_commits": true,
+        "user_controls_vcs": true
+      }
+    },
+    "builder-cpu": {
+      "name": "CPU-Only Docker Builder",
+      "file": "builder-cpu.md",
+      "category": "build",
+      "priority": 3,
+      "commands": ["docker build -f docker/Dockerfile.cpu -t mcts-cpu ."],
+      "triggers": ["cpu_build_required"],
+      "environment_vars": ["MCTS_CPU_BUILD_CMD"],
+      "description": "CPU-only Docker builds without GPU dependencies",
+      "dependencies": ["docker"],
+      "target_architecture": ["amd64", "arm64"],
+      "exit_codes": {
+        "0": "build_success",
+        "1": "build_failed"
+      }
+    },
+    "builder-gpu": {
+      "name": "GPU-Enabled Docker Builder", 
+      "file": "builder-gpu.md",
+      "category": "build",
+      "priority": 3,
+      "commands": ["docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build"],
+      "triggers": ["gpu_build_required"],
+      "environment_vars": ["MCTS_GPU_BUILD_CMD"],
+      "description": "GPU-enabled Docker builds with CUDA/OpenCL support",
+      "dependencies": ["docker", "docker-compose", "nvidia-docker"],
+      "target_architecture": ["amd64"],
+      "gpu_requirements": {
+        "nvidia_runtime": true,
+        "cuda_compatible": true
+      },
+      "exit_codes": {
+        "0": "build_success",
+        "1": "build_failed",
+        "125": "docker_daemon_error"
+      }
+    }
+  },
+  "pipeline": {
+    "stages": [
+      {
+        "name": "format",
+        "agent": "formatter-black",
+        "required": true,
+        "condition": "python_files_changed"
+      },
+      {
+        "name": "typecheck", 
+        "agent": "mypy-type-checker",
+        "required": true,
+        "condition": "python_files_changed"
+      },
+      {
+        "name": "build",
+        "agent": "builder-docker",
+        "required": false,
+        "condition": "build_surface_changed"
+      },
+      {
+        "name": "test",
+        "agent": "tester-pytest", 
+        "required": false,
+        "condition": "python_files_changed"
+      }
+    ],
+    "exit_codes": {
+      "0": "all_stages_passed",
+      "1": "format_stage_failed",
+      "2": "typecheck_stage_failed", 
+      "3": "build_stage_failed",
+      "4": "test_stage_failed",
+      "5": "tool_not_found"
+    }
+  },
+  "triggers": {
+    "python_files": [".py", ".pyi"],
+    "build_surface_files": [
+      "Dockerfile",
+      "docker-compose.yaml", 
+      "docker-compose.yml",
+      "requirements.txt",
+      "pyproject.toml",
+      "setup.py",
+      "setup.cfg",
+      "poetry.lock",
+      "Pipfile",
+      "Pipfile.lock"
+    ],
+    "build_surface_dirs": ["backend/core", "docker"]
+  },
+  "environment": {
+    "hook_file": ".claude/hooks/on-change-chain.py",
+    "settings_file": ".claude/settings.json",
+    "agent_directory": ".claude/agents",
+    "variables": {
+      "MCTS_FORMAT_CMD": "black .",
+      "MCTS_TYPECHECK_CMD": "mypy --strict .",
+      "MCTS_BUILD_CMD": "docker build -t mcts-ci .",
+      "MCTS_TEST_CMD": "pytest -q",
+      "MCTS_SKIP_BUILD": "false",
+      "MCTS_SKIP_TESTS": "false", 
+      "MCTS_VERBOSE": "false",
+      "MCTS_FAIL_FAST": "true"
+    }
+  },
+  "metadata": {
+    "repository": "MCTS Monte Carlo Tree Search Implementation",
+    "languages": ["Python", "C++"],
+    "frameworks": ["FastAPI", "pytest", "Docker"],
+    "quality_standards": {
+      "formatting": "Black (PEP 8)",
+      "type_checking": "MyPy strict mode",
+      "testing": "pytest with comprehensive coverage",
+      "containerization": "Docker multi-stage builds"
+    }
+  }
+}

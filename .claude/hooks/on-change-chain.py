@@ -1,192 +1,304 @@
 #!/usr/bin/env python3
 """
-Post-change hook that enforces Black → MyPy → Build → Tests pipeline
-Runs after Edit, Write, or MultiEdit operations
+Robust staged pipeline for Claude Code post-change enforcement.
+
+Enforces: Format → Type Check → Conditional Build → Conditional Tests
+
+Environment Variables:
+  MCTS_FORMAT_CMD     - Formatting command (default: black .)
+  MCTS_TYPECHECK_CMD  - Type checking command (default: mypy --strict .)
+  MCTS_BUILD_CMD      - Build command (default: docker build -t mcts-ci .)
+  MCTS_TEST_CMD       - Test command (default: pytest -q)
+  MCTS_SKIP_BUILD     - Skip build stage if "true" (default: auto-detect)
+  MCTS_SKIP_TESTS     - Skip test stage if "true" (default: "false")
+  MCTS_VERBOSE        - Verbose output if "true" (default: "false")
+  MCTS_FAIL_FAST      - Stop on first failure if "true" (default: "true")
+
+Exit Codes:
+  0  - All stages passed
+  1  - Format stage failed
+  2  - Type check stage failed
+  3  - Build stage failed
+  4  - Test stage failed
+  5  - Tool not found / setup error
 """
-import json
+
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
 
-# Environment variables for customization
-MYPY_CMD = os.getenv("MYPY_CMD", "poetry run mypy --strict .")
-TEST_CMD = os.getenv("TEST_CMD", "poetry run pytest -q")
-BUILD_CMD = os.getenv("BUILD_CMD", "docker build -t project-ci .")
-ALWAYS_BUILD = os.getenv("ALWAYS_BUILD", "").lower() in ("1", "true", "yes")
-ALWAYS_TEST = os.getenv("ALWAYS_TEST", "").lower() in ("1", "true", "yes")
-
-# Build surface files that trigger docker build
-BUILD_SURFACE_FILES = {
-    "Dockerfile",
-    ".dockerignore",
-    "compose.yaml",
-    "docker-compose.yml",
-    "pyproject.toml",
-    "setup.cfg",
-    "setup.py",
-    "Pipfile",
-    "poetry.lock",
-    "Makefile",
+# Stage configuration with agent recommendations
+STAGES = {
+    "format": {
+        "name": "Format",
+        "default_cmd": "black .",
+        "env_var": "MCTS_FORMAT_CMD",
+        "agent": "@formatter-black",
+        "exit_code": 1,
+        "description": "Python code formatting with Black",
+    },
+    "typecheck": {
+        "name": "Type Check",
+        "default_cmd": "mypy --strict .",
+        "env_var": "MCTS_TYPECHECK_CMD",
+        "agent": "@mypy-type-checker",
+        "exit_code": 2,
+        "description": "Static type checking with MyPy",
+    },
+    "build": {
+        "name": "Build",
+        "default_cmd": "docker build -t mcts-ci .",
+        "env_var": "MCTS_BUILD_CMD",
+        "agent": "@builder-docker",
+        "exit_code": 3,
+        "description": "Docker container build",
+    },
+    "test": {
+        "name": "Test",
+        "default_cmd": "pytest -q",
+        "env_var": "MCTS_TEST_CMD",
+        "agent": "@tester-pytest",
+        "exit_code": 4,
+        "description": "Test suite execution",
+    },
 }
 
-BUILD_SURFACE_PREFIXES = ("docker/", "scripts/build/", ".github/workflows/")
+# File extensions that trigger different stages
+PYTHON_EXTENSIONS = {".py", ".pyi"}
+BUILD_SURFACE_FILES = {
+    "Dockerfile",
+    "docker-compose.yaml",
+    "docker-compose.yml",
+    "requirements.txt",
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "poetry.lock",
+    "Pipfile",
+    "Pipfile.lock",
+}
+BUILD_SURFACE_DIRS = {"backend/core", "docker"}
 
 
-def get_build_surface_patterns():
-    """Get patterns that match build surface files"""
-    patterns = list(BUILD_SURFACE_FILES)
-    patterns.extend(["requirements*.txt"])
-    return patterns
+def get_env_bool(var_name: str, default: bool = False) -> bool:
+    """Get boolean environment variable."""
+    return os.getenv(var_name, "").lower() in ("true", "1", "yes")
 
 
-def is_build_surface_changed(changed_files):
-    """Check if any changed files affect the build surface"""
-    if ALWAYS_BUILD:
+def get_env_str(var_name: str, default: str = "") -> str:
+    """Get string environment variable."""
+    return os.getenv(var_name, default)
+
+
+def log_banner(stage_name: str, description: str) -> None:
+    """Print stage banner."""
+    banner = f"=== {stage_name}: {description} ==="
+    print(f"\n{banner}")
+    print("=" * len(banner))
+
+
+def log_verbose(message: str) -> None:
+    """Print verbose message if verbose mode enabled."""
+    if get_env_bool("MCTS_VERBOSE"):
+        print(f"[VERBOSE] {message}")
+
+
+def check_tool_available(command: str) -> bool:
+    """Check if a command/tool is available in PATH."""
+    cmd_parts = command.split()
+    if not cmd_parts:
+        return False
+
+    try:
+        subprocess.run(["which", cmd_parts[0]], capture_output=True, check=True)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def get_changed_files() -> Set[str]:
+    """
+    Get changed files from stdin (if available) or git working tree diff.
+    Returns set of relative file paths.
+    """
+    changed_files: Set[str] = set()
+
+    # Try to read from stdin first (if hook provides changed files)
+    if not sys.stdin.isatty():
+        try:
+            for line in sys.stdin:
+                file_path = line.strip()
+                if file_path:
+                    changed_files.add(file_path)
+            log_verbose(f"Read {len(changed_files)} changed files from stdin")
+        except Exception as e:
+            log_verbose(f"Failed to read from stdin: {e}")
+
+    # Fall back to git diff if no stdin or empty
+    if not changed_files:
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            changed_files = {
+                line.strip() for line in result.stdout.splitlines() if line.strip()
+            }
+            log_verbose(f"Found {len(changed_files)} changed files via git diff")
+        except Exception as e:
+            log_verbose(f"Git diff failed: {e}")
+            # If git fails, assume all relevant files changed
+            changed_files = {"**"}
+
+    return changed_files
+
+
+def should_run_build(changed_files: Set[str]) -> bool:
+    """Determine if build stage should run based on changed files."""
+    if get_env_bool("MCTS_SKIP_BUILD"):
+        return False
+
+    # Always build if we can't determine changed files
+    if "**" in changed_files:
         return True
 
+    # Check for build surface files
     for file_path in changed_files:
         path = Path(file_path)
 
         # Check exact filename matches
         if path.name in BUILD_SURFACE_FILES:
+            log_verbose(f"Build triggered by: {file_path}")
             return True
 
-        # Check requirements*.txt pattern
-        if path.name.startswith("requirements") and path.name.endswith(".txt"):
-            return True
+        # Check directory prefixes
+        for build_dir in BUILD_SURFACE_DIRS:
+            if str(path).startswith(build_dir):
+                log_verbose(f"Build triggered by: {file_path}")
+                return True
 
-        # Check path prefixes
-        path_str = str(path)
-        if any(path_str.startswith(prefix) for prefix in BUILD_SURFACE_PREFIXES):
-            return True
-
+    log_verbose("No build surface files changed, skipping build")
     return False
 
 
-def run_command(cmd, stage_name):
-    """Run a command and return success status"""
-    print(f"[{stage_name}] Running: {cmd}")
+def should_run_tests(changed_files: Set[str]) -> bool:
+    """Determine if test stage should run."""
+    if get_env_bool("MCTS_SKIP_TESTS"):
+        return False
+
+    # Always test if we can't determine changed files
+    if "**" in changed_files:
+        return True
+
+    # Run tests if any Python files changed
+    for file_path in changed_files:
+        if Path(file_path).suffix in PYTHON_EXTENSIONS:
+            log_verbose(f"Tests triggered by: {file_path}")
+            return True
+
+    log_verbose("No Python files changed, skipping tests")
+    return False
+
+
+def run_stage(stage_key: str) -> bool:
+    """
+    Run a single stage of the pipeline.
+    Returns True if successful, False if failed.
+    """
+    stage = STAGES[stage_key]
+    command = get_env_str(stage["env_var"], stage["default_cmd"])
+
+    log_banner(stage["name"], stage["description"])
+    print(f"Command: {command}")
+
+    # Check if tool is available
+    if not check_tool_available(command):
+        print(f"❌ TOOL NOT FOUND: {command.split()[0]}")
+        print(f"📋 Run agent: {stage['agent']}")
+        print(f"🔧 Or install tool and retry")
+        return False
+
+    # Run the command
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, cwd=os.getcwd()
+            command.split(),
+            cwd=Path.cwd(),
+            text=True,
+            capture_output=False,  # Show output in real-time
         )
+
         if result.returncode == 0:
-            print(f"[{stage_name}] ✅ Success")
+            print(f"✅ {stage['name']} PASSED")
             return True
         else:
-            print(f"[{stage_name}] ❌ Failed (exit code {result.returncode})")
-            if result.stdout:
-                print(f"[{stage_name}] STDOUT:\n{result.stdout}")
-            if result.stderr:
-                print(f"[{stage_name}] STDERR:\n{result.stderr}")
+            print(f"❌ {stage['name']} FAILED (exit code: {result.returncode})")
+            print(f"📋 Run agent: {stage['agent']}")
+            print(f"🔄 Or fix issues manually and retry")
             return False
+
     except Exception as e:
-        print(f"[{stage_name}] ❌ Exception: {e}")
+        print(f"❌ {stage['name']} ERROR: {e}")
+        print(f"📋 Run agent: {stage['agent']}")
         return False
 
 
-def block_with_reason(stage, reason):
-    """Block the operation and provide guidance on which agent to call"""
-    agent_map = {
-        "Black": "formatter-black",
-        "MyPy": "mypy-type-checker",
-        "Build": "builder-docker",
-        "Tests": "tester-pytest",
-    }
+def main() -> int:
+    """Main pipeline execution."""
+    print("🚀 Claude Code Post-Change Pipeline")
+    print("=" * 40)
 
-    agent_name = agent_map.get(stage, stage.lower())
+    fail_fast = get_env_bool("MCTS_FAIL_FAST", True)
+    changed_files = get_changed_files()
 
-    print(f"❌ BLOCKED: {stage} stage failed")
-    print(f"Reason: {reason}")
-    print(f"")
-    print(f"To fix this issue, please run:")
-    print(f"  @{agent_name}")
-    print(f"")
-    print(
-        f"The {agent_name} agent will handle the {stage.lower()} issues and iterate until resolved."
-    )
-
-    sys.exit(1)
-
-
-def main():
-    """Main hook execution"""
-    # Read hook input from stdin if available
-    changed_files = []
-    try:
-        if not sys.stdin.isatty():
-            hook_data = json.loads(sys.stdin.read())
-            # Extract file paths from the hook data
-            if "file_path" in hook_data:
-                changed_files.append(hook_data["file_path"])
-            elif "edits" in hook_data:
-                # MultiEdit case
-                changed_files.append(hook_data.get("file_path", ""))
-    except (json.JSONDecodeError, KeyError):
-        # Fallback: assume current directory has changes
-        pass
-
-    print("🔄 Starting post-change pipeline: Black → MyPy → Build → Tests")
-
-    # Stage 1: Black formatting
-    # Try poetry first, fallback to direct command
-    black_cmd = (
-        "poetry run black ."
-        if os.system("which poetry >/dev/null 2>&1") == 0
-        else "black ."
-    )
-    if not run_command(black_cmd, "Black"):
-        print(f"[Black] ⚠️  Black not available, skipping formatting stage")
-        print(f"[Black] To enable formatting, install black: pip install black")
-    else:
-        # Verify Black formatting
-        black_check_cmd = (
-            "poetry run black --check ."
-            if os.system("which poetry >/dev/null 2>&1") == 0
-            else "black --check ."
+    if get_env_bool("MCTS_VERBOSE"):
+        print(
+            f"Changed files: {sorted(changed_files) if changed_files != {'**'} else 'ALL'}"
         )
-        if not run_command(black_check_cmd, "Black-Verify"):
-            block_with_reason(
-                "Black",
-                "Code formatting verification failed. Files are not properly formatted.",
-            )
+        print(f"Fail fast: {fail_fast}")
 
-    # Stage 2: MyPy type checking
-    # Try poetry first, fallback to direct command
-    mypy_cmd = (
-        "poetry run mypy" if os.system("which poetry >/dev/null 2>&1") == 0 else "mypy"
+    # Stage 1: Format (always run for Python files)
+    has_python = (
+        any(Path(f).suffix in PYTHON_EXTENSIONS for f in changed_files)
+        or "**" in changed_files
     )
-    if not run_command(mypy_cmd, "MyPy"):
-        print(f"[MyPy] ⚠️  MyPy not available or failed, skipping type checking stage")
-        print(f"[MyPy] To enable type checking, install mypy: pip install mypy")
+    if has_python:
+        if not run_stage("format"):
+            if fail_fast:
+                return STAGES["format"]["exit_code"]
+    else:
+        print("\n=== Format: Skipped (no Python files) ===")
+
+    # Stage 2: Type Check (always run for Python files)
+    if has_python:
+        if not run_stage("typecheck"):
+            if fail_fast:
+                return STAGES["typecheck"]["exit_code"]
+    else:
+        print("\n=== Type Check: Skipped (no Python files) ===")
 
     # Stage 3: Build (conditional)
-    needs_build = is_build_surface_changed(changed_files)
-    if needs_build:
-        if not run_command(BUILD_CMD, "Build"):
-            block_with_reason(
-                "Build", "Docker build failed. Build errors need to be resolved."
-            )
+    if should_run_build(changed_files):
+        if not run_stage("build"):
+            if fail_fast:
+                return STAGES["build"]["exit_code"]
     else:
-        print("[Build] ⏭️  Skipped (no build surface changes)")
+        print("\n=== Build: Skipped (no build surface changes) ===")
 
-    # Stage 4: Tests (conditional)
-    if ALWAYS_TEST or needs_build or changed_files:
-        # Try poetry first, fallback to direct command
-        test_cmd = (
-            "poetry run pytest -q"
-            if os.system("which poetry >/dev/null 2>&1") == 0
-            else "pytest -q"
-        )
-        if not run_command(test_cmd, "Tests"):
-            print(f"[Tests] ⚠️  Tests not available or failed, skipping test stage")
-            print(f"[Tests] To enable testing, install pytest: pip install pytest")
+    # Stage 4: Test (conditional)
+    if should_run_tests(changed_files):
+        if not run_stage("test"):
+            if fail_fast:
+                return STAGES["test"]["exit_code"]
     else:
-        print("[Tests] ⏭️  Skipped (no changes requiring test run)")
+        print("\n=== Test: Skipped (no Python files changed) ===")
 
-    print("✅ All pipeline stages completed successfully!")
+    print("\n🎉 All stages completed successfully!")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
