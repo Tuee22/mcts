@@ -90,7 +90,9 @@ class TestServerExceptionPaths:
 
         # Mock the game to be finished
         with patch("backend.api.server.game_manager.get_game") as mock_get_game:
-            assert isinstance(mock_get_game, MagicMock)
+            # mock_get_game is an AsyncMock, not MagicMock
+            from unittest.mock import AsyncMock
+            assert isinstance(mock_get_game, AsyncMock)
             mock_game = MagicMock()
             mock_game.status = GameStatus.COMPLETED
             mock_get_game.return_value = mock_game

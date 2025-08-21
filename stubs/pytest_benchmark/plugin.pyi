@@ -1,6 +1,6 @@
-"""Type stubs for pytest-benchmark."""
+"""Type stubs for pytest-benchmark.plugin."""
 
-from typing import Callable, Optional, TypeVar
+from typing import Callable, Optional, TypeVar, Any
 from _pytest.config import Config
 
 T = TypeVar("T")
@@ -11,6 +11,7 @@ class BenchmarkFixture:
     def __call__(self, func: Callable[[], T]) -> T:
         """Execute a function under benchmark timing."""
         ...
+    
     def pedantic(
         self,
         func: Callable[[], T],
@@ -21,7 +22,3 @@ class BenchmarkFixture:
     ) -> T:
         """Execute with precise timing control."""
         ...
-
-def pytest_configure(config: Config) -> None:
-    """Configure benchmark settings."""
-    ...

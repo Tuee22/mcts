@@ -35,32 +35,32 @@ class MockWebSocket:
     # Implement protocol methods
     async def accept(self) -> None:
         """Mock accept method."""
-        self._accept()
+        await self._accept()
         return None
 
     async def close(self, code: int = 1000) -> None:
         """Mock close method."""
-        self._close(code)
+        await self._close(code)
         return None
 
     async def send_text(self, data: str) -> None:
         """Mock send_text method."""
-        self._send_text(data)
+        await self._send_text(data)
         return None
 
     async def send_json(self, data: object) -> None:
         """Mock send_json method."""
-        self._send_json(data)
+        await self._send_json(data)
         return None
 
     async def receive_text(self) -> str:
         """Mock receive_text method."""
-        result = self._receive_text()
+        result = await self._receive_text()
         return str(result) if result is not None else ""
 
     async def receive_json(self) -> object:
         """Mock receive_json method."""
-        return self._receive_json()
+        return await self._receive_json()
 
     # Expose mock objects for assertions
     @property
@@ -206,9 +206,12 @@ class TestWebSocketManagerBroadcasting:
             timestamp=datetime.now(),
         )
         move_response = MoveResponse(
+            success=True,
+            game_id="game1",
             move=mock_move,
             game_status="in_progress",
             next_turn=2,
+            next_player_type=PlayerType.HUMAN,
             board_display="board_string",
             winner=None,
         )
@@ -249,6 +252,7 @@ class TestWebSocketManagerBroadcasting:
         game_response = GameResponse(
             game_id="game1",
             status="in_progress",
+            mode="pvp",
             player1=player1,
             player2=player2,
             current_turn=1,
@@ -321,7 +325,7 @@ class TestWebSocketManagerErrorHandling:
         self, ws_manager: WebSocketManager
     ) -> None:
         """Test _send_json_safe handles exceptions properly."""
-        websocket = create_mock_websocket()
+        websocket = MockWebSocket()
         websocket._send_json.side_effect = Exception("Send failed")
 
         dead_connections: List[WebSocketProtocol] = []
@@ -363,7 +367,7 @@ class TestWebSocketManagerErrorHandling:
         # Connect working and failing websockets
         working_ws = create_mock_websocket()
 
-        failing_ws = create_mock_websocket()
+        failing_ws = MockWebSocket()
         failing_ws._send_json.side_effect = Exception("Send failed")
 
         await ws_manager.connect(working_ws, "game1")
