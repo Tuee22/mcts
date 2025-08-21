@@ -5,5 +5,14 @@
       "triggers": ["Edit", "Write", "MultiEdit"],
       "description": "Automatically runs Black → MyPy → Build → Tests chain after code changes"
     }
+  },
+  "execution": {
+    "dockerFirst": true,
+    "workingDirectory": "/Users/matthewnowak/mcts",
+    "containerExecution": {
+      "required": true,
+      "service": "mcts",
+      "composeFile": "docker/docker-compose.yaml"
+    }
   }
 }
