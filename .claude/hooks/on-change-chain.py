@@ -2,15 +2,17 @@
 """
 Robust staged pipeline for Claude Code post-change enforcement.
 
-Enforces: Format → Type Check → Conditional Build → Conditional Tests
+Enforces: Format → Type Check → Conditional Build → Conditional Tests → Doc Check
 
 Environment Variables:
   MCTS_FORMAT_CMD     - Formatting command (default: docker compose exec mcts-dev black .)
   MCTS_TYPECHECK_CMD  - Type checking command (default: docker compose exec mcts-dev mypy --strict .)
   MCTS_BUILD_CMD      - Build command (default: docker compose build)
   MCTS_TEST_CMD       - Test command (default: docker compose exec mcts-dev pytest -q)
+  MCTS_DOC_CHECK_CMD  - Documentation check command (default: docker compose exec mcts python .claude/hooks/check_docs.py)
   MCTS_SKIP_BUILD     - Skip build stage if "true" (default: auto-detect)
   MCTS_SKIP_TESTS     - Skip test stage if "true" (default: "false")
+  MCTS_SKIP_DOCS      - Skip documentation check if "true" (default: "false")
   MCTS_VERBOSE        - Verbose output if "true" (default: "false")
   MCTS_FAIL_FAST      - Stop on first failure if "true" (default: "true")
 
@@ -21,6 +23,7 @@ Exit Codes:
   3  - Build stage failed
   4  - Test stage failed
   5  - Tool not found / setup error
+  6  - Documentation check failed
 """
 
 import os
@@ -62,6 +65,14 @@ STAGES = {
         "agent": "@tester-pytest",
         "exit_code": 4,
         "description": "Test suite execution",
+    },
+    "doc_check": {
+        "name": "Documentation Check",
+        "default_cmd": "docker compose exec mcts python .claude/hooks/check_docs.py",
+        "env_var": "MCTS_DOC_CHECK_CMD",
+        "agent": "@doc-consistency-checker",
+        "exit_code": 6,
+        "description": "Documentation consistency validation",
     },
 }
 
@@ -344,6 +355,14 @@ def main() -> int:
                 return STAGES["test"]["exit_code"]
     else:
         print("\n=== Test: Skipped (no Python files changed) ===")
+
+    # Stage 5: Documentation Check (always run unless explicitly skipped)
+    if not get_env_bool("MCTS_SKIP_DOCS"):
+        if not run_stage("doc_check"):
+            if fail_fast:
+                return STAGES["doc_check"]["exit_code"]
+    else:
+        print("\n=== Documentation Check: Skipped (MCTS_SKIP_DOCS=true) ===")
 
     print("\n🎉 All stages completed successfully!")
     return 0
