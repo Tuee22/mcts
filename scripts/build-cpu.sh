@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 IMAGE_NAME="${MCTS_CPU_IMAGE:-mcts-cpu}"
 BUILD_CONTEXT="${PROJECT_ROOT}"
-DOCKERFILE="${PROJECT_ROOT}/docker/Dockerfile.cpu"
+DOCKERFILE="${PROJECT_ROOT}/docker/Dockerfile"
 
 # Colors for output
 RED='\033[0;31m'
@@ -185,6 +185,7 @@ build_image() {
     # Add build arguments
     build_cmd="$build_cmd -f $DOCKERFILE_PATH"
     build_cmd="$build_cmd -t $DOCKER_TAG"
+    build_cmd="$build_cmd --build-arg VARIANT=cpu"
     build_cmd="$build_cmd $USE_CACHE"
     
     # Add build-time variables

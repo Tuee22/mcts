@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 IMAGE_NAME="${MCTS_GPU_IMAGE:-mcts-gpu}"
-COMPOSE_FILES=("-f" "${PROJECT_ROOT}/docker-compose.yaml" "-f" "${PROJECT_ROOT}/docker-compose.gpu.yaml")
+COMPOSE_FILES=("-f" "${PROJECT_ROOT}/docker/docker-compose.yaml" "-f" "${PROJECT_ROOT}/docker/docker-compose.gpu.yaml")
 
 # Colors for output
 RED='\033[0;31m'
