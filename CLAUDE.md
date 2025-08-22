@@ -11,6 +11,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Fail-closed**: Commands must never run on the host; if container is unavailable, execution fails with clear error
 - **Workdir**: Container workdir `/app` maps to repository root and is volume-mounted for live development
 
+## **Git Commit Policy**
+
+**CRITICAL: Never make git commits automatically. All git commits must be explicitly requested by the user.**
+
+This project uses the @no-git-commits agent policy. You may stage changes with `git add` but must stop before committing. Only create commits when the user explicitly asks with phrases like "commit this", "create a commit", or "git commit".
+
 ## Project Overview
 
 This is a Monte Carlo Tree Search (MCTS) implementation for the Corridors board game, featuring a high-performance C++ backend with Python bindings. The project combines advanced MCTS algorithms with efficient board representation and supports both traditional UCT and modern PUCT (Alpha-Zero style) formulations.
