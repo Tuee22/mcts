@@ -9,17 +9,11 @@
       "condition": "tool.name === 'Bash'",
       "script": "#!/bin/bash\nset -euo pipefail\n\n# Parse the tool call JSON\noriginal_command=\"$(echo \"$TOOL_CALL\" | jq -r '.parameters.command // empty')\"\nif [ -z \"$original_command\" ]; then\n  echo \"❌ EXECUTION FAILED: No command specified\" >&2\n  exit 1\nfi\n\n# Change to docker directory  \ncd \"$(dirname \"$0\")/../../docker\" || {\n  echo \"❌ EXECUTION FAILED: Cannot access docker directory\" >&2\n  exit 1\n}\n\n# Container status check with retry logic\ncheck_container() {\n  if docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"'; then\n    return 0\n  fi\n  return 1\n}\n\n# Ensure container is running\nif ! check_container; then\n  echo \"🔄 Container not running, attempting to start...\"\n  if docker compose up -d mcts; then\n    sleep 2\n    if ! check_container; then\n      echo \"❌ EXECUTION FAILED: Container failed to start properly\" >&2\n      echo \"💡 Run 'cd docker && docker compose logs mcts' to diagnose\" >&2\n      exit 1\n    fi\n    echo \"✅ Container started successfully\"\n  else\n    echo \"❌ EXECUTION FAILED: Could not start mcts container\" >&2\n    echo \"💡 Ensure Docker is running and try 'cd docker && docker compose build'\" >&2\n    exit 1\n  fi\nfi\n\n# Execute command in container\necho \"🐳 [mcts] $original_command\"\nexec docker compose exec -w /app mcts sh -c \"$original_command\"\n"
     },
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/on-change-chain.py"
-          }
-        ]
-      }
-    ]
+    "PostToolUse": {
+      "command": "python3 .claude/hooks/on-change-chain.py",
+      "triggers": [""],
+      "description": "Automatically runs Black → MyPy → Build → Tests chain after code changes"
+    }
   },
   "tools": {
     "restrictions": {
