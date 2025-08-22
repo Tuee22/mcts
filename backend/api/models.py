@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from corridors.corridors_mcts import Corridors_MCTS
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -105,7 +105,9 @@ class Move(BaseModel):
 
     player_id: str
     action: str  # Format: *(X,Y), H(X,Y), or V(X,Y)
-    timestamp: datetime = datetime.utcnow()  # Will be overridden during creation
+    timestamp: datetime = datetime.now(
+        timezone.utc
+    )  # Will be overridden during creation
     move_number: int
     time_taken: Optional[float] = None
     evaluation: Optional[float] = None  # AI evaluation after move11
@@ -135,7 +137,9 @@ class GameSession(BaseModel):
     move_history: List[Move] = []
     board_state: Optional[BoardState] = None
     settings: GameSettings
-    created_at: datetime = datetime.utcnow()  # Will be overridden during creation
+    created_at: datetime = datetime.now(
+        timezone.utc
+    )  # Will be overridden during creation
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     winner: Optional[int] = None  # 1 or 2
@@ -258,7 +262,9 @@ class WebSocketMessage(BaseModel):
 
     type: str  # "move", "game_state", "player_joined", "game_ended", etc.
     data: Dict[str, Union[str, int, float, bool, None]]
-    timestamp: datetime = datetime.utcnow()  # Will be overridden during creation
+    timestamp: datetime = datetime.now(
+        timezone.utc
+    )  # Will be overridden during creation
 
 
 class MatchmakingRequest(BaseModel):

@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple, Union
 
 # Add parent directory to path for imports
@@ -109,7 +109,7 @@ class GameManager:
 
             # Start the game
             game.status = GameStatus.IN_PROGRESS
-            game.started_at = datetime.utcnow()
+            game.started_at = datetime.now(timezone.utc)
 
             # Store the game
             self.games[game.game_id] = game
@@ -158,7 +158,7 @@ class GameManager:
             if game_id in self.games:
                 game = self.games[game_id]
                 game.status = GameStatus.CANCELLED
-                game.ended_at = datetime.utcnow()
+                game.ended_at = datetime.now(timezone.utc)
                 del self.games[game_id]
                 logger.info(f"Deleted game {game_id}")
                 return True
@@ -218,7 +218,7 @@ class GameManager:
             )
             if not next_legal_moves or eval_result is not None:
                 game.status = GameStatus.COMPLETED
-                game.ended_at = datetime.utcnow()
+                game.ended_at = datetime.now(timezone.utc)
 
                 # Determine winner
                 if eval_result is not None:
@@ -383,7 +383,7 @@ class GameManager:
             # The other player wins
             game.winner = 2 if player.is_hero else 1
             game.status = GameStatus.COMPLETED
-            game.ended_at = datetime.utcnow()
+            game.ended_at = datetime.now(timezone.utc)
             game.termination_reason = "resignation"
 
             return game.winner
@@ -467,7 +467,7 @@ class GameManager:
                         "player_id": player_id,
                         "player_name": player_name,
                         "settings": settings,
-                        "joined_at": datetime.utcnow(),
+                        "joined_at": datetime.now(timezone.utc),
                     }
                 )
                 return None
@@ -538,4 +538,4 @@ class GameManager:
         for game in self.games.values():
             if game.status == GameStatus.IN_PROGRESS:
                 game.status = GameStatus.CANCELLED
-                game.ended_at = datetime.utcnow()
+                game.ended_at = datetime.now(timezone.utc)
