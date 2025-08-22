@@ -142,3 +142,9 @@ type-check-results/
 
 # Claude Code logs
 .claude/logs/
+
+# Hook test artifacts
+test_hook_trigger.txt
+.claude/test_smoke.txt
+.claude/hook_test_file.txt
+.claude/final_smoke_test.txt

@@ -1,2 +1,0 @@
-# Hook Audit Log - ISO-8601 Timestamp | Tool Name | File Path or Description
-2025-08-22T14:53:53.917273 | Tool: Write | Path: /test/manual.txt
