@@ -65,7 +65,7 @@ export const GameSettings: React.FC = () => {
       <h2>Game Settings</h2>
       
       {!isConnected && (
-        <div className="connection-warning">
+        <div className="connection-warning" data-testid="connection-warning">
           <h3>⚠️ Connection Required</h3>
           <p>Please connect to the server before configuring game settings.</p>
         </div>
@@ -80,6 +80,7 @@ export const GameSettings: React.FC = () => {
             className={`mode-btn ${gameSettings.mode === 'human_vs_human' ? 'active' : ''}`}
             onClick={() => handleModeChange('human_vs_human')}
             disabled={!isConnected}
+            data-testid="mode-human-vs-human"
           >
             <span className="mode-icon">👤 vs 👤</span>
             <span className="mode-label">Human vs Human</span>
@@ -88,6 +89,7 @@ export const GameSettings: React.FC = () => {
             className={`mode-btn ${gameSettings.mode === 'human_vs_ai' ? 'active' : ''}`}
             onClick={() => handleModeChange('human_vs_ai')}
             disabled={!isConnected}
+            data-testid="mode-human-vs-ai"
           >
             <span className="mode-icon">👤 vs 🤖</span>
             <span className="mode-label">Human vs AI</span>
@@ -96,6 +98,7 @@ export const GameSettings: React.FC = () => {
             className={`mode-btn ${gameSettings.mode === 'ai_vs_ai' ? 'active' : ''}`}
             onClick={() => handleModeChange('ai_vs_ai')}
             disabled={!isConnected}
+            data-testid="mode-ai-vs-ai"
           >
             <span className="mode-icon">🤖 vs 🤖</span>
             <span className="mode-label">AI vs AI</span>
@@ -207,6 +210,7 @@ export const GameSettings: React.FC = () => {
           className="retro-btn start-game"
           onClick={startNewGame}
           disabled={isLoading || !isConnected}
+          data-testid="start-game-button"
         >
           {isLoading ? 'Starting...' : !isConnected ? 'Disconnected' : 'Start Game'}
         </button>

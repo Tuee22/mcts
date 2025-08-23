@@ -68,21 +68,24 @@ function App() {
       
       <header className="app-header">
         <h1 className="app-title">CORRIDORS</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}></span>
-          <span className="status-text">
+        <div className="connection-status" data-testid="connection-status">
+          <span 
+            className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
+            data-testid="connection-indicator"
+          ></span>
+          <span className="status-text" data-testid="connection-text">
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
       </header>
 
-      <main className="app-main">
+      <main className="app-main" data-testid="app-main">
         {!gameId ? (
-          <div className="game-setup">
+          <div className="game-setup" data-testid="game-setup">
             <GameSettings />
           </div>
         ) : (
-          <div className="game-container">
+          <div className="game-container" data-testid="game-container">
             <div className="game-left">
               <GameSettings />
               <MoveHistory />

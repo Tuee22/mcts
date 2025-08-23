@@ -1,3 +1,1 @@
-"""
-Shared test fixtures and data.
-"""
+"""Test fixtures and data utilities."""

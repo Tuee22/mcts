@@ -6,16 +6,20 @@ class WebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
-  connect(url: string = 'ws://localhost:8000/ws') {
+  connect(url?: string) {
     if (this.socket?.readyState === WebSocket.OPEN) {
       return;
     }
 
+    // Support environment variable for API URL
+    const wsUrl = url || process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
+
     try {
-      this.socket = new WebSocket(url);
+      this.socket = new WebSocket(wsUrl);
       this.setupEventListeners();
     } catch (error) {
       console.error('WebSocket connection error:', error);
+      useGameStore.getState().setError('Failed to connect to server');
     }
   }
 
