@@ -164,6 +164,52 @@ mcts_puct = Corridors_MCTS(
 )
 ```
 
+## Frontend Integration
+
+The project includes a React TypeScript frontend that provides a visual game interface with real-time multiplayer support.
+
+### Quick Start
+
+```bash
+# Start full stack (backend + frontend)
+cd docker
+docker compose up -d
+
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000  
+# WebSocket: ws://localhost:8000/ws
+```
+
+### Key Integration Points
+
+**WebSocket Communication:**
+- Real-time game updates and move synchronization
+- Connection management with automatic reconnection
+- Game event broadcasting (start, moves, end)
+
+**REST API Integration:**
+- `POST /games` - Create new games
+- `GET /games/{id}` - Get game state  
+- `POST /games/{id}/moves` - Submit moves
+- `GET /health` - Backend status
+
+**CORS Configuration:**
+- Development: `http://localhost:3000`
+- Testing: `http://localhost:3001`, `http://localhost:3002`
+- Production: Configurable via `MCTS_CORS_ORIGINS`
+
+**Environment Variables:**
+```bash
+# Frontend configuration
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_WS_URL=ws://localhost:8000/ws
+
+# Backend CORS setup
+MCTS_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+```
+
+For detailed frontend documentation, see [frontend/README.md](frontend/README.md).
+
 ## Development
 
 ### Building C++ Components
@@ -189,47 +235,44 @@ scons sanitize=1
 
 ### Running Tests
 
-**Poetry Test Commands (Recommended):**
+**IMPORTANT: All tests must be run inside Docker containers**
+
+**Docker Test Commands (Required):**
 ```bash
+# Start Docker services first
+cd docker && docker compose up -d
+
 # All tests - Python backend and frontend (recommended)
-poetry run test-all                # Runs all test suites
+docker compose exec mcts pytest
 
-# Python backend tests
-poetry run test-python              # All Python tests (core + API)
-poetry run test-python-core         # Core MCTS and board tests only
-poetry run test-python-api          # API server tests only
+# Test categories
+docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
+docker compose exec mcts pytest -m "slow"        # Only slow tests  
+docker compose exec mcts pytest -m "integration" # Integration tests
+docker compose exec mcts pytest -m "python"     # Pure Python tests
+docker compose exec mcts pytest -m "cpp"        # C++ binding tests
+docker compose exec mcts pytest -m "performance" # Performance tests
+docker compose exec mcts pytest -m "edge_cases"  # Edge case tests
 
-# Frontend tests
-poetry run test-frontend             # JavaScript/TypeScript frontend tests
-```
-
-**Direct Docker Testing:**
-```bash
-# CPU container - all tests
-docker exec docker-mcts-1 poetry run test-all
-
-# Individual test suites in container
-docker exec docker-mcts-1 poetry run test-python-core    # 117 tests
-docker exec docker-mcts-1 poetry run test-python-api     # 58 tests  
-docker exec docker-mcts-1 poetry run test-frontend       # 3 tests
+# Benchmarking
+docker compose exec mcts pytest --benchmark-only # Run benchmarks
 ```
 
 **Advanced Testing Options:**
 ```bash
-# Test categories with pytest markers
-poetry run pytest tests/backend/core/ -m 'not slow'      # Fast tests only
-poetry run pytest tests/backend/core/ -m performance     # Performance tests
-poetry run pytest tests/backend/core/ -m integration     # Integration tests
-poetry run pytest tests/backend/core/ -m cpp             # C++ binding tests
-poetry run pytest tests/backend/core/ -m python          # Pure Python tests
-
 # With coverage and verbose output
-poetry run pytest tests/backend/core/ --cov=corridors -v
+docker compose exec mcts pytest --cov=corridors -v
 
 # Specific test files
-poetry run pytest tests/backend/core/test_board.py       # Board functionality
-poetry run pytest tests/backend/core/test_mcts.py        # MCTS algorithm
-poetry run pytest tests/backend/api/test_server.py       # API endpoints
+docker compose exec mcts pytest tests/backend/core/test_board.py       # Board functionality
+docker compose exec mcts pytest tests/backend/core/test_mcts.py        # MCTS algorithm
+docker compose exec mcts pytest tests/backend/api/test_server.py       # API endpoints
+
+# Specific test directories
+docker compose exec mcts pytest tests/backend/core/     # Core tests
+docker compose exec mcts pytest tests/backend/api/      # API tests
+docker compose exec mcts pytest tests/integration/      # Integration tests
+docker compose exec mcts pytest tests/e2e/              # E2E tests
 ```
 
 **GPU Testing (CUDA only):**
@@ -238,6 +281,41 @@ poetry run pytest tests/backend/api/test_server.py       # API endpoints
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml exec mcts poetry run test-all
 docker compose exec mcts nvidia-smi
 ```
+
+### Poetry Scripts
+
+The project provides convenient Poetry script shortcuts for common development tasks:
+
+**API Server:**
+```bash
+# Start production API server
+docker compose exec mcts poetry run api-server
+
+# Start development API server (with hot reload)
+docker compose exec mcts poetry run api-dev
+```
+
+**Testing Scripts:**
+```bash
+# Complete test suite
+docker compose exec mcts poetry run test-all
+
+# Python tests (backend)
+docker compose exec mcts poetry run test-python      # All Python tests
+docker compose exec mcts poetry run test-python-core # Core MCTS tests only  
+docker compose exec mcts poetry run test-python-api  # API server tests only
+
+# Frontend tests
+docker compose exec mcts poetry run test-frontend
+```
+
+**Code Quality:**
+```bash
+# Type safety verification (no Any, cast, or type: ignore)
+docker compose exec mcts poetry run check-type-safety
+```
+
+These scripts are defined in `pyproject.toml` and provide a consistent interface for development tasks.
 
 ### Code Quality
 
@@ -300,13 +378,13 @@ Corridors is a two-player board game where players race to reach the opposite si
 
 ## Architecture
 
-### C++ Core (`src/`)
+### C++ Core (`backend/core/`)
 - **`mcts.hpp`**: Generic template-based MCTS implementation
 - **`board.h/.cpp`**: Corridors game logic and board representation
 - **`corridors_threaded_api.h/.cpp`**: Thread-safe wrapper for Python
 - **`_corridors_mcts.cpp`**: Boost.Python bindings
 
-### Python Interface (`python/`)
+### Python Interface (`backend/python/corridors/`)
 - **`corridors_mcts.py`**: Main Python API with game management
 - Provides high-level functions for play modes and visualization
 
@@ -365,7 +443,7 @@ Corridors is a two-player board game where players race to reach the opposite si
 
 **Import Errors:**
 - Verify C++ module was built successfully (`_corridors_mcts.so`)
-- Check PYTHONPATH includes the python/ directory
+- Check PYTHONPATH includes the backend/python/ directory
 - Run `poetry install` to ensure all dependencies are present
 
 ## License

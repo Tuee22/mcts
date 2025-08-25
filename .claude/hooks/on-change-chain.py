@@ -1,20 +1,21 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Robust staged pipeline for Claude Code post-change enforcement.
 
 Enforces: Format → Type Check → Conditional Build → Conditional Tests → Doc Check
 
 Environment Variables:
-  MCTS_FORMAT_CMD     - Formatting command (default: docker compose exec mcts-dev black .)
-  MCTS_TYPECHECK_CMD  - Type checking command (default: docker compose exec mcts-dev mypy --strict .)
-  MCTS_BUILD_CMD      - Build command (default: docker compose build)
-  MCTS_TEST_CMD       - Test command (default: docker compose exec mcts-dev pytest -q)
-  MCTS_DOC_CHECK_CMD  - Documentation check command (default: docker compose exec mcts python .claude/hooks/check_docs.py)
+  MCTS_FORMAT_CMD     - Formatting command (default: black .)
+  MCTS_TYPECHECK_CMD  - Type checking command (default: mypy --strict .)
+  MCTS_BUILD_CMD      - Build command (default: echo 'Build runs on host')
+  MCTS_TEST_CMD       - Test command (default: pytest -q)
+  MCTS_DOC_CHECK_CMD  - Documentation check command (default: python /app/.claude/hooks/check_docs.py)
   MCTS_SKIP_BUILD     - Skip build stage if "true" (default: auto-detect)
   MCTS_SKIP_TESTS     - Skip test stage if "true" (default: "false")
   MCTS_SKIP_DOCS      - Skip documentation check if "true" (default: "false")
   MCTS_VERBOSE        - Verbose output if "true" (default: "false")
   MCTS_FAIL_FAST      - Stop on first failure if "true" (default: "true")
+  MCTS_AUTO_FIX       - Automatically fix issues if "true" (default: "true")
 
 Exit Codes:
   0  - All stages passed
@@ -26,6 +27,7 @@ Exit Codes:
   6  - Documentation check failed
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -36,7 +38,7 @@ from typing import Dict, List, Optional, Set, Tuple
 STAGES = {
     "format": {
         "name": "Format",
-        "default_cmd": "docker compose exec mcts black .",
+        "default_cmd": "black .",
         "env_var": "MCTS_FORMAT_CMD",
         "agent": "@formatter-black",
         "exit_code": 1,
@@ -44,7 +46,7 @@ STAGES = {
     },
     "typecheck": {
         "name": "Type Check",
-        "default_cmd": "docker compose exec mcts mypy --strict .",
+        "default_cmd": "mypy --strict .",
         "env_var": "MCTS_TYPECHECK_CMD",
         "agent": "@mypy-type-checker",
         "exit_code": 2,
@@ -52,15 +54,15 @@ STAGES = {
     },
     "build": {
         "name": "Build",
-        "default_cmd": "docker compose build",
+        "default_cmd": "echo 'Build would run on host'",
         "env_var": "MCTS_BUILD_CMD",
-        "agent": "@builder-docker",
+        "agent": "@builder-docker (or @builder-cpu/@builder-gpu for multi-arch)",
         "exit_code": 3,
-        "description": "Docker container build",
+        "description": "Docker container build with dependency management",
     },
     "test": {
         "name": "Test",
-        "default_cmd": "docker compose exec mcts pytest -q",
+        "default_cmd": "pytest -q",
         "env_var": "MCTS_TEST_CMD",
         "agent": "@tester-pytest",
         "exit_code": 4,
@@ -68,7 +70,7 @@ STAGES = {
     },
     "doc_check": {
         "name": "Documentation Check",
-        "default_cmd": "docker compose exec mcts python .claude/hooks/check_docs.py",
+        "default_cmd": "python /app/.claude/hooks/check_docs.py",
         "env_var": "MCTS_DOC_CHECK_CMD",
         "agent": "@doc-consistency-checker",
         "exit_code": 6,
@@ -82,7 +84,6 @@ BUILD_SURFACE_FILES = {
     "Dockerfile",
     "docker-compose.yaml",
     "docker-compose.yml",
-    "requirements.txt",
     "pyproject.toml",
     "setup.py",
     "setup.cfg",
@@ -91,6 +92,9 @@ BUILD_SURFACE_FILES = {
     "Pipfile.lock",
 }
 BUILD_SURFACE_DIRS = {"backend/core", "docker"}
+
+# Note: Auto-fix is now handled by the intelligent investigation system
+# in auto_investigate_fix.py which analyzes errors and applies appropriate fixes
 
 
 def get_env_bool(var_name: str, default: bool = False) -> bool:
@@ -129,25 +133,60 @@ def check_tool_available(command: str) -> bool:
         return False
 
 
-def get_changed_files() -> Set[str]:
+def parse_tool_payload() -> Tuple[str, str, Set[str]]:
     """
-    Get changed files from stdin (if available) or git working tree diff.
-    Returns set of relative file paths.
+    Parse JSON from stdin to extract event type, tool name, and changed files.
+    Returns (event_type, tool_name, changed_files_set).
     """
+    event_type = "Post-Tool-Use"
+    tool_name = "Unknown"
     changed_files: Set[str] = set()
 
-    # Try to read from stdin first (if hook provides changed files)
+    # Try to read JSON from stdin
     if not sys.stdin.isatty():
         try:
-            for line in sys.stdin:
-                file_path = line.strip()
-                if file_path:
-                    changed_files.add(file_path)
-            log_verbose(f"Read {len(changed_files)} changed files from stdin")
-        except Exception as e:
-            log_verbose(f"Failed to read from stdin: {e}")
+            stdin_data = sys.stdin.read()
+            if stdin_data:
+                payload = json.loads(stdin_data)
 
-    # Fall back to git diff if no stdin or empty
+                # Extract tool information
+                tool_info = payload.get("tool", {})
+                tool_name = tool_info.get("name", "Unknown")
+                tool_params = tool_info.get("parameters", {})
+
+                # Extract changed files based on tool type
+                if tool_name in ["Edit", "Write"]:
+                    file_path = tool_params.get("file_path")
+                    if file_path:
+                        # Convert absolute host path to relative container path
+                        if file_path.startswith("/"):
+                            # Remove project root from absolute path
+                            file_path = file_path.replace(
+                                "/Users/matthewnowak/mcts/", ""
+                            )
+                        changed_files.add(file_path)
+                elif tool_name == "MultiEdit":
+                    file_path = tool_params.get("file_path")
+                    if file_path:
+                        # Convert absolute host path to relative container path
+                        if file_path.startswith("/"):
+                            file_path = file_path.replace(
+                                "/Users/matthewnowak/mcts/", ""
+                            )
+                        changed_files.add(file_path)
+                elif tool_name == "Task":
+                    # For Task tool, we can't know specific files, so trigger all checks
+                    changed_files.add("**")
+
+                log_verbose(f"Parsed tool payload: {tool_name}, files: {changed_files}")
+            else:
+                log_verbose("No JSON payload in stdin")
+        except json.JSONDecodeError as e:
+            log_verbose(f"Failed to parse JSON from stdin: {e}")
+        except Exception as e:
+            log_verbose(f"Error reading stdin: {e}")
+
+    # Fall back to git diff if no files detected
     if not changed_files:
         try:
             result = subprocess.run(
@@ -159,12 +198,23 @@ def get_changed_files() -> Set[str]:
             changed_files = {
                 line.strip() for line in result.stdout.splitlines() if line.strip()
             }
-            log_verbose(f"Found {len(changed_files)} changed files via git diff")
+            log_verbose(
+                f"Fallback: Found {len(changed_files)} changed files via git diff"
+            )
         except Exception as e:
-            log_verbose(f"Git diff failed: {e}")
+            log_verbose(f"Git diff fallback failed: {e}")
             # If git fails, assume all relevant files changed
             changed_files = {"**"}
 
+    return event_type, tool_name, changed_files
+
+
+def get_changed_files() -> Set[str]:
+    """
+    Get changed files - kept for compatibility.
+    Returns set of relative file paths.
+    """
+    _, _, changed_files = parse_tool_payload()
     return changed_files
 
 
@@ -178,12 +228,19 @@ def should_run_build(changed_files: Set[str]) -> bool:
         return True
 
     # Check for build surface files
+    dependency_files_changed = False
     for file_path in changed_files:
         path = Path(file_path)
 
         # Check exact filename matches
         if path.name in BUILD_SURFACE_FILES:
             log_verbose(f"Build triggered by: {file_path}")
+            # Special handling for dependency files
+            if path.name in {"pyproject.toml", "poetry.lock"}:
+                dependency_files_changed = True
+                log_verbose(
+                    f"DEPENDENCY FILE CHANGED: {file_path} - Will trigger full rebuild"
+                )
             return True
 
         # Check directory prefixes
@@ -193,6 +250,17 @@ def should_run_build(changed_files: Set[str]) -> bool:
                 return True
 
     log_verbose("No build surface files changed, skipping build")
+    return False
+
+
+def has_dependency_changes(changed_files: Set[str]) -> bool:
+    """Check if dependency files (pyproject.toml, poetry.lock) were modified."""
+    dependency_files = {"pyproject.toml", "poetry.lock"}
+
+    for file_path in changed_files:
+        path = Path(file_path)
+        if path.name in dependency_files:
+            return True
     return False
 
 
@@ -251,7 +319,7 @@ def ensure_docker_services() -> bool:
         return False
 
 
-def run_stage(stage_key: str) -> bool:
+def run_stage(stage_key: str, auto_fix: bool = False) -> bool:
     """
     Run a single stage of the pipeline.
     Returns True if successful, False if failed.
@@ -262,12 +330,10 @@ def run_stage(stage_key: str) -> bool:
     log_banner(stage["name"], stage["description"])
     print(f"Command: {command}")
 
-    # Ensure Docker services are running for container commands
-    if "docker compose exec" in command:
-        if not ensure_docker_services():
-            print("❌ Failed to start Docker services")
-            print(f"📋 Run agent: {stage['agent']}")
-            return False
+    # Special handling for build stage (needs to run on host)
+    if stage_key == "build":
+        print("⚠️  Build stage must run on host, skipping in container")
+        return True
 
     # Check if tool is available
     if not check_tool_available(command):
@@ -276,25 +342,75 @@ def run_stage(stage_key: str) -> bool:
         print(f"🔧 Or install tool and retry")
         return False
 
-    # Run the command
+    # Run the command - first attempt
     try:
-        # Determine working directory based on command type
-        if "docker compose" in command:
-            work_dir = Path.cwd() / "docker"
-        else:
-            work_dir = Path.cwd()
+        # Run command in container's working directory
+        work_dir = Path("/app")
 
+        # First run with output capture for investigation
         result = subprocess.run(
             command.split(),
             cwd=work_dir,
             text=True,
-            capture_output=False,  # Show output in real-time
+            capture_output=True,  # Capture for investigation
         )
+
+        # Show output
+        if result.stdout:
+            print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+        if result.stderr:
+            print(
+                result.stderr,
+                end="" if result.stderr.endswith("\n") else "\n",
+                file=sys.stderr,
+            )
 
         if result.returncode == 0:
             print(f"✅ {stage['name']} PASSED")
             return True
         else:
+            # Try intelligent auto-investigation and fix if enabled
+            if auto_fix:
+                print(f"🔍 {stage['name']} FAILED - Investigating issue...")
+
+                # Combine stdout and stderr for investigation
+                combined_output = (result.stdout or "") + "\n" + (result.stderr or "")
+
+                # Run the investigation script (we're already in container)
+                investigation_result = subprocess.run(
+                    [
+                        "python",
+                        "/app/.claude/hooks/auto_investigate_fix.py",
+                        stage_key,
+                        str(result.returncode),
+                    ],
+                    input=combined_output,
+                    text=True,
+                    capture_output=True,
+                )
+
+                if investigation_result.returncode == 0:
+                    print(investigation_result.stdout)
+                    print(f"🔄 Re-running {stage['name']} after auto-fix...")
+
+                    # Re-run the original command
+                    retry_result = subprocess.run(
+                        command.split(),
+                        cwd=work_dir,
+                        text=True,
+                        capture_output=False,
+                    )
+
+                    if retry_result.returncode == 0:
+                        print(f"✅ {stage['name']} PASSED after auto-fix")
+                        return True
+                    else:
+                        print(f"❌ {stage['name']} still failing after auto-fix")
+                else:
+                    # Investigation couldn't fix it
+                    if investigation_result.stdout:
+                        print(investigation_result.stdout)
+
             print(f"❌ {stage['name']} FAILED (exit code: {result.returncode})")
             print(f"📋 Run agent: {stage['agent']}")
             print(f"🔄 Or fix issues manually and retry")
@@ -308,17 +424,25 @@ def run_stage(stage_key: str) -> bool:
 
 def main() -> int:
     """Main pipeline execution."""
-    print("🚀 Claude Code Post-Change Pipeline")
-    print("=" * 40)
-
     fail_fast = get_env_bool("MCTS_FAIL_FAST", True)
-    changed_files = get_changed_files()
+    auto_fix = get_env_bool("MCTS_AUTO_FIX", True)  # Auto-fix enabled by default
+    event_type, tool_name, changed_files = parse_tool_payload()
+
+    # Print startup line with event, tool, and changed files
+    file_list = sorted(changed_files) if changed_files != {"**"} else ["all"]
+    file_summary = (
+        ", ".join(file_list) if len(file_list) <= 3 else f"{len(file_list)} files"
+    )
+    print(f"🚀 {event_type} | Tool: {tool_name} | Files: {file_summary}")
 
     if get_env_bool("MCTS_VERBOSE"):
+        print("=" * 40)
+        print(f"Verbose mode enabled")
         print(
             f"Changed files: {sorted(changed_files) if changed_files != {'**'} else 'ALL'}"
         )
         print(f"Fail fast: {fail_fast}")
+        print(f"Auto-fix: {auto_fix}")
 
     # Stage 1: Format (always run for Python files)
     has_python = (
@@ -326,7 +450,7 @@ def main() -> int:
         or "**" in changed_files
     )
     if has_python:
-        if not run_stage("format"):
+        if not run_stage("format", auto_fix):
             if fail_fast:
                 return STAGES["format"]["exit_code"]
     else:
@@ -334,7 +458,7 @@ def main() -> int:
 
     # Stage 2: Type Check (always run for Python files)
     if has_python:
-        if not run_stage("typecheck"):
+        if not run_stage("typecheck", auto_fix):
             if fail_fast:
                 return STAGES["typecheck"]["exit_code"]
     else:
@@ -342,7 +466,21 @@ def main() -> int:
 
     # Stage 3: Build (conditional)
     if should_run_build(changed_files):
-        if not run_stage("build"):
+        # Check if dependency files changed to trigger enhanced build process
+        if has_dependency_changes(changed_files):
+            print(
+                f"\n🔧 DEPENDENCY CHANGES DETECTED - Enhanced build process will be used"
+            )
+            print(
+                f"📋 Recommended: Use @builder-docker, @builder-cpu, and @builder-gpu agents"
+            )
+            print(f"⚠️  All container variants will be rebuilt with --no-cache")
+
+            # Set environment variable to signal enhanced build
+            os.environ["BUILD_NO_CACHE"] = "1"
+            os.environ["MCTS_DEPENDENCY_CHANGE"] = "1"
+
+        if not run_stage("build", auto_fix):
             if fail_fast:
                 return STAGES["build"]["exit_code"]
     else:
@@ -350,7 +488,7 @@ def main() -> int:
 
     # Stage 4: Test (conditional)
     if should_run_tests(changed_files):
-        if not run_stage("test"):
+        if not run_stage("test", auto_fix):
             if fail_fast:
                 return STAGES["test"]["exit_code"]
     else:
@@ -358,7 +496,7 @@ def main() -> int:
 
     # Stage 5: Documentation Check (always run unless explicitly skipped)
     if not get_env_bool("MCTS_SKIP_DOCS"):
-        if not run_stage("doc_check"):
+        if not run_stage("doc_check", auto_fix):
             if fail_fast:
                 return STAGES["doc_check"]["exit_code"]
     else:

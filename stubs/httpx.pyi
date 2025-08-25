@@ -11,6 +11,9 @@ from typing import (
     Awaitable,
 )
 
+class ASGITransport:
+    def __init__(self, app: object, **kwargs: object) -> None: ...
+
 class Response:
     def __init__(
         self,
@@ -108,6 +111,42 @@ class AsyncClient:
         params: Optional[Dict[str, Union[str, int]]] = None,
         headers: Optional[Dict[str, str]] = None,
         cookies: Optional[object] = None,
+        auth: Optional[object] = None,
+        follow_redirects: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        **kwargs: object,
+    ) -> Response: ...
+    async def options(
+        self,
+        url: str,
+        params: Optional[Dict[str, Union[str, int]]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        cookies: Optional[object] = None,
+        auth: Optional[object] = None,
+        follow_redirects: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        **kwargs: object,
+    ) -> Response: ...
+    async def head(
+        self,
+        url: str,
+        params: Optional[Dict[str, Union[str, int]]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        cookies: Optional[object] = None,
+        auth: Optional[object] = None,
+        follow_redirects: Optional[bool] = None,
+        timeout: Optional[float] = None,
+        **kwargs: object,
+    ) -> Response: ...
+    async def patch(
+        self,
+        url: str,
+        data: Optional[Union[str, bytes, Dict[str, object]]] = None,
+        json: Optional[object] = None,
+        params: Optional[Dict[str, Union[str, int]]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        cookies: Optional[object] = None,
+        files: Optional[Dict[str, object]] = None,
         auth: Optional[object] = None,
         follow_redirects: Optional[bool] = None,
         timeout: Optional[float] = None,

@@ -5,7 +5,7 @@ This directory contains all backend components of the Corridors MCTS project.
 ## Structure
 
 - `core/` - C++ MCTS engine and board logic
-- `python/` - Python bindings for the C++ engine  
+- `python/corridors/` - Python bindings for the C++ engine  
 - `api/` - FastAPI web service
 
 ## Building

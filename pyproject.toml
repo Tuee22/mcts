@@ -98,6 +98,20 @@ build-backend = "poetry.core.masonry.api"
 # Test runner commands
 test-runner = "tests.utils.test_runner:main"
 
+# API servers
+api-server = "backend.api.server:main"
+api-dev = "backend.api.server:dev"
+
+# Test runners  
+test-python = "tests.utils.run_tests:main"
+test-python-api = "tests.utils.run_api_tests:main" 
+test-python-core = "tests.utils.run_core_tests:main"
+test-frontend = "tests.utils.run_frontend_tests:main"
+test-all = "tests.utils.run_all_tests:main"
+
+# Type safety checker
+check-type-safety = "tools.check_type_safety:main"
+
 [tool.black]
 line-length = 88
 target-version = ['py312']
@@ -209,19 +223,6 @@ error_summary = true
 
 # No per-file overrides - we're going for 100% type safety
 
-[tool.poetry.scripts]
-api-server = "backend.api.server:main"
-api-dev = "backend.api.server:dev"
-
-# Test runners  
-test-python = "tests.utils.run_tests:main"
-test-python-api = "tests.utils.run_api_tests:main" 
-test-python-core = "tests.utils.run_core_tests:main"
-test-frontend = "tests.utils.run_frontend_tests:main"
-test-all = "tests.utils.run_all_tests:main"
-
-# Type safety checker
-check-type-safety = "tools.check_type_safety:main"
 
 [tool.poetry.extras]
 api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]

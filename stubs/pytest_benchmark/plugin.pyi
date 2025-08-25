@@ -1,6 +1,6 @@
 """Type stubs for pytest-benchmark.plugin."""
 
-from typing import Callable, Optional, TypeVar, Any
+from typing import Callable, Optional, TypeVar
 from _pytest.config import Config
 
 T = TypeVar("T")

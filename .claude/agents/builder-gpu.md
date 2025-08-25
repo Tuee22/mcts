@@ -47,6 +47,8 @@ nvidia-ml-py3 -i
 ```
 
 ### 2. Build Process
+
+#### Standard Build Process
 ```bash
 # Primary GPU build command
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build
@@ -54,14 +56,38 @@ docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build
 # Build specific service
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build mcts-gpu
 
-# Build with no cache
-docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build --no-cache
-
 # Pull latest base images first
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml pull
 ```
 
+#### Dependency Change Build Process (CRITICAL for pyproject.toml changes)
+```bash
+# MANDATORY: Clean build when dependencies change
+docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build --no-cache
+
+# Multi-CUDA architecture build (test all supported GPU generations)
+docker build -f docker/Dockerfile.gpu \
+  --build-arg CUDA_ARCHITECTURES="70;75;80;86;89;90" \
+  --no-cache \
+  -t mcts-gpu:multi-arch .
+
+# Test builds for different CUDA versions
+docker build -f docker/Dockerfile.gpu \
+  --build-arg CUDA_VERSION=11.8 \
+  --build-arg CUDNN_VERSION=8 \
+  --no-cache \
+  -t mcts-gpu:cuda118 .
+
+docker build -f docker/Dockerfile.gpu \
+  --build-arg CUDA_VERSION=12.1 \
+  --build-arg CUDNN_VERSION=8 \
+  --no-cache \
+  -t mcts-gpu:cuda121 .
+```
+
 ### 3. GPU Runtime Validation
+
+#### Standard GPU Validation
 ```bash
 # Test GPU container startup
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml run --rm mcts-gpu nvidia-smi
@@ -72,6 +98,36 @@ docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml run --rm mcts-g
 # Test Python GPU libraries
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml run --rm mcts-gpu \
   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+#### Comprehensive GPU Architecture Validation (REQUIRED for dependency changes)
+```bash
+# Test multi-architecture GPU support
+docker run --rm --gpus all mcts-gpu:multi-arch nvidia-smi
+docker run --rm --gpus all mcts-gpu:multi-arch nvcc --version
+
+# Validate CUDA versions
+docker run --rm --gpus all mcts-gpu:cuda118 python -c "import torch; print(f'CUDA 11.8 - Available: {torch.cuda.is_available()}, Version: {torch.version.cuda}')"
+docker run --rm --gpus all mcts-gpu:cuda121 python -c "import torch; print(f'CUDA 12.1 - Available: {torch.cuda.is_available()}, Version: {torch.version.cuda}')"
+
+# Test GPU memory and compute capabilities
+docker run --rm --gpus all mcts-gpu:multi-arch python -c "
+import torch
+if torch.cuda.is_available():
+    for i in range(torch.cuda.device_count()):
+        props = torch.cuda.get_device_properties(i)
+        print(f'GPU {i}: {props.name}, Compute: {props.major}.{props.minor}, Memory: {props.total_memory/1024**3:.1f}GB')
+else:
+    print('No GPUs detected')
+"
+
+# Validate all dependency imports work with GPU
+docker run --rm --gpus all mcts-gpu:multi-arch python -c "
+import pytest, playwright, torch, numpy as np
+print('All dependencies imported successfully with GPU support')
+print(f'PyTorch CUDA: {torch.cuda.is_available()}')
+print(f'GPU Count: {torch.cuda.device_count()}')
+"
 ```
 
 ### 4. MCTS GPU Integration Testing

@@ -25,6 +25,8 @@ This agent builds Docker containers specifically for CPU-only environments, excl
 - Check available disk space for build layers
 
 ### 2. Build Process
+
+#### Standard Build
 ```bash
 # Primary CPU build command
 docker build -f docker/Dockerfile.cpu -t mcts-cpu .
@@ -39,11 +41,53 @@ docker build -f docker/Dockerfile.cpu \
   -t mcts-cpu .
 ```
 
+#### Dependency Change Build (REQUIRED when pyproject.toml changes)
+```bash
+# CRITICAL: Always use --no-cache when dependencies change
+docker build -f docker/Dockerfile.cpu --no-cache -t mcts-cpu .
+
+# Multi-architecture build for dependency changes (MANDATORY)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -f docker/Dockerfile.cpu \
+  --no-cache \
+  -t mcts-cpu:latest .
+
+# Test build on both architectures
+docker buildx build --platform linux/amd64 \
+  -f docker/Dockerfile.cpu \
+  --no-cache \
+  -t mcts-cpu:amd64 \
+  --load .
+
+docker buildx build --platform linux/arm64 \
+  -f docker/Dockerfile.cpu \
+  --no-cache \
+  -t mcts-cpu:arm64 \
+  --load .
+```
+
 ### 3. Post-Build Validation
+
+#### Standard Validation
 - Verify image was created: `docker images mcts-cpu`
 - Test container startup: `docker run --rm mcts-cpu python --version`
 - Validate MCTS module loading: `docker run --rm mcts-cpu python -c "from corridors.corridors_mcts import Corridors_MCTS"`
 - Check image size and layers: `docker inspect mcts-cpu`
+
+#### Multi-Architecture Validation (REQUIRED for dependency changes)
+```bash
+# Test AMD64 build
+docker run --rm --platform linux/amd64 mcts-cpu:amd64 python --version
+docker run --rm --platform linux/amd64 mcts-cpu:amd64 python -c "import pytest, playwright; print('All dependencies available')"
+
+# Test ARM64 build  
+docker run --rm --platform linux/arm64 mcts-cpu:arm64 python --version
+docker run --rm --platform linux/arm64 mcts-cpu:arm64 python -c "import pytest, playwright; print('All dependencies available')"
+
+# Dependency validation for both architectures
+docker run --rm --platform linux/amd64 mcts-cpu:amd64 python -c "from corridors.corridors_mcts import Corridors_MCTS; print('MCTS AMD64 OK')"
+docker run --rm --platform linux/arm64 mcts-cpu:arm64 python -c "from corridors.corridors_mcts import Corridors_MCTS; print('MCTS ARM64 OK')"
+```
 
 ### 4. Error Handling
 - **Dockerfile not found**: Check `docker/Dockerfile.cpu` exists

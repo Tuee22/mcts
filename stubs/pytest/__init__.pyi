@@ -17,6 +17,19 @@ T = TypeVar("T")
 F = TypeVar("F")
 C = TypeVar("C")
 
+class Item:
+    name: str
+    rep_call: CallInfo
+
+class CallInfo:
+    def __init__(self, result: object = None) -> None: ...
+    @property
+    def failed(self) -> bool: ...
+
+def hookimpl(
+    *, tryfirst: bool = False, hookwrapper: bool = False
+) -> Callable[[F], F]: ...
+
 class FixtureFunction:
     def __call__(self, func: F) -> F: ...
 
@@ -58,9 +71,9 @@ class _MarkRegistry:
         scope: Optional[str] = None,
     ) -> MarkDecorator: ...
 
-    # Standard marks
-    skip: MarkDecorator
-    skipif: MarkDecorator
+    # Standard marks with their specific signatures
+    def skip(self, reason: str = "") -> MarkDecorator: ...
+    def skipif(self, condition: object, *, reason: str = "") -> MarkDecorator: ...
     xfail: MarkDecorator
     filterwarnings: MarkDecorator
 
