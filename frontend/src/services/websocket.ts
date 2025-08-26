@@ -1,5 +1,4 @@
 import { useGameStore } from '../store/gameStore';
-import { GameState, Move } from '../types/game';
 
 class WebSocketService {
   private socket: WebSocket | null = null;

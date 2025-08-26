@@ -48,6 +48,18 @@ RUN --mount=type=cache,target=/var/cache/apt,id=mcts-apt-${VARIANT} \
       python3.12 python3.12-dev python3.12-venv \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js for frontend E2E tests
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && node --version && npm --version
+
+# Install Playwright system dependencies for browser support
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnspr4 libnss3 libatk1.0-0 libatspi2.0-0 libx11-6 libxcomposite1 \
+    libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 \
+    libxkbcommon0 libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set Python 3.12 as default
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 100 \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 100 \
@@ -82,6 +94,13 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev --without ml,data,viz,cuda
 
+# Install frontend dependencies for E2E tests
+RUN cd frontend && npm install
+
+# Install Playwright browsers and dependencies
+# Must be done as root for system-wide installation
+RUN playwright install --with-deps chromium firefox webkit
+
 # Skip C++ build during image creation - will be built on container start
 # This ensures the module is compiled for the runtime architecture
 WORKDIR /app/backend/core
@@ -91,6 +110,9 @@ RUN chown -R ${USER_ID}:${GROUP_ID} /app
 
 # Switch to user for runtime
 USER ${USER_ID}:${GROUP_ID}
+
+# Install Playwright browsers for the user (stores in user cache)
+RUN playwright install chromium firefox webkit
 
 # Verify scons is available for runtime build
 RUN which scons && echo "✅ SCons available for runtime build"

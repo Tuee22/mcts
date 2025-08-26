@@ -44,7 +44,9 @@ def retry_on_failure(
                 try:
                     if asyncio.iscoroutinefunction(func):
                         # func is async, so awaiting it gives us T
-                        result: T = await cast(Callable[P, Awaitable[T]], func)(*args, **kwargs)
+                        result: T = await cast(Callable[P, Awaitable[T]], func)(
+                            *args, **kwargs
+                        )
                     else:
                         # func is sync, so calling it directly gives us T
                         result = func(*args, **kwargs)

@@ -112,6 +112,10 @@ test-all = "tests.utils.run_all_tests:main"
 # Type safety checker
 check-type-safety = "tools.check_type_safety:main"
 
+# Setup tools
+setup-playwright = "tools.setup_playwright:main"
+
+
 [tool.black]
 line-length = 88
 target-version = ['py312']
