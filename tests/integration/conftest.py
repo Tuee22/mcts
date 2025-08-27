@@ -4,7 +4,7 @@ import asyncio
 import os
 import subprocess
 import time
-from typing import AsyncGenerator, Generator, Dict, Union, List, TypedDict
+from typing import AsyncGenerator, Dict, Generator, List, TypedDict, Union
 
 import pytest
 import pytest_asyncio
@@ -79,7 +79,7 @@ def backend_server(
     )
 
     # Start backend server
-    process = subprocess.Popen(
+    process: subprocess.Popen[bytes] = subprocess.Popen(
         [
             "python",
             "-m",
@@ -135,7 +135,7 @@ def frontend_server(
     subprocess.run(["npm", "run", "build"], cwd="frontend", env=env, check=True)
 
     # Start frontend server
-    process = subprocess.Popen(
+    process: subprocess.Popen[bytes] = subprocess.Popen(
         ["npm", "run", "serve", "--", "-l", str(test_config["frontend_port"])],
         cwd="frontend",
         env=env,

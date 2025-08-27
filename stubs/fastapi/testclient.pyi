@@ -1,13 +1,6 @@
 """Type stubs for fastapi.testclient."""
 
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Union,
-    Callable,
-    ContextManager,
-)
+from typing import Callable, ContextManager, Dict, List, Optional, Union
 
 from starlette.responses import Response
 

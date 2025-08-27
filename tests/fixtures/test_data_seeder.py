@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 
 import httpx
 from httpx import AsyncClient
+from tests.models.response_models import GameResponse, GameListResponse, HealthResponse
 
 
 class TestDataSeeder:
@@ -47,9 +48,8 @@ class TestDataSeeder:
                 raise RuntimeError("Client not initialized")
             response = await self.client.post("/games", json=game_config)
             if response.status_code == 200:
-                game_data = response.json()
-                if isinstance(game_data, dict):
-                    games.append(game_data)
+                game_response = GameResponse.model_validate(response.json())
+                games.append(game_response.model_dump())
             else:
                 print(f"Failed to create game {i}: {response.text}")
 
@@ -85,21 +85,16 @@ class TestDataSeeder:
         if response.status_code != 200:
             raise Exception(f"Failed to create game: {response.text}")
 
-        game_data = response.json()
-        if not isinstance(game_data, dict):
-            raise RuntimeError("Invalid game response format")
-        game = game_data
-        game_id = game["game_id"]
-        current_player = game["player1"]["id"]
+        game_response = GameResponse.model_validate(response.json())
+        game = game_response.model_dump()
+        game_id = game_response.game_id
+        current_player = game_response.player1.id
 
         # Play moves
         for i, move in enumerate(move_sequence):
-            if isinstance(game, dict):
-                player_id = (
-                    game["player1"]["id"] if i % 2 == 0 else game["player2"]["id"]
-                )
-            else:
-                raise RuntimeError("Invalid game data structure")
+            player_id = (
+                game_response.player1.id if i % 2 == 0 else game_response.player2.id
+            )
             move_data = {"player_id": player_id, "action": move}
 
             if self.client is None:
@@ -114,8 +109,8 @@ class TestDataSeeder:
             raise RuntimeError("Client not initialized")
         response = await self.client.get(f"/games/{game_id}")
         if response.status_code == 200:
-            result = response.json()
-            return result if isinstance(result, dict) else game
+            final_game_response = GameResponse.model_validate(response.json())
+            return final_game_response.model_dump()
         return game
 
     async def create_error_scenario_game(
@@ -135,62 +130,53 @@ class TestDataSeeder:
         if response.status_code != 200:
             raise Exception(f"Failed to create error scenario game: {response.text}")
 
-        game_data = response.json()
-        if not isinstance(game_data, dict):
-            raise RuntimeError("Invalid game response format")
-        game = game_data
+        game_response = GameResponse.model_validate(response.json())
+        game = game_response.model_dump()
 
         if scenario == "blocked_move":
             # Set up walls to block movement
-            if isinstance(game, dict):
-                game_id = game["game_id"]
-                wall_moves = ["H(3,4)", "H(4,4)", "H(5,4)"]  # Block horizontal path
+            game_id = game_response.game_id
+            wall_moves = ["H(3,4)", "H(4,4)", "H(5,4)"]  # Block horizontal path
 
-                for i, wall in enumerate(wall_moves):
-                    player_id = (
-                        game["player1"]["id"] if i % 2 == 0 else game["player2"]["id"]
-                    )
-                    move_data = {"player_id": player_id, "action": wall}
+            for i, wall in enumerate(wall_moves):
+                player_id = (
+                    game_response.player1.id if i % 2 == 0 else game_response.player2.id
+                )
+                move_data = {"player_id": player_id, "action": wall}
+                if self.client is None:
+                    raise RuntimeError("Client not initialized")
+                await self.client.post(f"/games/{game_id}/moves", json=move_data)
+
+        elif scenario == "depleted_walls":
+            # Play moves to deplete one player's walls
+            game_id = game_response.game_id
+            wall_moves = [f"H({i},{j})" for i in range(8) for j in range(2, 4)][:10]
+
+            for i, wall in enumerate(wall_moves):
+                player_id = game_response.player1.id  # Only player 1 places walls
+                move_data = {"player_id": player_id, "action": wall}
+                if i % 2 == 0:  # Alternate with opponent moves
+                    if self.client is None:
+                        raise RuntimeError("Client not initialized")
+                    await self.client.post(f"/games/{game_id}/moves", json=move_data)
+                else:
+                    # Opponent just moves
+                    move_data = {
+                        "player_id": game_response.player2.id,
+                        "action": f"*(4,{7-i%3})",
+                    }
                     if self.client is None:
                         raise RuntimeError("Client not initialized")
                     await self.client.post(f"/games/{game_id}/moves", json=move_data)
 
-        elif scenario == "depleted_walls":
-            # Play moves to deplete one player's walls
-            if isinstance(game, dict):
-                game_id = game["game_id"]
-                wall_moves = [f"H({i},{j})" for i in range(8) for j in range(2, 4)][:10]
-
-                for i, wall in enumerate(wall_moves):
-                    player_id = game["player1"]["id"]  # Only player 1 places walls
-                    move_data = {"player_id": player_id, "action": wall}
-                    if i % 2 == 0:  # Alternate with opponent moves
-                        if self.client is None:
-                            raise RuntimeError("Client not initialized")
-                        await self.client.post(
-                            f"/games/{game_id}/moves", json=move_data
-                        )
-                    else:
-                        # Opponent just moves
-                        move_data = {
-                            "player_id": game["player2"]["id"],
-                            "action": f"*(4,{7-i%3})",
-                        }
-                        if self.client is None:
-                            raise RuntimeError("Client not initialized")
-                        await self.client.post(
-                            f"/games/{game_id}/moves", json=move_data
-                        )
-
         # Return updated game state
-        if isinstance(game, dict):
-            game_id = game["game_id"]
-            if self.client is None:
-                raise RuntimeError("Client not initialized")
-            response = await self.client.get(f"/games/{game_id}")
-            if response.status_code == 200:
-                result = response.json()
-                return result if isinstance(result, dict) else game
+        game_id = game_response.game_id
+        if self.client is None:
+            raise RuntimeError("Client not initialized")
+        response = await self.client.get(f"/games/{game_id}")
+        if response.status_code == 200:
+            updated_game_response = GameResponse.model_validate(response.json())
+            return updated_game_response.model_dump()
         return game
 
     async def clear_all_games(self) -> int:
@@ -201,17 +187,17 @@ class TestDataSeeder:
         if response.status_code != 200:
             return 0
 
-        games_data = response.json()
-        if isinstance(games_data, dict):
-            games = games_data.get("games", [])
-        else:
+        try:
+            games_list_response = GameListResponse.model_validate(response.json())
+            games = games_list_response.games
+        except Exception:
             games = []
         cleared_count = 0
 
         for game in games:
             if self.client is None:
                 raise RuntimeError("Client not initialized")
-            delete_response = await self.client.delete(f"/games/{game['game_id']}")
+            delete_response = await self.client.delete(f"/games/{game.game_id}")
             if delete_response.status_code in [200, 204]:
                 cleared_count += 1
 
@@ -223,8 +209,11 @@ class TestDataSeeder:
             raise RuntimeError("Client not initialized")
         response = await self.client.get("/health")
         if response.status_code == 200:
-            result = response.json()
-            return result if isinstance(result, dict) else {"status": "unhealthy"}
+            try:
+                health_response = HealthResponse.model_validate(response.json())
+                return health_response.model_dump()
+            except Exception:
+                return {"status": "unhealthy"}
         return {"status": "unhealthy"}
 
     async def wait_for_backend_ready(self, timeout: int = 30) -> bool:

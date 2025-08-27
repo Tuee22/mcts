@@ -86,8 +86,8 @@ cd frontend && npm run test:unit
 # Integration tests (with real services)
 docker compose exec mcts pytest tests/integration/ -m integration
 
-# E2E tests (full browser)
-docker compose exec mcts pytest tests/e2e/ -m e2e
+# E2E tests (full browser) - run from E2E directory
+docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
 
 # All tests
 docker compose exec mcts pytest tests/
@@ -127,17 +127,36 @@ npm run test:integration            # Component interactions
 #### E2E Tests
 
 ```bash
-# Quick connection tests
-poetry run pytest tests/e2e/test_connection_scenarios.py -v
+# Quick connection tests (run from e2e directory)
+docker compose exec mcts bash -c "cd tests/e2e && pytest test_connection_scenarios.py -v"
 
-# Network failure scenarios
-poetry run pytest tests/e2e/test_network_failures.py -v
+# Network failure scenarios (run from e2e directory)
+docker compose exec mcts bash -c "cd tests/e2e && pytest test_network_failures.py -v"
 
-# All E2E with video recording
-E2E_VIDEO=on poetry run pytest tests/e2e/ -m e2e -v
+# All E2E with video recording (run from e2e directory)
+docker compose exec mcts bash -c "cd tests/e2e && E2E_VIDEO=on pytest -m e2e -v"
 ```
 
 ## Test Environment Configuration
+
+### E2E Test Configuration
+
+E2E tests use Playwright with configuration located at `tests/e2e/playwright.config.py`. This configuration file includes:
+
+- Browser settings (Chromium, Firefox, WebKit)
+- Test timeouts and retry policies  
+- Video recording and screenshot settings
+- Web server startup configuration for backend and frontend
+
+**Important**: E2E tests must be run from the `tests/e2e/` directory to properly locate the configuration:
+
+```bash
+# Correct way to run E2E tests
+docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
+
+# Incorrect - will not find playwright.config.py
+docker compose exec mcts pytest tests/e2e/ -m e2e
+```
 
 ### Environment Variables
 
@@ -340,6 +359,9 @@ async def test_new_connection_scenario(page: Page, e2e_urls):
     
     # Test your scenario
     # ...
+
+# Note: E2E tests should be run from the tests/e2e directory:
+# docker compose exec mcts bash -c "cd tests/e2e && pytest test_new_feature.py -v"
 ```
 
 ### Adding Integration Tests

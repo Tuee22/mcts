@@ -75,6 +75,11 @@ docker compose exec mcts poetry run pytest tests/backend/core/ -v
 docker compose exec mcts poetry run pytest -q
 ```
 
+**E2E tests (browser-based):**
+```bash
+docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
+```
+
 **GPU verification (CUDA only):**
 ```bash
 docker compose exec mcts nvidia-smi
@@ -235,16 +240,28 @@ scons sanitize=1
 
 ### Running Tests
 
+**🎯 Complete Test Suite**: Run all tests (Python → Frontend → E2E) with individual runners or one unified command that ensures services are properly started and tests run across Chromium, Firefox, and WebKit browsers.
+
 **IMPORTANT: All tests must be run inside Docker containers**
 
-**Docker Test Commands (Required):**
+**Quick Start - Complete Test Suite:**
 ```bash
 # Start Docker services first
 cd docker && docker compose up -d
 
-# All tests - Python backend and frontend (recommended)
-docker compose exec mcts pytest
+# Run ALL tests (Python + Frontend + E2E across all browsers)
+docker compose exec mcts poetry run test-all
 
+# Run only E2E tests across all browsers
+docker compose exec mcts poetry run test-e2e
+
+# Run specific test categories
+docker compose exec mcts poetry run test-python    # Python tests only
+docker compose exec mcts poetry run test-frontend  # Frontend tests only
+```
+
+**Docker Test Commands (Detailed):**
+```bash
 # Test categories
 docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
 docker compose exec mcts pytest -m "slow"        # Only slow tests  
@@ -253,6 +270,7 @@ docker compose exec mcts pytest -m "python"     # Pure Python tests
 docker compose exec mcts pytest -m "cpp"        # C++ binding tests
 docker compose exec mcts pytest -m "performance" # Performance tests
 docker compose exec mcts pytest -m "edge_cases"  # Edge case tests
+docker compose exec mcts pytest -m "e2e"         # End-to-end browser tests
 
 # Benchmarking
 docker compose exec mcts pytest --benchmark-only # Run benchmarks
@@ -273,6 +291,31 @@ docker compose exec mcts pytest tests/backend/core/     # Core tests
 docker compose exec mcts pytest tests/backend/api/      # API tests
 docker compose exec mcts pytest tests/integration/      # Integration tests
 docker compose exec mcts pytest tests/e2e/              # E2E tests
+```
+
+**E2E Browser Testing:**
+```bash
+# Run E2E tests with visible browser (debugging)
+docker compose exec mcts poetry run test-e2e --headed
+
+# E2E with debug mode
+docker compose exec mcts poetry run test-e2e --debug
+
+# E2E with verbose output
+docker compose exec mcts poetry run test-e2e --verbose
+
+# Direct pytest for advanced options
+docker compose exec mcts pytest tests/e2e/test_browser_compatibility.py -v
+```
+
+**Note**: E2E tests automatically run across all browsers (Chromium, Firefox, WebKit) in each test method for comprehensive compatibility testing.
+
+**Note**: Playwright and all three browsers (Chromium, Firefox, WebKit) are pre-installed in the Docker image with all required system libraries and fonts.
+
+**Docker Runtime Flags for Browser Reliability:**
+When running the container directly (not using docker compose), use these flags for improved browser stability:
+```bash
+docker run --init --ipc=host mcts:cpu poetry run test --e2e-only
 ```
 
 **GPU Testing (CUDA only):**
@@ -297,16 +340,20 @@ docker compose exec mcts poetry run api-dev
 
 **Testing Scripts:**
 ```bash
-# Complete test suite
+# Complete test suite - runs ALL tests (Python + Frontend + E2E)
 docker compose exec mcts poetry run test-all
 
-# Python tests (backend)
+# Individual test runners
 docker compose exec mcts poetry run test-python      # All Python tests
 docker compose exec mcts poetry run test-python-core # Core MCTS tests only  
 docker compose exec mcts poetry run test-python-api  # API server tests only
+docker compose exec mcts poetry run test-frontend    # Frontend tests only
+docker compose exec mcts poetry run test-e2e         # E2E tests across all browsers
 
-# Frontend tests
-docker compose exec mcts poetry run test-frontend
+# Test runner options
+docker compose exec mcts poetry run test-all --skip-e2e  # Python + Frontend only
+docker compose exec mcts poetry run test-e2e --headed    # E2E with visible browser
+docker compose exec mcts poetry run test-e2e --debug     # E2E with debug output
 ```
 
 **Code Quality:**
@@ -316,6 +363,44 @@ docker compose exec mcts poetry run check-type-safety
 ```
 
 These scripts are defined in `pyproject.toml` and provide a consistent interface for development tasks.
+
+### Local Development Without Docker
+
+If you need to run tests locally without Docker:
+
+**Prerequisites:**
+- Python 3.12+
+- Node.js 20+
+- Poetry
+- C++ compiler (GCC or Clang)
+
+**One-time setup:**
+```bash
+# Install Python dependencies
+poetry install --with dev
+
+# Install Playwright browsers (required for E2E tests)
+playwright install chromium firefox webkit
+
+# Build C++ extension
+cd backend/core && scons && cd ../..
+
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+```
+
+**Running tests locally:**
+```bash
+# All tests including E2E
+poetry run test-all
+
+# Individual test categories
+poetry run test-python    # Python tests only
+poetry run test-frontend   # Frontend tests only
+poetry run test-e2e        # E2E tests only
+```
+
+**Note:** Docker is the recommended environment as it ensures all dependencies and browsers are correctly installed.
 
 ### Code Quality
 

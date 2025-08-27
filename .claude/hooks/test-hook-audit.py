@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Audit script that logs hook triggers to test_hook_trigger.txt by reading stdin JSON"""
 
-import sys
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 

@@ -19,8 +19,10 @@ def main() -> NoReturn:
         sys.exit(0)
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to install Playwright browsers: {e}")
-        print(f"stdout: {e.stdout}")
-        print(f"stderr: {e.stderr}")
+        stdout_str = e.stdout.decode() if isinstance(e.stdout, bytes) else str(e.stdout)
+        stderr_str = e.stderr.decode() if isinstance(e.stderr, bytes) else str(e.stderr)
+        print(f"stdout: {stdout_str}")
+        print(f"stderr: {stderr_str}")
         sys.exit(1)
     except FileNotFoundError:
         print("❌ playwright command not found. Make sure playwright is installed.")

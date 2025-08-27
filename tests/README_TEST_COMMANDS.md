@@ -32,8 +32,8 @@ docker compose exec mcts pytest tests/backend/ -m "unit"
 # Integration tests
 docker compose exec mcts pytest tests/integration/ -m "integration"
 
-# E2E tests
-docker compose exec mcts pytest tests/e2e/ -m "e2e"
+# E2E tests (run from e2e directory)
+docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
 
 # All tests
 docker compose exec mcts pytest tests/

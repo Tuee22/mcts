@@ -1,21 +1,31 @@
 """Type stubs for _pytest.fixtures."""
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar, Union
 
-class Item:
-    name: str
-    rep_call: CallInfo
-
-class CallInfo:
-    def __init__(self, result: object = None) -> None: ...
-    @property
-    def failed(self) -> bool: ...
+_T = TypeVar("_T")
 
 class FixtureRequest:
-    def __init__(self) -> None: ...
-    @property
-    def node(self) -> Item: ...
+    """Pytest fixture request."""
 
-class SubRequest:
-    def __init__(self) -> None: ...
-    param: Union[str, int, bool, Dict[str, Union[str, int, bool]], None]
+    function: object
+    cls: Optional[type]
+    instance: Optional[object]
+    module: object
+    session: object
+    config: object
+    param: object
+
+    def getfixturevalue(self, argname: str) -> object: ...
+    def applymarker(self, marker: object) -> None: ...
+
+class FixtureDef:
+    """Fixture definition."""
+
+    argname: str
+    scope: str
+    params: Optional[List[object]]
+
+class SubRequest(FixtureRequest):
+    """Sub-request for parameterized fixtures."""
+
+    pass

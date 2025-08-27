@@ -1,15 +1,6 @@
 """Type stubs for pydantic."""
 
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    Union,
-    ClassVar,
-    Callable,
-)
+from typing import Callable, ClassVar, Dict, List, Optional, Type, TypeVar, Union
 
 T = TypeVar("T", bound="BaseModel")
 

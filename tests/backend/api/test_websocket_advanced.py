@@ -16,7 +16,7 @@ from backend.api.models import (
     Player,
     PlayerType,
 )
-from backend.api.types import WebSocketProtocol, OutgoingWebSocketMessage
+from backend.api.types import OutgoingWebSocketMessage, WebSocketProtocol
 from backend.api.websocket_manager import WebSocketManager
 from tests.pytest_marks import websocket
 
@@ -191,6 +191,7 @@ class TestWebSocketManagerBroadcasting:
 
         # Create mock move response - manually create to avoid mock typing issues
         from datetime import datetime
+
         from backend.api.models import Move
 
         player = Player(id="p1", name="Player1", type=PlayerType.HUMAN, is_hero=True)

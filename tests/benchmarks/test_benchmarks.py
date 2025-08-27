@@ -8,8 +8,8 @@ Run with: pytest tests/test_benchmarks.py --benchmark-only
 from typing import Dict, List, Tuple
 
 import pytest
-from pytest_benchmark.plugin import BenchmarkFixture
 from _pytest.config import Config
+from pytest_benchmark.plugin import BenchmarkFixture
 
 try:
     from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions

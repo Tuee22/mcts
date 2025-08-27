@@ -54,10 +54,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && node --version && npm --version
 
 # Install Playwright system dependencies for browser support
+# Using playwright install-deps ensures all required libraries for all browsers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnspr4 libnss3 libatk1.0-0 libatspi2.0-0 libx11-6 libxcomposite1 \
     libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 \
-    libxkbcommon0 libasound2 \
+    libxkbcommon0 libasound2 libgtk-3-0 libdrm2 libxss1 libglib2.0-0 \
+    fonts-liberation fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Python 3.12 as default
@@ -86,16 +88,16 @@ RUN groupadd -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
 COPY pyproject.toml /app/
 
 # Install Python dependencies (without root package)
-RUN poetry install --no-root --with dev --without ml,data,viz,cuda
+RUN poetry install --no-root --with dev
 
 # Copy the entire project
 COPY . /app
 
 # Install the root package (for scripts) as root
-RUN poetry install --with dev --without ml,data,viz,cuda
+RUN poetry install --with dev
 
 # Install frontend dependencies for E2E tests
-RUN cd frontend && npm install
+RUN cd frontend && npm install && npm install --save-dev serve
 
 # Install Playwright browsers and dependencies
 # Must be done as root for system-wide installation
@@ -121,10 +123,12 @@ RUN which scons && echo "✅ SCons available for runtime build"
 WORKDIR /app
 RUN mkdir -p /home/mcts && ln -s /app/frontend /home/mcts/frontend || true
 
-# Expose API port
-EXPOSE 8000
+# Expose API port (backend) and frontend port for E2E tests
+EXPOSE 8000 3000
 
 # Use tini for proper signal handling
+# Note: For improved browser reliability when running directly with docker run, use:
+# --init --ipc=host flags (e.g., docker run --init --ipc=host mcts:cpu)
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Default command - clean and rebuild C++ to ensure correct architecture, then launch backend API server

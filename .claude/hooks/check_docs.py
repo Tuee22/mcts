@@ -13,7 +13,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Set, Tuple, Optional, NamedTuple
+from typing import List, NamedTuple, Optional, Set, Tuple
 
 
 class CheckResult(NamedTuple):

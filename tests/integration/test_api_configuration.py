@@ -8,11 +8,20 @@ import time
 from typing import Dict, List, Union
 from unittest.mock import patch
 
+import httpx
+import json
 import pytest
 import requests
 import websockets
 from httpx import AsyncClient, Response
+
 from tests.integration.conftest import TestConfig
+from tests.models import (
+    HealthResponse,
+    ErrorResponse,
+    GameResponse,
+    parse_test_websocket_message,
+)
 
 
 @pytest.mark.integration
@@ -31,7 +40,7 @@ class TestAPIConfiguration:
             }
         )
 
-        process = subprocess.Popen(
+        process: subprocess.Popen[bytes] = subprocess.Popen(
             [
                 "python",
                 "-m",
@@ -65,9 +74,8 @@ class TestAPIConfiguration:
                 f"http://{test_config['api_host']}:{test_config['api_port']}/health"
             )
             assert response.status_code == 200
-            data = response.json()
-            if isinstance(data, dict):
-                assert data["status"] == "healthy"
+            health_data = HealthResponse.model_validate(response.json())
+            assert health_data.status == "healthy"
 
         finally:
             process.terminate()
@@ -94,7 +102,7 @@ class TestAPIConfiguration:
         # This test documents the expected behavior
 
         # For now, we'll test that the server starts with env vars
-        process = subprocess.Popen(
+        process: subprocess.Popen[bytes] = subprocess.Popen(
             [
                 "python",
                 "-m",
@@ -140,8 +148,8 @@ class TestAPIConfiguration:
             try:
                 async with websockets.connect(url) as websocket:
                     message = await websocket.recv()
-                    data = json.loads(message)
-                    assert data["type"] == "connect"
+                    data = parse_test_websocket_message(json.loads(message))
+                    assert data.type == "connect"
             except Exception as e:
                 # localhost might not resolve in some environments
                 if "localhost" not in url:
@@ -157,10 +165,8 @@ class TestAPIConfiguration:
             # Test 404 error
             response = await client.get("/games/non-existent-game")
             assert response.status_code == 404
-            error = response.json()
-            if isinstance(error, dict):
-                assert "detail" in error
-                assert error["detail"] == "Game not found"
+            error = ErrorResponse.model_validate(response.json())
+            assert error.detail == "Game not found"
 
             # Test 400 error (invalid move)
             game_response = await client.post(
@@ -172,18 +178,14 @@ class TestAPIConfiguration:
                     "player2_name": "P2",
                 },
             )
-            game = game_response.json()
-            if not isinstance(game, dict):
-                raise RuntimeError("Invalid game response format")
+            game = GameResponse.model_validate(game_response.json())
 
             move_response = await client.post(
-                f"/games/{game['game_id']}/moves",
+                f"/games/{game.game_id}/moves",
                 json={"player_id": "wrong-player", "action": "*(0,0)"},
             )
             assert move_response.status_code == 403
-            error = move_response.json()
-            if isinstance(error, dict):
-                assert "detail" in error
+            error = ErrorResponse.model_validate(move_response.json())
 
     async def test_api_health_endpoint_components(
         self, backend_server: subprocess.Popen[bytes], test_config: TestConfig
@@ -195,29 +197,47 @@ class TestAPIConfiguration:
             response = await client.get("/health")
             assert response.status_code == 200
 
-            health = response.json()
-            if isinstance(health, dict):
-                assert "status" in health
-                assert "active_games" in health
-                assert "connected_clients" in health
-
-                assert health["status"] == "healthy"
-                assert isinstance(health["active_games"], int)
-                assert isinstance(health["connected_clients"], int)
-                assert health["active_games"] >= 0
-                assert health["connected_clients"] >= 0
+            health = HealthResponse.model_validate(response.json())
+            assert health.status == "healthy"
+            assert health.active_games >= 0
+            assert health.connected_clients >= 0
 
     async def test_api_timeout_handling(
         self, backend_server: subprocess.Popen[bytes], test_config: TestConfig
     ) -> None:
         """Test API handles timeouts gracefully."""
+        # Create a game first to have something that might take longer
+        async with AsyncClient(
+            base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
+        ) as client:
+            # Create a game for testing
+            game_response = await client.post(
+                "/games",
+                json={
+                    "player1_type": "human",
+                    "player2_type": "machine",
+                    "player1_name": "Test",
+                    "player2_name": "AI",
+                    "machine_settings": {
+                        "iterations": 10000,  # High iterations to make it slower
+                        "algorithm": "uct",
+                    },
+                },
+            )
+            game = game_response.json()
+            game_id = game["game_id"] if isinstance(game, dict) else None
+
+        # Now test with very short timeout
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}",
-            timeout=0.001,  # Very short timeout
+            timeout=httpx.Timeout(
+                0.0001, connect=0.0001, read=0.0001, write=0.0001
+            ),  # Even shorter timeout
         ) as client:
             # This should timeout
-            with pytest.raises(Exception):  # httpx.TimeoutException
-                await client.get("/health")
+            with pytest.raises(httpx.TimeoutException):
+                # Try to get game state which might involve more processing
+                await client.get(f"/games/{game_id}")
 
     async def test_api_concurrent_requests(
         self, backend_server: subprocess.Popen[bytes], test_config: TestConfig

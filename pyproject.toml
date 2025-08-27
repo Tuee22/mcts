@@ -9,86 +9,40 @@ packages = [{include = "backend"}, {include = "corridors", from = "backend/pytho
 
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
+
+# Build dependencies
 pybind11 = ">=2.11.0,<3.0"
-numpy = ">=1.26.3,<2.0"
 scons = ">=4.6.0,<5.0"
 setuptools = ">=65.0.0"
 
 # Core functionality
-pandas = ">=2.1.4,<3.0"
-scipy = ">=1.11.4,<2.0"
-psutil = ">=5.9.7,<6.0"
-tqdm = ">=4.66.1,<5.0"
+numpy = ">=1.26.3,<2.0"
 click = ">=8.1.7,<9.0"
 requests = ">=2.31.0,<3.0"
-aiohttp = ">=3.9.1,<4.0"
-pyyaml = ">=6.0.1,<7.0"
 
 # API dependencies
 fastapi = ">=0.109.0,<1.0"
 uvicorn = {extras = ["standard"], version = ">=0.25.0,<1.0"}
 pydantic = ">=2.5.3,<3.0"
 websockets = ">=12.0,<13.0"
-python-multipart = ">=0.0.6,<1.0"
 httpx = ">=0.25.2,<1.0"
 
 [tool.poetry.group.dev.dependencies]
+# Code quality tools
 mypy = ">=1.8.0,<2.0"
-pandas-stubs = ">=2.1.4.231227,<3.0"
-types-python-dateutil = ">=2.8.19.14,<3.0"
-types-pytz = ">=2023.3.1.1,<2024.0"
+black = ">=23.7.0,<24.0"
+isort = ">=5.12.0,<6.0"
+
+# Testing framework
 pytest = ">=7.4.0,<8.0"
 pytest-benchmark = ">=4.0.0,<5.0"
 pytest-asyncio = ">=0.21.0,<1.0"
-pytest-mock = ">=3.11.0,<4.0"
-pytest-cov = ">=4.1.0,<5.0"
+
+# E2E testing
 playwright = ">=1.40.0,<2.0"
-pytest-playwright = ">=0.4.3,<1.0"
-black = ">=23.7.0,<24.0"
-isort = ">=5.12.0,<6.0"
-flake8 = ">=6.0.0,<7.0"
 
-[tool.poetry.group.ml]
-optional = true
-
-[tool.poetry.group.ml.dependencies]
-torch = ">=2.1.2,<3.0"
-torchvision = ">=0.16.2,<1.0"
-pytorch-lightning = ">=2.1.3,<3.0"
-numba = ">=0.58.1,<1.0"
-
-[tool.poetry.group.data]
-optional = true
-
-[tool.poetry.group.data.dependencies]
-dask = {extras = ["complete"], version = ">=2023.12.1,<2024.0"}
-distributed = ">=2023.12.1,<2024.0"
-tables = ">=3.9.2,<4.0"
-pyarrow = ">=14.0.2,<15.0"
-s3fs = ">=2023.12.2,<2024.0"
-
-[tool.poetry.group.viz]
-optional = true
-
-[tool.poetry.group.viz.dependencies]
-plotly = ">=5.18.0,<6.0"
-dash = ">=2.14.2,<3.0"
-jupyter-dash = ">=0.4.2,<1.0"
-jupyterlab = ">=3.6.6,<4.0"
-ipywidgets = ">=8.1.1,<9.0"
-bokeh = ">=3.3.2,<4.0"
-matplotlib-inline = ">=0.1.6,<1.0"
-sympy = ">=1.12,<2.0"
-networkx = ">=3.2.1,<4.0"
-pillow = ">=10.2.0,<11.0"
-flask = ">=3.0.0,<4.0"
-jinja2 = ">=3.1.2,<4.0"
-
-[tool.poetry.group.cuda]
-optional = true
-
-[tool.poetry.group.cuda.dependencies]
-cupy-cuda12x = {version = ">=12.3.0,<13.0", markers = "platform_machine == 'x86_64'"}
+# Test utilities (used in test files)
+psutil = ">=5.9.7,<6.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -102,12 +56,15 @@ test-runner = "tests.utils.test_runner:main"
 api-server = "backend.api.server:main"
 api-dev = "backend.api.server:dev"
 
-# Test runners  
+# Individual test runners
 test-python = "tests.utils.run_tests:main"
 test-python-api = "tests.utils.run_api_tests:main" 
 test-python-core = "tests.utils.run_core_tests:main"
 test-frontend = "tests.utils.run_frontend_tests:main"
-test-all = "tests.utils.run_all_tests:main"
+test-e2e = "tests.utils.run_e2e_tests:main"
+
+# Unified test runner - runs ALL tests (Python + Frontend + E2E)
+test-all = "tests.utils.run_unified_tests:main"
 
 # Type safety checker
 check-type-safety = "tools.check_type_safety:main"
@@ -229,5 +186,5 @@ error_summary = true
 
 
 [tool.poetry.extras]
-api = ["fastapi", "uvicorn", "websockets", "python-multipart", "httpx"]
+api = ["fastapi", "uvicorn", "websockets", "httpx"]
 

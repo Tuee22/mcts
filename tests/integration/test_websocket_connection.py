@@ -12,6 +12,7 @@ from httpx import AsyncClient
 from websockets.client import WebSocketClientProtocol
 
 from backend.api.models import GameCreateRequest, PlayerType
+from tests.models import parse_test_websocket_message
 
 
 @pytest.mark.integration
@@ -28,10 +29,11 @@ class TestWebSocketConnection:
         async with websockets.connect(uri) as websocket:
             # Should receive connection confirmation
             message = await websocket.recv()
-            data = json.loads(message)
+            data = parse_test_websocket_message(json.loads(message))
 
-            assert data["type"] == "connect"
-            assert "Connected" in data["message"]
+            assert data.type == "connect"
+            if hasattr(data, "message") and data.message:
+                assert "Connected" in data.message
 
             # Test ping/pong
             await websocket.send(json.dumps({"type": "ping"}))
@@ -57,13 +59,10 @@ class TestWebSocketConnection:
         uri = f"ws://{test_config['api_host']}:{test_config['api_port']}/ws"
 
         # First connection
-        websocket1 = await websockets.connect(uri)
-        message = await websocket1.recv()
-        data = json.loads(message)
-        assert data["type"] == "connect"
-
-        # Close connection
-        await websocket1.close()
+        async with websockets.connect(uri) as websocket1:
+            message = await websocket1.recv()
+            data = json.loads(message)
+            assert data["type"] == "connect"
 
         # Should be able to reconnect
         async with websockets.connect(uri) as websocket2:

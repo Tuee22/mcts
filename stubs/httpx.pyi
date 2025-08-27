@@ -1,15 +1,37 @@
 """Type stubs for httpx."""
 
 from typing import (
+    AsyncContextManager,
+    Awaitable,
+    Callable,
+    ContextManager,
     Dict,
     List,
     Optional,
     Union,
-    Callable,
-    ContextManager,
-    AsyncContextManager,
-    Awaitable,
 )
+
+# Exception classes
+class HTTPError(Exception): ...
+class RequestError(HTTPError): ...
+class TransportError(RequestError): ...
+class TimeoutException(TransportError): ...
+class ConnectTimeout(TimeoutException): ...
+class ReadTimeout(TimeoutException): ...
+class WriteTimeout(TimeoutException): ...
+class PoolTimeout(TimeoutException): ...
+
+# Timeout configuration
+class Timeout:
+    def __init__(
+        self,
+        timeout: Optional[float] = None,
+        *,
+        connect: Optional[float] = None,
+        read: Optional[float] = None,
+        write: Optional[float] = None,
+        pool: Optional[float] = None,
+    ) -> None: ...
 
 class ASGITransport:
     def __init__(self, app: object, **kwargs: object) -> None: ...
@@ -60,7 +82,7 @@ class AsyncClient:
         params: Optional[Dict[str, Union[str, int]]] = None,
         headers: Optional[Dict[str, str]] = None,
         cookies: Optional[object] = None,
-        timeout: Optional[float] = None,
+        timeout: Optional[Union[float, Timeout]] = None,
         follow_redirects: bool = False,
         limits: Optional[object] = None,
         transport: Optional[object] = None,

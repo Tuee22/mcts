@@ -3,7 +3,7 @@ Common test helper functions.
 """
 
 import asyncio
-from typing import Dict, List, Optional, Tuple, Union, Callable, TypeVar
+from typing import Callable, Dict, List, Optional, Tuple, TypeVar, Union
 from unittest.mock import MagicMock
 
 T = TypeVar("T")

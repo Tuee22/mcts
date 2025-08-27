@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Combined test runner for Python and Frontend tests.
+Combined test runner for Python and Frontend tests (excludes E2E tests).
+For all tests including E2E, use run_unified_tests.py instead.
 """
 import argparse
 import os

@@ -19,6 +19,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from .game_manager import GameManager
 from .models import (
@@ -34,6 +35,7 @@ from .models import (
     PlayerType,
 )
 from .websocket_manager import WebSocketManager
+from .websocket_models import WebSocketMessage, PongMessage, parse_websocket_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -410,20 +412,28 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
 
         # Keep connection alive and handle incoming messages
         while True:
-            data = await websocket.receive_json()
+            raw_data = await websocket.receive_json()
+
+            # Parse and validate message using Pydantic
+            try:
+                if not isinstance(raw_data, dict):
+                    logger.warning("WebSocket message must be a dict")
+                    continue
+                message = parse_websocket_message(raw_data)
+            except (ValidationError, ValueError) as e:
+                logger.warning(f"Invalid WebSocket message: {e}")
+                continue
 
             # Handle different message types
-            if not isinstance(data, dict):
-                continue  # Skip non-dict messages
-
-            if data.get("type") == "ping":
-                await websocket.send_json({"type": "pong"})
-            elif data.get("type") == "move":
+            if message.type == "ping":
+                response = PongMessage(type="pong")
+                await websocket.send_json(response.model_dump())
+            elif message.type == "move":
                 # Alternative way to make moves via WebSocket
                 move_result = await game_manager.make_move(
                     game_id=game_id,
-                    player_id=str(data["player_id"]),
-                    action=str(data["action"]),
+                    player_id=message.player_id,
+                    action=message.action,
                 )
                 await ws_manager.broadcast_move(game_id, move_result)
 
@@ -531,22 +541,30 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
 
     try:
         # Send connection confirmation
-        await websocket.send_json(
-            {"type": "connect", "message": "Connected to Corridors game server"}
-        )
+        from .websocket_models import ConnectMessage
+
+        connect_response = ConnectMessage(type="connect")
+        await websocket.send_json(connect_response.model_dump())
 
         # Keep connection alive
         while True:
             try:
-                data = await websocket.receive_json()
+                raw_data = await websocket.receive_json()
 
-                # Handle different message types
-                if not isinstance(data, dict):
-                    continue  # Skip non-dict messages
+                # Parse and validate message using Pydantic
+                try:
+                    if not isinstance(raw_data, dict):
+                        logger.warning("WebSocket message must be a dict")
+                        continue
+                    message = parse_websocket_message(raw_data)
+                except (ValidationError, ValueError) as e:
+                    logger.warning(f"Invalid WebSocket message: {e}")
+                    continue
 
-                if data.get("type") == "ping":
-                    await websocket.send_json({"type": "pong"})
-                elif data.get("type") == "create_game":
+                if message.type == "ping":
+                    response = PongMessage(type="pong")
+                    await websocket.send_json(response.model_dump())
+                elif message.type == "create_game":
                     await websocket.send_json(
                         {"type": "game_created", "game_id": "test_game_123"}
                     )

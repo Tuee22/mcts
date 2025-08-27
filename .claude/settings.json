@@ -1,33 +1,51 @@
 {
   "hooks": {
-    "sessionStart": {
-      "description": "Auto-start mcts Docker container and verify setup",
-      "script": "#!/bin/bash\nset -euo pipefail\n\n# Change to docker directory\ncd \"$(dirname \"$0\")/../../docker\" || {\n  echo \"❌ CONTAINER SETUP FAILED: Cannot access docker directory\" >&2\n  exit 1\n}\n\n# Check if Docker is running\nif ! docker info >/dev/null 2>&1; then\n  echo \"❌ CONTAINER SETUP FAILED: Docker is not running. Please start Docker and retry.\" >&2\n  exit 1\nfi\n\n# Check if mcts service is already running\nif docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"'; then\n  echo \"✅ Container mcts already running - ready for development\"\n  exit 0\nfi\n\n# Start the container\necho \"🚀 Starting mcts container...\"\nif docker compose up -d mcts; then\n  # Wait for container to be ready\n  timeout=30\n  while [ $timeout -gt 0 ]; do\n    if docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"'; then\n      echo \"✅ Container mcts started successfully - ready for development\"\n      echo \"📍 Container workdir: /app (mapped to $(pwd)/..)\"\n      exit 0\n    fi\n    sleep 1\n    timeout=$((timeout - 1))\n  done\n  echo \"❌ CONTAINER SETUP FAILED: Container started but not ready after 30s\" >&2\n  exit 1\nelse\n  echo \"❌ CONTAINER SETUP FAILED: Could not start mcts container\" >&2\n  exit 1\nfi\n"
-    },
-    "preToolUse": {
-      "description": "Intercept shell commands and route them to Docker container",
-      "condition": "tool.name === 'Bash'",
-      "script": "#!/bin/bash\nset -euo pipefail\n\n# Parse the tool call JSON\noriginal_command=\"$(echo \"$TOOL_CALL\" | jq -r '.parameters.command // empty')\"\nif [ -z \"$original_command\" ]; then\n  echo \"❌ EXECUTION FAILED: No command specified\" >&2\n  exit 1\nfi\n\n# Change to docker directory  \ncd \"$(dirname \"$0\")/../../docker\" || {\n  echo \"❌ EXECUTION FAILED: Cannot access docker directory\" >&2\n  exit 1\n}\n\n# Container status check with retry logic\ncheck_container() {\n  if docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"'; then\n    return 0\n  fi\n  return 1\n}\n\n# Ensure container is running\nif ! check_container; then\n  echo \"🔄 Container not running, attempting to start...\"\n  if docker compose up -d mcts; then\n    sleep 2\n    if ! check_container; then\n      echo \"❌ EXECUTION FAILED: Container failed to start properly\" >&2\n      echo \"💡 Run 'cd docker && docker compose logs mcts' to diagnose\" >&2\n      exit 1\n    fi\n    echo \"✅ Container started successfully\"\n  else\n    echo \"❌ EXECUTION FAILED: Could not start mcts container\" >&2\n    echo \"💡 Ensure Docker is running and try 'cd docker && docker compose build'\" >&2\n    exit 1\n  fi\nfi\n\n# Execute command in container\necho \"🐳 [mcts] $original_command\"\nexec docker compose exec -w /app mcts sh -c \"$original_command\"\n"
-    },
+    "SessionStart": [
+      {
+        "matcher": {},
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(dirname \"$0\")/../../docker\" && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": {
+          "tools": ["Bash"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && docker compose exec -w /app mcts sh -c \"$(echo \"$TOOL_CALL\" | jq -r '.parameters.command // empty')\""
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|MultiEdit|Task",
+        "matcher": {
+          "tools": ["Edit", "Write", "MultiEdit", "Task"]
+        },
         "hooks": [
           {
             "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/on-change-chain.py",
-            "timeout": 600000
+            "timeout": 600
           },
           {
             "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/test-hook-audit.py",
-            "timeout": 30000
+            "timeout": 30
           }
         ]
       }
     ],
     "Stop": [
       {
+        "matcher": {},
         "hooks": [
           {
             "type": "command",
@@ -36,27 +54,5 @@
         ]
       }
     ]
-  },
-  "tools": {
-    "restrictions": {
-      "Bash": {
-        "allowDirectExecution": false,
-        "requireHookExecution": true
-      }
-    }
-  },
-  "execution": {
-    "dockerFirst": true,
-    "workingDirectory": "/Users/matthewnowak/mcts",
-    "containerExecution": {
-      "required": true,
-      "service": "mcts",
-      "composeFile": "docker/docker-compose.yaml"
-    }
-  },
-  "logging": {
-    "enabled": true,
-    "logDirectory": ".claude/logs",
-    "logLevel": "info"
   }
 }

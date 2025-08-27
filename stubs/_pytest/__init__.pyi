@@ -1,1 +1,1 @@
-"""Type stubs for _pytest."""
+"""Pytest internal type stubs."""

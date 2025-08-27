@@ -3,24 +3,25 @@
 import asyncio
 import functools
 import logging
+import os
 import time
+import uuid
 from typing import (
+    Any,
     Awaitable,
     Callable,
-    Optional,
-    Set,
     Dict,
-    Union,
-    TypeVar,
-    cast,
+    Optional,
     ParamSpec,
+    Set,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
-import os
-import uuid
 
 import pytest
 from playwright.async_api import Page
-
 
 logger = logging.getLogger(__name__)
 
@@ -31,74 +32,72 @@ F = TypeVar("F")
 
 def retry_on_failure(
     max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0
-) -> Callable[[Callable[P, T]], Callable[P, T]]:
+) -> Callable[
+    [Callable[P, Union[Awaitable[T], T]]], Callable[P, Union[Awaitable[T], T]]
+]:
     """Decorator to retry flaky test functions with exponential backoff."""
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:
-        @functools.wraps(func)
-        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            last_exception: Optional[Exception] = None
-            current_delay = delay
-
-            for attempt in range(max_attempts):
-                try:
-                    if asyncio.iscoroutinefunction(func):
-                        # func is async, so awaiting it gives us T
-                        result: T = await cast(Callable[P, Awaitable[T]], func)(
-                            *args, **kwargs
-                        )
-                    else:
-                        # func is sync, so calling it directly gives us T
-                        result = func(*args, **kwargs)
-                    return result
-                except Exception as e:
-                    last_exception = e
-                    if attempt < max_attempts - 1:
-                        logger.warning(
-                            f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
-                        )
-                        await asyncio.sleep(current_delay)
-                        current_delay *= backoff
-                    else:
-                        logger.error(
-                            f"Test {func.__name__} failed after {max_attempts} attempts"
-                        )
-
-            if last_exception is not None:
-                raise last_exception
-            raise RuntimeError("Unexpected failure in retry decorator")
-
-        @functools.wraps(func)
-        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            last_exception: Optional[Exception] = None
-            current_delay = delay
-
-            for attempt in range(max_attempts):
-                try:
-                    result = func(*args, **kwargs)
-                    return result
-                except Exception as e:
-                    last_exception = e
-                    if attempt < max_attempts - 1:
-                        logger.warning(
-                            f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
-                        )
-                        time.sleep(current_delay)
-                        current_delay *= backoff
-                    else:
-                        logger.error(
-                            f"Test {func.__name__} failed after {max_attempts} attempts"
-                        )
-
-            if last_exception is not None:
-                raise last_exception
-            raise RuntimeError("Unexpected failure in sync retry decorator")
-
-        # Return appropriate wrapper based on function type
+    def decorator(
+        func: Callable[P, Union[Awaitable[T], T]]
+    ) -> Callable[P, Union[Awaitable[T], T]]:
         if asyncio.iscoroutinefunction(func):
-            return cast(Callable[P, T], async_wrapper)
+
+            @functools.wraps(func)
+            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                last_exception: Optional[Exception] = None
+                current_delay = delay
+
+                for attempt in range(max_attempts):
+                    try:
+                        result = await func(*args, **kwargs)
+                        return cast(T, result)
+                    except Exception as e:
+                        last_exception = e
+                        if attempt < max_attempts - 1:
+                            logger.warning(
+                                f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
+                            )
+                            await asyncio.sleep(current_delay)
+                            current_delay *= backoff
+                        else:
+                            logger.error(
+                                f"Test {func.__name__} failed after {max_attempts} attempts"
+                            )
+
+                if last_exception is not None:
+                    raise last_exception
+                raise RuntimeError("Unexpected failure in retry decorator")
+
+            return async_wrapper
         else:
-            return cast(Callable[P, T], sync_wrapper)
+
+            @functools.wraps(func)
+            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+                last_exception: Optional[Exception] = None
+                current_delay = delay
+
+                for attempt in range(max_attempts):
+                    try:
+                        result = func(*args, **kwargs)
+                        return cast(T, result)
+                    except Exception as e:
+                        last_exception = e
+                        if attempt < max_attempts - 1:
+                            logger.warning(
+                                f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
+                            )
+                            time.sleep(current_delay)
+                            current_delay *= backoff
+                        else:
+                            logger.error(
+                                f"Test {func.__name__} failed after {max_attempts} attempts"
+                            )
+
+                if last_exception is not None:
+                    raise last_exception
+                raise RuntimeError("Unexpected failure in sync retry decorator")
+
+            return sync_wrapper
 
     return decorator
 
@@ -251,7 +250,8 @@ def quarantine(reason: str) -> Callable[[F], F]:
 
     def decorator(func: F) -> F:
         # Mark test as skipped with quarantine reason
-        return cast(F, pytest.mark.skip(reason=f"Quarantined: {reason}")(func))
+        marked_func = pytest.mark.skip(reason=f"Quarantined: {reason}")(func)
+        return cast(F, marked_func)
 
     return decorator
 
@@ -261,7 +261,8 @@ def flaky_on_ci(reason: str = "Flaky on CI") -> Callable[[F], F]:
 
     def decorator(func: F) -> F:
         if os.environ.get("CI") == "true":
-            return cast(F, pytest.mark.skip(reason=f"Skipped on CI: {reason}")(func))
+            marked_func = pytest.mark.skip(reason=f"Skipped on CI: {reason}")(func)
+            return cast(F, marked_func)
         return func
 
     return decorator

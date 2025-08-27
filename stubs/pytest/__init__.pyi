@@ -138,6 +138,13 @@ class ExceptionInfo:
     type: Type[Exception]
     traceback: object
 
+class Config:
+    @property
+    def option(self) -> "OptionConfig": ...
+
+class OptionConfig:
+    def __getattr__(self, name: str) -> object: ...
+
 def fail(msg: str = "", pytrace: bool = True) -> NoReturn: ...
 def skip(msg: str = "") -> NoReturn: ...
 

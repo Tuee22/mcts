@@ -1,13 +1,6 @@
 """Type stubs for numpy."""
 
-from typing import (
-    Union,
-    List,
-    Tuple,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import List, Optional, Tuple, Type, TypeVar, Union
 
 DType = TypeVar("DType")
 ScalarValue = Union[int, float, bool, complex, str]
