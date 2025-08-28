@@ -148,3 +148,7 @@ test_hook_trigger.txt
 .claude/test_smoke.txt
 .claude/hook_test_file.txt
 .claude/final_smoke_test.txt
+
+# Specific .txt files to ignore
+backend/python/gdb_init.txt
+backend/core/results.txt

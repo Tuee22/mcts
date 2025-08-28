@@ -1,3 +1,0 @@
-dir /home/mcts/src
-file python3
-set args -m corridors.corridors_mcts

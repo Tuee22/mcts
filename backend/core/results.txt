@@ -1,6 +1,0 @@
-scons: Reading SConscript files ...
-Passing the following compiler and linker flags: {'CCFLAGS': ['-Wno-deprecated-declarations', '-fsanitize=address', '-Ofast', '-g'], 'LINKFLAGS': ['-g']}
-scons: done reading SConscript files.
-scons: Building targets ...
-g++ -o _corridors_mcts -g board.o test.o
-scons: building terminated because of errors.
