@@ -11,7 +11,7 @@ class TestBrowserCompatibility:
     """Test browser compatibility for all three engines."""
 
     @pytest.mark.asyncio
-    async def test_all_browsers_load_frontend(self) -> None:
+    async def test_all_browsers_load_frontend(self, e2e_urls: Dict[str, str]) -> None:
         """Test that all browsers can load the frontend successfully."""
         results: Dict[str, str] = {}
 
@@ -45,7 +45,7 @@ class TestBrowserCompatibility:
                     page = await browser.new_page()
 
                     # Navigate to frontend
-                    await page.goto("http://localhost:3002", timeout=30000)
+                    await page.goto(e2e_urls["frontend"], timeout=30000)
 
                     # Wait for app to load
                     await page.wait_for_load_state("networkidle", timeout=10000)
@@ -88,7 +88,9 @@ class TestBrowserCompatibility:
         print("\n🎉 All browsers tested successfully!")
 
     @pytest.mark.asyncio
-    async def test_frontend_connection_robustness(self) -> None:
+    async def test_frontend_connection_robustness(
+        self, e2e_urls: Dict[str, str]
+    ) -> None:
         """Test connection robustness across browsers."""
         async with async_playwright() as p:
             # Test with just Chromium for connection functionality
@@ -105,7 +107,7 @@ class TestBrowserCompatibility:
                 page = await browser.new_page()
 
                 # Navigate and wait for connection
-                await page.goto("http://localhost:3002")
+                await page.goto(e2e_urls["frontend"])
                 await page.wait_for_load_state("networkidle")
 
                 # Wait for stable connection

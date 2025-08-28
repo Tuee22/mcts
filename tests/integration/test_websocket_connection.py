@@ -74,23 +74,30 @@ class TestWebSocketConnection:
         self,
         backend_server: subprocess.Popen[bytes],
         test_config: Dict[str, object],
-        test_client: AsyncClient,
     ) -> None:
         """Test WebSocket connection for specific game session."""
-        # Create a game first
-        game_data = {
-            "player1_type": "human",
-            "player2_type": "machine",
-            "player1_name": "Test Player",
-            "player2_name": "AI",
-        }
+        # Use real HTTP client to connect to the running server
+        async with AsyncClient() as client:
+            # Create a game first
+            game_data = {
+                "player1_type": "human",
+                "player2_type": "machine",
+                "player1_name": "Test Player",
+                "player2_name": "AI",
+            }
 
-        response = await test_client.post("/games", json=game_data)
-        assert response.status_code == 200
-        game = response.json()
-        if not isinstance(game, dict):
-            raise RuntimeError("Invalid game response format")
-        game_id = game["game_id"]
+            response = await client.post(
+                f"http://{test_config['api_host']}:{test_config['api_port']}/games",
+                json=game_data,
+            )
+            if response.status_code != 200:
+                print(f"Game creation failed: {response.status_code}")
+                print(f"Response: {response.text}")
+            assert response.status_code == 200
+            game = response.json()
+            if not isinstance(game, dict):
+                raise RuntimeError("Invalid game response format")
+            game_id = game["game_id"]
 
         # Connect to game-specific WebSocket
         uri = f"ws://{test_config['api_host']}:{test_config['api_port']}/games/{game_id}/ws"
@@ -168,7 +175,7 @@ class TestWebSocketConnection:
             for i in range(10):
                 await websocket.send(json.dumps({"type": "ping", "id": i}))
 
-            # Should receive pongs in order
+            # Should receive pongs (order doesn't matter since id isn't echoed)
             for i in range(10):
                 response = await asyncio.wait_for(websocket.recv(), timeout=2)
                 pong = json.loads(response)

@@ -196,15 +196,10 @@ def main() -> None:
         if args.debug:
             env["PWDEBUG"] = "1"
 
-        # Run comprehensive stable E2E test suite - all working tests
+        # Run ALL E2E tests
         e2e_cmd = [
             "pytest",
-            # Core stable tests
-            "tests/e2e/test_browser_compatibility.py",
-            "tests/e2e/test_working_connection.py",
-            # Fixed versions with comprehensive scenarios
-            "tests/e2e/test_connection_scenarios_fixed.py",
-            "tests/e2e/test_network_failures_fixed.py",
+            "tests/e2e/",
             "-v",
         ]
 

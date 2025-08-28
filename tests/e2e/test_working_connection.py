@@ -1,16 +1,14 @@
 """Working E2E connection tests using external servers."""
 import os
+from typing import Dict
 import pytest
 from playwright.async_api import async_playwright, expect
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_successful_connection() -> None:
+async def test_successful_connection(e2e_urls: Dict[str, str]) -> None:
     """Test that app successfully connects to backend on load."""
-    # Use environment URLs or fallback to localhost
-    frontend_url = os.environ.get("E2E_FRONTEND_URL", "http://localhost:3002")
-    backend_url = os.environ.get("E2E_BACKEND_URL", "http://localhost:8002")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -24,7 +22,7 @@ async def test_successful_connection() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto(frontend_url, timeout=30000)
+            await page.goto(e2e_urls["frontend"], timeout=30000)
 
             # Wait for page to load
             await page.wait_for_load_state("networkidle", timeout=15000)
@@ -40,7 +38,7 @@ async def test_successful_connection() -> None:
             print("✅ Frontend loaded successfully")
 
             # Check backend health
-            response = await page.request.get(f"{backend_url}/health")
+            response = await page.request.get(f"{e2e_urls['backend']}/health")
             assert response.ok
             health_data = await response.json()
             assert health_data["status"] == "healthy"
@@ -64,9 +62,8 @@ async def test_successful_connection() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_game_creation() -> None:
+async def test_game_creation(e2e_urls: Dict[str, str]) -> None:
     """Test creating a new game."""
-    backend_url = os.environ.get("E2E_BACKEND_URL", "http://localhost:8002")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -79,7 +76,7 @@ async def test_game_creation() -> None:
         try:
             # Create game via API with proper JSON format
             response = await page.request.post(
-                f"{backend_url}/games",
+                f"{e2e_urls['backend']}/games",
                 data={
                     "player1_name": "TestPlayer1",
                     "player2_name": "TestPlayer2",

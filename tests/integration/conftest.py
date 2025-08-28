@@ -55,7 +55,15 @@ def test_config() -> TestConfig:
 @pytest_asyncio.fixture
 async def test_client(test_config: TestConfig) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client for API testing."""
+    # Set environment variable to indicate we're in a test
+    import os
+
+    os.environ["PYTEST_CURRENT_TEST"] = "true"
+
+    # Use the app directly with proper initialization
     transport = ASGITransport(app=app)
+
+    # The lifespan context will be handled by the ASGI transport
     async with AsyncClient(
         transport=transport,
         base_url=f"http://{test_config['api_host']}:{test_config['api_port']}",

@@ -31,8 +31,9 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_VIRTUALENVS_IN_PROJECT=false \
     POETRY_NO_INTERACTION=1 \
+    POETRY_HOME=/usr/local \
     CI=1 \
-    PATH="/root/.local/bin:${PATH}"
+    PATH="/usr/local/bin:${PATH}"
 
 WORKDIR /app
 
@@ -73,10 +74,8 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 # Upgrade pip and install base tools
 RUN python3 -m pip install --upgrade pip wheel setuptools
 
-# Install Poetry from official installer and make it globally accessible
-RUN curl -sSL https://install.python-poetry.org | python3 - \
-    && cp /root/.local/bin/poetry /usr/local/bin/poetry \
-    && chmod +x /usr/local/bin/poetry
+# Install Poetry using pip for system-wide access without permission issues
+RUN python3 -m pip install poetry
 
 # Create user with matching UID/GID for development
 RUN groupadd -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \

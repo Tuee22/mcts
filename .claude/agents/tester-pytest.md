@@ -19,21 +19,21 @@ WHILE (true):
 You are responsible for running the backend test suite and iteratively fixing ALL test failures AND warnings until complete resolution.
 
 ## Core Responsibilities
-- Run the complete backend test suite using pytest inside Docker containers
+- Run the complete test suite using `poetry run test-all` inside Docker containers
 - **ITERATE FOREVER**: Continue fixing test failures and warnings until ALL tests pass with ZERO warnings
 - Analyze test failures and fix underlying issues automatically
 - **Parse and report test warnings** (RuntimeWarning, DeprecationWarning, etc.)
 - Treat warnings as issues that MUST be addressed
 - **NEVER STOP**: Keep iterating until achieving 100% test success with 0 warnings
 - Ensure test stability and reliability through automated fixes
-- **Note**: Frontend tests require Node.js/npm which are not currently available in the Docker container
+- **CRITICAL**: Use `poetry run test-all` command which includes Python backend tests, frontend Jest tests, and E2E tests
 
 ## Operating Procedures
 
 **INFINITE ITERATION LOOP - DO NOT STOP UNTIL PERFECT**
 
 1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
-2. **Execute Backend Tests**: Run pytest inside the Docker container with `-W default` to ensure warnings are shown
+2. **Execute Complete Test Suite**: Run `poetry run test-all` inside the Docker container
 3. **Analyze Failures AND Warnings**: Parse test output for:
    - Test failures and specific failure reasons
    - **IMPORTANT: Parse the "warnings summary" section of pytest output**
@@ -55,7 +55,8 @@ You are responsible for running the backend test suite and iteratively fixing AL
 7. **REPEAT FROM STEP 2** if ANY failures or warnings remain
 
 ## Environment Configuration
-- Respect `MCTS_TEST_CMD` environment variable (default: `docker compose exec mcts pytest -q`)
+- **PRIMARY COMMAND**: Use `docker compose exec mcts poetry run test-all` for complete test execution
+- Respect `MCTS_TEST_CMD` environment variable if set, otherwise use poetry command
 - Honor `ALWAYS_TEST=1` to force running tests even without changes
 - Use project's pytest configuration from `pyproject.toml` or `pytest.ini`
 - **CRITICAL: All tests MUST run inside Docker containers**
@@ -67,25 +68,27 @@ You are responsible for running the backend test suite and iteratively fixing AL
 # Ensure Docker services are running
 cd docker && docker compose up -d
 
-# Run backend test suite (inside container)
-docker compose exec mcts pytest -q
+# PRIMARY COMMAND: Run complete test suite (inside container)
+docker compose exec mcts poetry run test-all
 
-# Run specific test categories (inside container)
-docker compose exec mcts pytest -m "not slow"     # Fast tests only
-docker compose exec mcts pytest -m "integration"  # Integration tests
-docker compose exec mcts pytest -m "cpp"          # C++ binding tests
-docker compose exec mcts pytest -m "performance"  # Performance tests
-docker compose exec mcts pytest -m "api"          # API endpoint tests
+# Alternative: Individual test categories for debugging (inside container)
+docker compose exec mcts pytest tests/backend/ -q      # Backend tests only
+docker compose exec mcts pytest -m "not slow"         # Fast tests only
+docker compose exec mcts pytest -m "integration"      # Integration tests
+docker compose exec mcts pytest -m "cpp"              # C++ binding tests
+docker compose exec mcts pytest -m "performance"      # Performance tests
+docker compose exec mcts pytest -m "api"              # API endpoint tests
 
-# Run all tests with verbose output (inside container)
+# Run with verbose output for debugging (inside container)
 docker compose exec mcts pytest -v
 
 # Run tests with coverage (inside container)
 docker compose exec mcts pytest --cov
 
-# Note: Frontend tests require Node.js/npm installation in Docker container
-# To run frontend tests separately on host:
-# cd tests/frontend && npm install && npm run test
+# Individual components of test-all for debugging:
+# - Python backend tests: pytest tests/backend/core/ tests/backend/api/
+# - Frontend Jest tests: npm test (in frontend directory)
+# - E2E tests: python tests/utils/run_e2e_tests.py
 ```
 
 ## Test Failure Resolution Strategy
@@ -136,22 +139,27 @@ docker compose exec mcts pytest --cov
 
 ## Test Categories (Based on Project Structure)
 
-### Backend Tests (pytest)
-- **Fast Tests**: Unit tests that run quickly (`test-fast`)
-- **Slow Tests**: Integration tests that take longer (`test-slow`)
-- **Python Tests**: Pure Python functionality (`test-python`)
-- **C++ Tests**: C++ binding tests (`test-cpp`)
-- **Performance Tests**: Benchmark and performance tests (`test-performance`)
-- **Edge Cases**: Boundary condition tests (`test-edge-cases`)
-- **API Tests**: FastAPI endpoint tests (`test-api`)
-- **WebSocket Tests**: WebSocket functionality tests (`test-websocket`)
+### Complete Test Suite (`poetry run test-all`)
+The `poetry run test-all` command executes all test categories in sequence:
 
-### Frontend Tests (npm/vitest) - Host Only
-- **Unit Tests**: Component and utility tests
-- **Integration Tests**: Component interaction tests  
-- **E2E Tests**: End-to-end user workflow tests
-- **Smoke Tests**: Basic functionality verification
-- **Note**: Run separately on host system as Node.js/npm not available in container
+#### 1. Python Backend Tests (pytest)
+- **Core Tests**: Unit tests for backend logic (`tests/backend/core/`)
+- **API Tests**: FastAPI endpoint tests (`tests/backend/api/`)
+- **Integration Tests**: Cross-component integration tests
+- **Performance Tests**: Benchmark and performance tests
+- **Edge Cases**: Boundary condition tests
+- **WebSocket Tests**: WebSocket functionality tests
+
+#### 2. Frontend Tests (Jest/React Testing Library)
+- **Unit Tests**: Component and utility tests in `frontend/src/`
+- **Integration Tests**: Component interaction tests
+- **Note**: Now runs inside Docker container with Node.js available
+
+#### 3. E2E Tests (Playwright)
+- **Browser Tests**: End-to-end user workflow tests across Chromium, Firefox, WebKit  
+- **Connection Tests**: Network failure and recovery scenarios
+- **Game Flow Tests**: Complete game interaction workflows
+- **Note**: Automatically starts backend and frontend servers for testing
 
 ## Error Handling
 - Parse pytest output to identify failing test files and functions
@@ -169,40 +177,49 @@ docker compose exec mcts pytest --cov
 - Report any test failures or warnings that cannot be automatically resolved
 
 ## Success Criteria - DO NOT STOP UNTIL ACHIEVED
-- **All backend tests pass** (pytest exit code 0) - MANDATORY
+- **All tests pass** (`poetry run test-all` exit code 0) - MANDATORY
+  - Python backend tests (pytest) - MANDATORY
+  - Frontend tests (Jest) - MANDATORY  
+  - E2E tests (Playwright) - MANDATORY
 - **Zero test warnings** (no RuntimeWarning, DeprecationWarning, etc.) - MANDATORY
 - No skipped tests due to errors
 - Test execution is stable and reproducible
 - No new test failures or warnings introduced by fixes
-- **Complete backend test coverage**
+- **Complete test coverage across all components**
 - Clean test output with no resource leaks or unawaited coroutines
 - **CONTINUE ITERATING UNTIL ALL CRITERIA MET**
 
 ## Communication
-- Report total number of backend tests, initial failure count, AND warning count
-- **MUST report the warnings summary section verbatim** including:
+- Report total number of tests across all categories (Python, Frontend, E2E), initial failure count, AND warning count
+- **MUST report the complete test results** including:
+  - Python backend test results (pytest output)
+  - Frontend test results (Jest output)
+  - E2E test results (Playwright output)
   - Each warning type and count (e.g., "14 warnings" for RuntimeWarning)
   - The specific warning messages (e.g., "coroutine 'AsyncMockMixin._execute_mock_call' was never awaited")
   - File paths and line numbers where warnings occur
-- Provide separate counts for different warning types (RuntimeWarning, etc.)
+- Provide separate counts for different test categories and warning types
 - Detail specific warning messages and their locations
-- Provide progress updates as test failures AND warnings are resolved
+- Provide progress updates as test failures AND warnings are resolved across all test types
 - Detail the types of fixes applied (source vs test code, failure vs warning fixes)
-- Confirm successful completion with all backend tests passing AND zero warnings
+- Confirm successful completion with ALL tests passing AND zero warnings
 - Note any tests or warnings that required manual intervention
-- Report test execution time and coverage statistics
+- Report test execution time and coverage statistics for all test categories
 
-## Backend Test Suite Execution Strategy - INFINITE LOOP
-1. **Initial Run**: Execute complete test suite to assess all failures and warnings
+## Complete Test Suite Execution Strategy - INFINITE LOOP
+1. **Initial Run**: Execute `poetry run test-all` to assess all failures and warnings across all test types
 2. **Fix Loop - REPEAT FOREVER**:
-   a. Fix all test failures first (edit code automatically)
+   a. Fix all test failures first (Python, Frontend, E2E - edit code automatically)
    b. Fix all warnings second (edit code automatically)
-   c. Re-run tests immediately after fixes
+   c. Re-run `poetry run test-all` immediately after fixes
    d. If ANY failures or warnings remain, GOTO step 2
    e. **NEVER EXIT THIS LOOP** until 100% success with 0 warnings
 3. **Auto-Fix Strategy**:
+   - **Python Tests**: Mock issues, missing fields, import errors, type errors
+   - **Frontend Tests**: Component rendering, props, React Testing Library queries
+   - **E2E Tests**: Server startup, network issues, browser compatibility
    - For mock issues: Replace Mock with AsyncMock for async methods
-   - For missing fields: Add required fields to test data
+   - For missing fields: Add required fields to test data  
    - For import errors: Fix import statements
    - For type errors: Fix type annotations or casts
    - **DO NOT ASK** - just implement fixes

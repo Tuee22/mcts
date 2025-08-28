@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Set, Union
 from fastapi import WebSocket
 
 from .models import GameResponse, MoveResponse, WebSocketMessage
-from .types import (
+from .api_types import (
     GameCreatedData,
     GameCreatedMessage,
     GameEndedData,

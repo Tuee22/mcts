@@ -31,7 +31,11 @@ class TestCORSConfiguration:
 
             assert response.status_code == 200
             assert "Access-Control-Allow-Origin" in response.headers
-            assert response.headers["Access-Control-Allow-Origin"] == "*"
+            # When credentials are allowed, CORS returns the specific origin, not "*"
+            assert response.headers["Access-Control-Allow-Origin"] in [
+                "http://localhost:3001",
+                "*",
+            ]
             assert "Access-Control-Allow-Methods" in response.headers
             assert "POST" in response.headers["Access-Control-Allow-Methods"]
 
@@ -48,7 +52,11 @@ class TestCORSConfiguration:
             )
 
             assert response.status_code == 200
-            assert response.headers.get("Access-Control-Allow-Origin") == "*"
+            # When credentials are allowed, CORS returns the specific origin, not "*"
+            assert response.headers.get("Access-Control-Allow-Origin") in [
+                "http://localhost:3001",
+                "*",
+            ]
             assert response.headers.get("Access-Control-Allow-Credentials") == "true"
 
     async def test_cors_with_different_origins(
@@ -70,8 +78,11 @@ class TestCORSConfiguration:
                 response = await client.get("/health", headers={"Origin": origin})
 
                 assert response.status_code == 200
-                # Current config allows all origins
-                assert response.headers.get("Access-Control-Allow-Origin") == "*"
+                # When credentials are allowed, CORS returns the specific origin
+                assert response.headers.get("Access-Control-Allow-Origin") in [
+                    origin,
+                    "*",
+                ]
 
     async def test_cors_preflight_for_websocket_endpoint(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
@@ -161,7 +172,9 @@ class TestCORSConfiguration:
 
             assert response.status_code == 200
             allowed_headers = response.headers.get("Access-Control-Allow-Headers", "")
-            assert "*" in allowed_headers  # Current config allows all headers
+            # Check that requested headers are allowed
+            assert "X-Custom-Header" in allowed_headers
+            assert "X-Request-ID" in allowed_headers
 
     async def test_cors_max_age_header(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
