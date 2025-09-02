@@ -90,10 +90,24 @@ def check_server_health(url: str, max_retries: int = 30) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run all MCTS tests: Python → Frontend → E2E tests"
+        description="Run all MCTS tests: Python (Unit → Integration → Benchmarks) → Frontend → E2E"
     )
     parser.add_argument(
-        "--skip-python", action="store_true", help="Skip Python unit/integration tests"
+        "--skip-python", action="store_true", help="Skip all Python tests"
+    )
+    parser.add_argument(
+        "--skip-unit",
+        action="store_true",
+        help="Skip unit tests (backend/core, backend/api)",
+    )
+    parser.add_argument(
+        "--skip-integration", action="store_true", help="Skip integration tests"
+    )
+    parser.add_argument(
+        "--skip-benchmarks", action="store_true", help="Skip benchmark tests"
+    )
+    parser.add_argument(
+        "--skip-utils", action="store_true", help="Skip utility/fixture tests"
     )
     parser.add_argument(
         "--skip-frontend", action="store_true", help="Skip frontend tests"
@@ -105,6 +119,9 @@ def main() -> None:
         "--headed", action="store_true", help="Run E2E with visible browser"
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser.add_argument(
+        "--fail-fast", action="store_true", help="Stop on first test failure"
+    )
 
     args = parser.parse_args()
 
@@ -113,57 +130,124 @@ def main() -> None:
     os.chdir(project_root)
 
     success = True
+    test_results = {}
 
-    # Run Python tests
+    # Define test suites with their configurations
+    python_test_suites = [
+        {
+            "name": "Unit Tests - Core",
+            "path": "tests/backend/core/",
+            "markers": "not e2e and not slow",
+            "coverage_target": "backend.python",
+            "skip_flag": args.skip_unit,
+            "emoji": "🧪",
+        },
+        {
+            "name": "Unit Tests - API",
+            "path": "tests/backend/api/",
+            "markers": "not e2e and not slow",
+            "coverage_target": "backend.api",
+            "skip_flag": args.skip_unit,
+            "emoji": "🌐",
+        },
+        {
+            "name": "Integration Tests",
+            "path": "tests/integration/",
+            "markers": "not e2e",
+            "coverage_target": "backend",
+            "skip_flag": args.skip_integration,
+            "emoji": "🔗",
+        },
+        {
+            "name": "Utility & Fixture Tests",
+            "path": "tests/utils/ tests/fixtures/",
+            "markers": "not e2e and not benchmark",
+            "coverage_target": None,  # Skip coverage for test utilities
+            "skip_flag": args.skip_utils,
+            "emoji": "🛠️",
+        },
+        {
+            "name": "Benchmark Tests",
+            "path": "tests/benchmarks/",
+            "markers": "benchmark",
+            "coverage_target": None,  # Skip coverage for benchmarks
+            "skip_flag": args.skip_benchmarks,
+            "emoji": "⚡",
+        },
+    ]
+
+    # Run Python test suites
     if not args.skip_python:
-        print("🐍 Running Python tests...")
+        print("🐍 Running Python Test Suites...")
+        print("=" * 80)
 
-        # Run Core tests first
-        core_cmd = ["pytest", "tests/backend/core/", "-m", "not e2e"]
-        if args.verbose:
-            core_cmd.append("-v")
-        if args.coverage:
-            core_cmd.extend(
-                [
-                    "--cov=backend.python",
-                    "--cov-report=html:htmlcov-core",
-                    "--cov-report=term-missing",
-                ]
-            )
+        for suite in python_test_suites:
+            if suite["skip_flag"]:
+                print(f"⏭️  Skipping {suite['name']}")
+                test_results[suite["name"]] = "SKIPPED"
+                continue
 
-        core_success = run_command(core_cmd, "Python Core Tests")
+            print(f"\n{suite['emoji']} Running {suite['name']}...")
 
-        # Run API tests
-        api_cmd = ["pytest", "tests/backend/api/", "-m", "not e2e"]
-        if args.verbose:
-            api_cmd.append("-v")
-        if args.coverage:
-            api_cmd.extend(
-                [
-                    "--cov=backend.api",
-                    "--cov-report=html:htmlcov-api",
-                    "--cov-report=term-missing",
-                ]
-            )
+            # Build pytest command
+            cmd = ["pytest"] + suite["path"].split()
 
-        api_success = run_command(api_cmd, "Python API Tests")
-        success = success and core_success and api_success
+            if suite["markers"]:
+                cmd.extend(["-m", suite["markers"]])
+
+            if args.verbose:
+                cmd.append("-v")
+            elif not args.debug:
+                cmd.append("-q")
+
+            if args.fail_fast:
+                cmd.append("-x")
+
+            # Add coverage if requested and applicable
+            if args.coverage and suite["coverage_target"]:
+                coverage_dir = suite["name"].lower().replace(" ", "-").replace("-", "_")
+                cmd.extend(
+                    [
+                        f"--cov={suite['coverage_target']}",
+                        f"--cov-report=html:htmlcov-{coverage_dir}",
+                        "--cov-report=term-missing",
+                    ]
+                )
+
+            suite_success = run_command(cmd, suite["name"])
+            test_results[suite["name"]] = "PASSED" if suite_success else "FAILED"
+            success = success and suite_success
+
+            if args.fail_fast and not suite_success:
+                break
+
+    # Initialize result tracking for frontend and e2e
+    frontend_success = True
+    e2e_success = True
 
     # Run Frontend tests
-    if not args.skip_frontend and (project_root / "frontend").exists():
-        print("\n⚛️  Running Frontend tests...")
+    if not args.skip_frontend:
+        if (project_root / "frontend").exists():
+            print("\n⚛️  Running Frontend tests...")
 
-        frontend_cmd = ["npm", "test", "--", "--watchAll=false"]
-        if args.coverage:
-            frontend_cmd.extend(["--coverage"])
+            frontend_cmd = ["npm", "test", "--", "--watchAll=false"]
+            if args.coverage:
+                frontend_cmd.extend(["--coverage"])
 
-        frontend_success = run_command(
-            frontend_cmd, "Frontend Tests", cwd=str(project_root / "frontend")
-        )
-        success = success and frontend_success
+            frontend_success = run_command(
+                frontend_cmd, "Frontend Tests", cwd=str(project_root / "frontend")
+            )
+            test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"
+            success = success and frontend_success
+
+            if args.fail_fast and not frontend_success:
+                print("❌ Stopping due to --fail-fast flag")
+        else:
+            print("\n⚛️  Skipping Frontend tests (no frontend directory found)")
+            test_results["Frontend Tests"] = "SKIPPED"
 
     # Run E2E tests
-    if not args.skip_e2e:
+    if not args.skip_e2e and (not args.fail_fast or success):
         print("\n🌐 Running E2E tests with Playwright...")
 
         # Use our dedicated E2E test runner
@@ -176,22 +260,44 @@ def main() -> None:
             e2e_cmd.append("--debug")
 
         e2e_success = run_command(e2e_cmd, "E2E Tests")
+        test_results["E2E Tests"] = "PASSED" if e2e_success else "FAILED"
         success = success and e2e_success
 
     # Final summary
-    print(f"\n{'='*60}")
+    print(f"\n{'='*80}")
+    print("📊 TEST EXECUTION SUMMARY")
+    print(f"{'='*80}")
+
     if success:
-        print("🎉 All tests passed!")
-        if not args.skip_python:
-            print("✅ Python tests: PASSED")
-        if not args.skip_frontend:
-            print("✅ Frontend tests: PASSED")
-        if not args.skip_e2e:
-            print("✅ E2E tests: PASSED")
+        print("🎉 All executed tests passed!")
     else:
         print("💥 Some tests failed!")
-        print("Check the output above for details.")
-    print(f"{'='*60}")
+
+    # Show detailed results for each test suite
+    if test_results:
+        print("\n📋 Test Suite Results:")
+        for suite_name, result in test_results.items():
+            status_emoji = {"PASSED": "✅", "FAILED": "❌", "SKIPPED": "⏭️"}[result]
+            print(f"  {status_emoji} {suite_name}: {result}")
+
+    # Show counts
+    passed = sum(1 for r in test_results.values() if r == "PASSED")
+    failed = sum(1 for r in test_results.values() if r == "FAILED")
+    skipped = sum(1 for r in test_results.values() if r == "SKIPPED")
+    total = len(test_results)
+
+    print(
+        f"\n📊 Summary: {passed} passed, {failed} failed, {skipped} skipped (of {total} suites)"
+    )
+
+    print(f"\n{'='*80}")
+    if not success:
+        print(
+            "💡 TIP: Use specific --skip-* flags to run subsets, or --fail-fast to stop on first failure"
+        )
+        print("📖 Example: poetry run test-all --skip-benchmarks --skip-e2e")
+
+    print(f"{'='*80}")
 
     sys.exit(0 if success else 1)
 

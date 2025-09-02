@@ -56,15 +56,24 @@ test-runner = "tests.utils.test_runner:main"
 api-server = "backend.api.server:main"
 api-dev = "backend.api.server:dev"
 
-# Individual test runners
-test-python = "tests.utils.run_tests:main"
-test-python-api = "tests.utils.run_api_tests:main" 
-test-python-core = "tests.utils.run_core_tests:main"
-test-frontend = "tests.utils.run_frontend_tests:main"
-test-e2e = "tests.utils.run_e2e_tests:main"
-
 # Unified test runner - runs ALL tests (Python + Frontend + E2E)
 test-all = "tests.utils.run_unified_tests:main"
+
+# Granular test runners by test category
+test-unit = "tests.utils.test_subsets:run_unit_tests"
+test-integration = "tests.utils.test_subsets:run_integration_tests"
+test-benchmarks = "tests.utils.test_subsets:run_benchmark_tests"
+test-python = "tests.utils.test_subsets:run_python_tests"
+test-frontend = "tests.utils.test_subsets:run_frontend_tests"
+test-e2e = "tests.utils.test_subsets:run_e2e_tests"
+
+# Convenience runners for speed
+test-fast = "tests.utils.test_subsets:run_fast_tests"
+test-quick = "tests.utils.test_subsets:run_quick_tests"
+
+# Legacy individual test runners (now deprecated)
+test-python-api = "tests.utils.run_api_tests:main" 
+test-python-core = "tests.utils.run_core_tests:main"
 
 # Type safety checker
 check-type-safety = "tools.check_type_safety:main"
