@@ -231,3 +231,7 @@ type-check-results/
 # ==============================================================================
 
 # Additional file patterns from .gitignore
+
+# Specific .txt files to ignore
+backend/python/gdb_init.txt
+backend/core/results.txt
