@@ -8,9 +8,7 @@ except ImportError:
     exit(1)
 
 # Reproduce the exact same setup as the failing test
-mcts = Corridors_MCTS(
-    c=1.2, seed=666, min_simulations=200, max_simulations=1000, sim_increment=50
-)
+mcts = Corridors_MCTS(c=1.2, seed=666, min_simulations=200, max_simulations=1000)
 
 simulation_targets = [200, 400, 600, 800, 1000]
 

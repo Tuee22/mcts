@@ -189,8 +189,8 @@ def display_sorted_actions(
 
 
 def computer_self_play(
-    p1: "Corridors_MCTS",
-    p2: Optional["Corridors_MCTS"] = None,
+    p1: MCTSProtocol,
+    p2: Optional[MCTSProtocol] = None,
     stop_on_eval: bool = False,
 ) -> None:
     """Pass one or two instances of corridors_mcts to perform self-play.
@@ -243,7 +243,7 @@ def computer_self_play(
 
 
 def human_computer_play(
-    mcts: "Corridors_MCTS",
+    mcts: MCTSProtocol,
     human_plays_first: bool = True,
     hide_humans_moves: bool = True,
 ) -> None:

@@ -10,9 +10,7 @@ except ImportError:
 # Unfortunately, I don't have a direct way to get root visits from Python bindings
 # But I can infer the issue from the pattern
 
-mcts = Corridors_MCTS(
-    c=1.2, seed=666, min_simulations=200, max_simulations=1000, sim_increment=50
-)
+mcts = Corridors_MCTS(c=1.2, seed=666, min_simulations=200, max_simulations=1000)
 
 simulation_targets = [200, 400]
 

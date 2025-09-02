@@ -13,7 +13,6 @@ mcts = Corridors_MCTS(
     seed=789,
     min_simulations=150,
     max_simulations=300,
-    sim_increment=30,
     use_rollout=True,
     decide_using_visits=True,
 )
@@ -63,7 +62,6 @@ for wall_pos in test_walls:
         seed=789,
         min_simulations=50,
         max_simulations=100,
-        sim_increment=10,
         use_rollout=True,
         decide_using_visits=True,
     )

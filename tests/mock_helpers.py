@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Protocol, Tuple
 
+from corridors.corridors_mcts import MCTSProtocol
+
 
 class CorridorsMCTSInterface(Protocol):
     """Protocol defining the Corridors_MCTS interface."""
@@ -45,7 +47,7 @@ class CorridorsMCTSInterface(Protocol):
 
 
 @dataclass
-class MockCorridorsMCTS(CorridorsMCTSInterface):
+class MockCorridorsMCTS(MCTSProtocol):
     """Type-safe mock for Corridors_MCTS that implements the protocol."""
 
     # Default return values
@@ -72,6 +74,23 @@ class MockCorridorsMCTS(CorridorsMCTSInterface):
     make_move_calls: List[Tuple[str, bool]] = field(default_factory=list)
     ensure_sims_calls: List[int] = field(default_factory=list)
     reset_calls: int = 0
+
+    def __init__(
+        self,
+        c: float = 1.414,
+        seed: int = 42,
+        min_simulations: int = 100,
+        max_simulations: int = 1000,
+        sim_increment: int = 50,
+        use_rollout: bool = True,
+        eval_children: bool = False,
+        use_puct: bool = False,
+        use_probs: bool = False,
+        decide_using_visits: bool = True,
+        **kwargs: object,
+    ) -> None:
+        """Initialize mock - parameters are ignored but match protocol."""
+        pass
 
     def make_move(self, action: str, flip: bool = False) -> None:
         """Record a move."""

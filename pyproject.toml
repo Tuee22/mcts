@@ -167,8 +167,6 @@ pretty = true
 files = ["backend/", "tests/", "tools/"]
 # Check corridors as a top-level module  
 mypy_path = ["stubs", "backend/python"]
-# Exclude backend/python from direct checking since it's handled via stubs
-exclude = ["backend/python/"]
 # Resolve module path conflicts
 explicit_package_bases = true
 namespace_packages = true

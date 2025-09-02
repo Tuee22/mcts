@@ -13,7 +13,6 @@ mcts = Corridors_MCTS(
     seed=789,
     min_simulations=150,
     max_simulations=300,
-    sim_increment=30,
     use_rollout=True,
     decide_using_visits=True,
 )
@@ -71,7 +70,6 @@ mcts2 = Corridors_MCTS(
     seed=789,
     min_simulations=150,
     max_simulations=300,
-    sim_increment=30,
     use_rollout=True,
     decide_using_visits=True,
 )
@@ -126,7 +124,6 @@ mcts3 = Corridors_MCTS(
     seed=789,
     min_simulations=150,
     max_simulations=300,
-    sim_increment=30,
     use_rollout=True,
     decide_using_visits=True,
 )
