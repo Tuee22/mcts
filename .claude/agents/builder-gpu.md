@@ -1,3 +1,8 @@
+---
+name: builder-gpu
+description: Build GPU-enabled Docker containers when GPU support is available and configured
+---
+
 # GPU-Enabled Docker Builder Agent
 
 **Agent Name**: @builder-gpu  

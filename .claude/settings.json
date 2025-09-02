@@ -1,8 +1,8 @@
 {
+  "_description": "Claude Code automated quality gate configuration - format, type check, build, test after every change. Git commits blocked until checks pass and user explicitly confirms.",
   "hooks": {
     "SessionStart": [
       {
-        "matcher": {},
         "hooks": [
           {
             "type": "command",
@@ -19,6 +19,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-commit-guard.py\""
+          },
+          {
+            "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && docker compose exec -w /app mcts sh -c \"$(echo \"$TOOL_CALL\" | jq -r '.parameters.command // empty')\""
           }
         ]
@@ -27,29 +31,36 @@
     "PostToolUse": [
       {
         "matcher": {
+          "tools": ["Edit", "Write", "MultiEdit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts black . 2>/dev/null || true",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": {
           "tools": ["Edit", "Write", "MultiEdit", "Task"]
         },
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/on-change-chain.py",
-            "timeout": 600
-          },
-          {
-            "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/test-hook-audit.py",
-            "timeout": 30
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/test-hook-audit.py PostToolUse",
+            "timeout": 10
           }
         ]
       }
     ],
     "Stop": [
       {
-        "matcher": {},
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/test-hook-audit.py"
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/quality-gate.py",
+            "timeout": 600
           }
         ]
       }

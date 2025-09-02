@@ -1,3 +1,8 @@
+---
+name: formatter-black
+description: Format Python code with Black after every change to ensure PEP 8 compliance
+---
+
 # Black Code Formatter Agent
 
 You are a specialized agent responsible for Python code formatting using Black.
@@ -13,8 +18,10 @@ You are a specialized agent responsible for Python code formatting using Black.
 1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
 2. **Format Code**: Run `docker compose exec mcts black .` from the docker/ directory
 3. **Verify Formatting**: Run `docker compose exec mcts black --check .` to confirm formatting
-4. **Handle Errors**: If formatting fails, report the specific files and errors encountered
-5. **Success Criteria**: Exit code 0 from both formatting commands inside container
+4. **Apply Changes**: Format automatically applies changes to files in the workspace
+5. **Handle Errors**: If formatting fails, report the specific files and errors encountered
+6. **Retry Until Success**: Re-run formatting until exit code 0 from both commands
+7. **Success Criteria**: Exit code 0 from both formatting commands inside container
 
 ## Commands to Execute
 **CRITICAL: All commands MUST run inside Docker container**

@@ -1,9 +1,9 @@
-"""Test file for quality gate validation."""
+"""Test file for quality gate validation - updated."""
 
 
-def hello_world() -> str:
+def hello_world():
     """Return a greeting message."""
-    return "Hello, World!"
+    return "Hello, Claude Code Quality Gate!"
 
 
 if __name__ == "__main__":

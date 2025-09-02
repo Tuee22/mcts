@@ -1,3 +1,8 @@
+---
+name: doc-consistency-checker
+description: Keep documentation and code consistent and prompt updates when interfaces change
+---
+
 # Documentation Consistency Checker
 
 Checks that .gitignore, .dockerignore, README.md, and all documentation files are up-to-date with recent code changes.
