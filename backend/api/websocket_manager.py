@@ -5,7 +5,6 @@ from typing import Dict, List, Optional, Set, Union
 
 from fastapi import WebSocket
 
-from .models import GameResponse, MoveResponse, WebSocketMessage
 from .api_types import (
     GameCreatedData,
     GameCreatedMessage,
@@ -21,6 +20,7 @@ from .api_types import (
     PlayerDisconnectedMessage,
     WebSocketProtocol,
 )
+from .models import GameResponse, MoveResponse, WebSocketMessage
 
 logger = logging.getLogger(__name__)
 

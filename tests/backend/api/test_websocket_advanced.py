@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import WebSocket
 
+from backend.api.api_types import OutgoingWebSocketMessage, WebSocketProtocol
 from backend.api.models import (
     GameResponse,
     GameSession,
@@ -16,7 +17,6 @@ from backend.api.models import (
     Player,
     PlayerType,
 )
-from backend.api.api_types import OutgoingWebSocketMessage, WebSocketProtocol
 from backend.api.websocket_manager import WebSocketManager
 from tests.pytest_marks import websocket
 

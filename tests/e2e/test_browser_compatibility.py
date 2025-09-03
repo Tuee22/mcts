@@ -3,7 +3,7 @@ import asyncio
 from typing import Dict
 
 import pytest
-from playwright.async_api import async_playwright, BrowserType
+from playwright.async_api import BrowserType, async_playwright
 
 
 @pytest.mark.e2e

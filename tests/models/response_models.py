@@ -1,6 +1,7 @@
 """Pydantic models for API response validation in tests."""
 
 from typing import Dict, List, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
 
 

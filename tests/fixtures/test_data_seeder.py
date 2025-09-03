@@ -7,7 +7,8 @@ from typing import Dict, List, Optional, Union
 
 import httpx
 from httpx import AsyncClient
-from tests.models.response_models import GameResponse, GameListResponse, HealthResponse
+
+from tests.models.response_models import GameListResponse, GameResponse, HealthResponse
 
 
 class TestDataSeeder:

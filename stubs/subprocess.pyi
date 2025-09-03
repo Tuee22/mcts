@@ -1,6 +1,6 @@
 """Type stubs for subprocess module."""
 
-from typing import Optional, Union, List, Dict, IO, Sequence, Generic, TypeVar
+from typing import IO, Dict, Generic, List, Optional, Sequence, TypeVar, Union
 
 _T = TypeVar("_T", bound=Union[str, bytes])
 

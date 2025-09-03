@@ -1,6 +1,7 @@
 """Pydantic models for WebSocket message validation."""
 
 from typing import Dict, Literal, Union
+
 from pydantic import BaseModel, Field
 
 

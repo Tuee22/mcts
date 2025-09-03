@@ -1,6 +1,6 @@
 """Async fixtures for E2E tests using Playwright."""
 import os
-from typing import Dict, AsyncGenerator
+from typing import AsyncGenerator, Dict
 
 import pytest
 import pytest_asyncio

@@ -9,7 +9,6 @@ from typing import Dict, List, Union
 from unittest.mock import patch
 
 import httpx
-import json
 import pytest
 import requests
 import websockets
@@ -17,9 +16,9 @@ from httpx import AsyncClient, Response
 
 from tests.integration.conftest import TestConfig
 from tests.models import (
-    HealthResponse,
     ErrorResponse,
     GameResponse,
+    HealthResponse,
     parse_test_websocket_message,
 )
 

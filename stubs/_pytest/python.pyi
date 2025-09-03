@@ -1,6 +1,7 @@
 """Type stubs for _pytest.python."""
 
 from typing import Optional
+
 from _pytest.config import Config
 
 class Function:

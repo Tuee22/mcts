@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd docker && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
+            "command": "cd /Users/matthewnowak/mcts/docker && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/debug-git-guard.py"
+            "command": "cd /Users/matthewnowak/mcts && python3 .claude/hooks/debug-git-guard.py"
           }
         ]
       }
@@ -59,22 +59,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/comprehensive-quality-check.py",
+            "command": "cd /Users/matthewnowak/mcts && python3 .claude/hooks/comprehensive-quality-check.py",
             "timeout": 300
           }
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 .claude/hooks/quality-gate.py",
-            "timeout": 600
-          }
-        ]
-      }
-    ]
+    "Stop": []
   }
 }

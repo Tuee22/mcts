@@ -208,7 +208,6 @@ def frontend_e2e_server(
 # Import async fixtures for Playwright
 from .async_fixtures import async_page, browser, context, e2e_urls  # noqa: F401
 
-
 # Moved to async_fixtures.py
 # @pytest.fixture
 # def e2e_urls(

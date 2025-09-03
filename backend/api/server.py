@@ -35,7 +35,7 @@ from .models import (
     PlayerType,
 )
 from .websocket_manager import WebSocketManager
-from .websocket_models import WebSocketMessage, PongMessage, parse_websocket_message
+from .websocket_models import PongMessage, WebSocketMessage, parse_websocket_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

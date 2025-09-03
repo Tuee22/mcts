@@ -11,8 +11,9 @@ from typing import (
     TypeVar,
     Union,
 )
-from _pytest.fixtures import FixtureRequest
+
 from _pytest.config import Config
+from _pytest.fixtures import FixtureRequest
 from _pytest.python import Function
 
 # Type variables

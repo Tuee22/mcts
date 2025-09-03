@@ -1,5 +1,6 @@
 """Type stubs for websockets library."""
-from typing import AsyncContextManager, Awaitable, Iterator, TypeVar, Generator
+from typing import AsyncContextManager, Awaitable, Generator, Iterator, TypeVar
+
 from .client import WebSocketClientProtocol
 
 Self = TypeVar("Self", bound="Connect")
