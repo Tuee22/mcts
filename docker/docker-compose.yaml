@@ -10,6 +10,7 @@ services:
         GROUP_ID: 1000
         USERNAME: mcts
     image: mcts:cpu
+    pull_policy: build
     user: "1000:1000"
     ports:
       - target: 8000
