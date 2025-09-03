@@ -5,6 +5,13 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+
+# Temporary test files (should be in tests/ directory instead)
+test_*.py
+temp_*.py
+temp_*.txt
+hook_test.py
+
 # C extensions
 *.so
 *.os
