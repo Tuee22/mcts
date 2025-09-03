@@ -1,32 +1,84 @@
 {
   "_description": "Claude Code automated quality gate configuration - format, type check, build, test after every change. Git commits blocked until checks pass and user explicitly confirms. Temporary override for commits: set MCTS_ALLOW_COMMIT=1 to bypass quality gates in emergencies.",
+  "permissions": {
+    "tool_permissions": {
+      "Bash": {
+        "allowed_commands": [
+          "cd", "ls", "pwd", "find", "grep", "cat", "head", "tail",
+          "docker", "docker-compose", "docker compose",
+          "python", "python3", "pip", "poetry",
+          "black", "mypy", "pytest", "flake8", "isort",
+          "git status", "git add", "git diff", "git log", "git show",
+          "scons", "make", "cmake",
+          "which", "whoami", "ps", "kill"
+        ],
+        "blocked_commands": [
+          "git commit", "git push", "git pull", "git fetch",
+          "rm -rf", "sudo", "su", "chmod 777", "chown",
+          "curl", "wget", "ssh", "scp", "rsync"
+        ]
+      },
+      "WebFetch": "prompt_user",
+      "WebSearch": "allow"
+    },
+    "file_permissions": {
+      "read_allowed": true,
+      "write_allowed": true,
+      "sensitive_paths": [
+        "/etc/", "/usr/", "/var/", "/home/", "/root/",
+        "~/.ssh/", "~/.aws/", "~/.config/",
+        "/Users/*/.*", "**/id_rsa*", "**/*_key*"
+      ]
+    }
+  },
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "cd \"$(dirname \"$0\")/../../docker\" && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
+        "hooks": [
+          {
+            "command": "cd \"$(dirname \"$0\")/../../docker\" && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "type": "command",
-        "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-commit-guard.py\""
+        "hooks": [
+          {
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-commit-guard.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",
-        "type": "command",
-        "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts black . 2>/dev/null || true",
-        "timeout": 30
+        "hooks": [
+          {
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts black . 2>/dev/null || true",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/doc-consistency-check.py\"",
+            "timeout": 60
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/quality-gate.py",
-        "timeout": 600
+        "hooks": [
+          {
+            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/quality-gate.py",
+            "timeout": 600
+          }
+        ]
       }
     ]
   }

@@ -10,7 +10,19 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
+
+
+class TestSuite(TypedDict):
+    """Type definition for test suite configuration."""
+
+    name: str
+    path: str
+    markers: str
+    coverage_target: Optional[str]
+    skip_flag: bool
+    emoji: str
+
 
 try:
     import psutil
@@ -125,6 +137,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Type assertions for argparse namespace attributes
+    skip_unit: bool = bool(args.skip_unit)
+    skip_integration: bool = bool(args.skip_integration)
+    skip_utils: bool = bool(args.skip_utils)
+    skip_benchmarks: bool = bool(args.skip_benchmarks)
+
     # Get project root
     project_root = Path(__file__).parent.parent.parent
     os.chdir(project_root)
@@ -133,13 +151,13 @@ def main() -> None:
     test_results = {}
 
     # Define test suites with their configurations
-    python_test_suites = [
+    python_test_suites: List[TestSuite] = [
         {
             "name": "Unit Tests - Core",
             "path": "tests/backend/core/",
             "markers": "not e2e and not slow",
             "coverage_target": "backend.python",
-            "skip_flag": args.skip_unit,
+            "skip_flag": skip_unit,
             "emoji": "🧪",
         },
         {
@@ -147,7 +165,7 @@ def main() -> None:
             "path": "tests/backend/api/",
             "markers": "not e2e and not slow",
             "coverage_target": "backend.api",
-            "skip_flag": args.skip_unit,
+            "skip_flag": skip_unit,
             "emoji": "🌐",
         },
         {
@@ -155,7 +173,7 @@ def main() -> None:
             "path": "tests/integration/",
             "markers": "not e2e",
             "coverage_target": "backend",
-            "skip_flag": args.skip_integration,
+            "skip_flag": skip_integration,
             "emoji": "🔗",
         },
         {
@@ -163,7 +181,7 @@ def main() -> None:
             "path": "tests/utils/ tests/fixtures/",
             "markers": "not e2e and not benchmark",
             "coverage_target": None,  # Skip coverage for test utilities
-            "skip_flag": args.skip_utils,
+            "skip_flag": skip_utils,
             "emoji": "🛠️",
         },
         {
@@ -171,7 +189,7 @@ def main() -> None:
             "path": "tests/benchmarks/",
             "markers": "benchmark",
             "coverage_target": None,  # Skip coverage for benchmarks
-            "skip_flag": args.skip_benchmarks,
+            "skip_flag": skip_benchmarks,
             "emoji": "⚡",
         },
     ]

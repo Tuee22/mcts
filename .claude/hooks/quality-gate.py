@@ -27,7 +27,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
-def run_command(cmd: List[str], description: str, cwd: Optional[Path] = None) -> Tuple[int, str, str]:
+def run_command(
+    cmd: List[str], description: str, cwd: Optional[Path] = None
+) -> Tuple[int, str, str]:
     """
     Run a command and return (exit_code, stdout, stderr).
     """
@@ -37,7 +39,7 @@ def run_command(cmd: List[str], description: str, cwd: Optional[Path] = None) ->
             cwd=cwd or Path("/app"),
             text=True,
             capture_output=True,
-            timeout=300  # 5 minute timeout per command
+            timeout=300,  # 5 minute timeout per command
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
@@ -66,15 +68,15 @@ def print_stage_header(stage: str, description: str):
 def run_format_check() -> bool:
     """Run Python code formatting with Black."""
     print_stage_header("FORMAT", "Checking Python code formatting with Black")
-    
+
     if not check_tool_available("black"):
         print("❌ FORMAT FAILED: black not found")
         print("🔧 Install black or use @formatter-black agent")
         return False
-    
+
     # Run black in check mode first
     code, stdout, stderr = run_command(["black", "--check", "."], "black --check")
-    
+
     if code == 0:
         print("✅ FORMAT PASSED: All files properly formatted")
         return True
@@ -92,14 +94,14 @@ def run_format_check() -> bool:
 def run_type_check() -> bool:
     """Run MyPy strict type checking."""
     print_stage_header("TYPE CHECK", "Running MyPy strict type checking")
-    
+
     if not check_tool_available("mypy"):
         print("❌ TYPE CHECK FAILED: mypy not found")
         print("🔧 Install mypy or use @mypy-type-checker agent")
         return False
-    
+
     code, stdout, stderr = run_command(["mypy", "--strict", "."], "mypy --strict")
-    
+
     if code == 0:
         print("✅ TYPE CHECK PASSED: No type errors found")
         return True
@@ -117,42 +119,45 @@ def run_type_check() -> bool:
 def run_build_check() -> bool:
     """Run Docker build check if applicable."""
     print_stage_header("BUILD", "Checking Docker build")
-    
+
     # Check if Docker is available
     if not check_tool_available("docker"):
         print("⚠️  BUILD SKIPPED: Docker not available")
         return True
-    
+
     # Check if we have Docker files
     dockerfile_paths = [
         Path("/app/Dockerfile"),
         Path("/app/docker/Dockerfile"),
-        Path("/app/docker/Dockerfile.cpu")
+        Path("/app/docker/Dockerfile.cpu"),
     ]
-    
+
     dockerfile_exists = any(p.exists() for p in dockerfile_paths)
-    compose_exists = (Path("/app/docker-compose.yaml").exists() or 
-                     Path("/app/docker/docker-compose.yaml").exists())
-    
+    compose_exists = (
+        Path("/app/docker-compose.yaml").exists()
+        or Path("/app/docker/docker-compose.yaml").exists()
+    )
+
     if not dockerfile_exists and not compose_exists:
         print("⚠️  BUILD SKIPPED: No Dockerfile or docker-compose.yaml found")
         return True
-    
+
     # Try to build using docker compose if available
     if compose_exists:
-        docker_dir = Path("/app/docker") if Path("/app/docker").exists() else Path("/app")
+        docker_dir = (
+            Path("/app/docker") if Path("/app/docker").exists() else Path("/app")
+        )
         code, stdout, stderr = run_command(
             ["docker", "compose", "build", "--quiet"],
             "docker compose build",
-            cwd=docker_dir
+            cwd=docker_dir,
         )
     else:
         # Try direct docker build
         code, stdout, stderr = run_command(
-            ["docker", "build", "-t", "mcts-test", "."],
-            "docker build"
+            ["docker", "build", "-t", "mcts-test", "."], "docker build"
         )
-    
+
     if code == 0:
         print("✅ BUILD PASSED: Docker build successful")
         return True
@@ -170,26 +175,23 @@ def run_build_check() -> bool:
 def run_test_check() -> bool:
     """Run test suite."""
     print_stage_header("TESTS", "Running test suite")
-    
+
     # Check for pytest
     if not check_tool_available("pytest"):
         print("⚠️  TESTS SKIPPED: pytest not found")
         return True
-    
+
     # Check if tests directory exists
     test_paths = [Path("/app/tests"), Path("/app/test")]
     test_dir_exists = any(p.exists() and p.is_dir() for p in test_paths)
-    
+
     if not test_dir_exists:
         print("⚠️  TESTS SKIPPED: No tests directory found")
         return True
-    
+
     # Run pytest with minimal output
-    code, stdout, stderr = run_command(
-        ["pytest", "-q", "--tb=short"],
-        "pytest"
-    )
-    
+    code, stdout, stderr = run_command(["pytest", "-q", "--tb=short"], "pytest")
+
     if code == 0:
         print("✅ TESTS PASSED: All tests successful")
         if stdout:
@@ -210,40 +212,40 @@ def main() -> int:
     """Run all quality checks in sequence."""
     print("🚀 QUALITY GATE: Starting automated quality checks")
     print("📋 Running: Format → Type Check → Build → Tests")
-    
+
     # Track which checks failed
     failed_checks = []
-    
+
     # 1. Format Check
     if not run_format_check():
         failed_checks.append("FORMAT")
-    
+
     # 2. Type Check
     if not run_type_check():
         failed_checks.append("TYPE_CHECK")
-    
+
     # 3. Build Check
     if not run_build_check():
         failed_checks.append("BUILD")
-    
+
     # 4. Test Check
     if not run_test_check():
         failed_checks.append("TESTS")
-    
+
     # Final result
     print(f"\n{'='*60}")
-    
+
     if failed_checks:
         print("❌ QUALITY GATE FAILED")
         print(f"🔧 Failed checks: {', '.join(failed_checks)}")
         print("📋 Use the appropriate agents to fix issues:")
         print("   • @formatter-black for formatting")
-        print("   • @mypy-type-checker for type errors") 
+        print("   • @mypy-type-checker for type errors")
         print("   • @builder-docker/@builder-cpu/@builder-gpu for builds")
         print("   • @tester-pytest for test failures")
         print("🔄 Session will continue until all checks pass")
         print(f"{'='*60}")
-        
+
         # Return specific exit code for first failure
         if "FORMAT" in failed_checks:
             return 1
