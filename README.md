@@ -2,6 +2,7 @@
 
 A high-performance Monte Carlo Tree Search (MCTS) implementation for the Corridors board game, featuring a C++ backend with Python bindings and support for both traditional UCT and modern PUCT (AlphaZero-style) algorithms.
 
+
 ## Features
 
 - **High-Performance C++ Core**: Template-based MCTS implementation with optimized board representation

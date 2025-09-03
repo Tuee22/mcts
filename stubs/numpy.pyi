@@ -1,6 +1,6 @@
 """Type stubs for numpy."""
 
-from typing import List, Optional, Tuple, Type, TypeVar, Union
+from typing import List, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 DType = TypeVar("DType")
 ScalarValue = Union[int, float, bool, complex, str]
@@ -28,7 +28,7 @@ class ndarray:
     ) -> Union["ndarray", ScalarValue]: ...
 
 def array(
-    object: ScalarValue, dtype: Optional[Type[ScalarValue]] = None
+    object: Union[ScalarValue, Sequence[ScalarValue]], dtype: Optional[Type[ScalarValue]] = None
 ) -> ndarray: ...
 def zeros(
     shape: Union[int, Tuple[int, ...]], dtype: Optional[Type[ScalarValue]] = None
