@@ -164,9 +164,47 @@
       "environment_vars": [],
       "description": "Ensures documentation stays consistent with code changes",
       "dependencies": [],
+      "tools": ["Read", "Bash", "Grep", "Glob"],
+      "read_only": true,
       "exit_codes": {
         "0": "docs_consistent",
         "1": "docs_need_update"
+      }
+    },
+    "test-writer": {
+      "name": "Test Writer",
+      "file": "test-writer.md",
+      "category": "validation",
+      "priority": 3,
+      "commands": ["docker compose exec mcts pytest tests/ --cov=. --cov-report=term-missing"],
+      "container_execution": true,
+      "triggers": ["new_code", "modified_functions"],
+      "environment_vars": ["PYTEST_ARGS", "COVERAGE_THRESHOLD"],
+      "description": "Generate and update unit tests for new or modified code",
+      "dependencies": ["pytest", "pytest-cov"],
+      "tools": ["Read", "Write", "Edit", "MultiEdit", "Bash"],
+      "exit_codes": {
+        "0": "tests_generated_successfully",
+        "1": "test_generation_failed",
+        "2": "coverage_below_threshold"
+      }
+    },
+    "code-reviewer": {
+      "name": "Code Reviewer", 
+      "file": "code-reviewer.md",
+      "category": "quality",
+      "priority": 6,
+      "commands": [],
+      "triggers": ["code_changes", "pull_requests"],
+      "environment_vars": ["REVIEW_SEVERITY", "REVIEW_FOCUS", "REVIEW_DIFF_BASE"],
+      "description": "Automated code review for correctness, style, security, and maintainability",
+      "dependencies": [],
+      "tools": ["Read", "Bash", "Grep", "Glob"],
+      "read_only": true,
+      "exit_codes": {
+        "0": "approved",
+        "1": "minor_issues",
+        "6": "critical_issues_block_merge"
       }
     }
   },
@@ -185,6 +223,12 @@
         "condition": "python_files_changed"
       },
       {
+        "name": "test_generation",
+        "agent": "test-writer",
+        "required": false,
+        "condition": "new_code_detected"
+      },
+      {
         "name": "build",
         "agent": "builder-docker",
         "required": false,
@@ -193,8 +237,20 @@
       {
         "name": "test",
         "agent": "tester-pytest", 
-        "required": false,
+        "required": true,
         "condition": "python_files_changed"
+      },
+      {
+        "name": "coverage",
+        "agent": "tester-pytest",
+        "required": false,
+        "condition": "coverage_check_enabled"
+      },
+      {
+        "name": "review",
+        "agent": "code-reviewer",
+        "required": false,
+        "condition": "code_changes_present"
       }
     ],
     "exit_codes": {

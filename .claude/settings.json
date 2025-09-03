@@ -36,7 +36,8 @@
       {
         "hooks": [
           {
-            "command": "cd \"$(dirname \"$0\")/../../docker\" && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
+            "type": "command",
+            "command": "cd docker && { docker info >/dev/null 2>&1 || { echo '❌ Docker not running' >&2; exit 1; }; } && { docker compose ps mcts --format json 2>/dev/null | grep -q '\"State\":\"running\"' || docker compose up -d mcts; } && echo '✅ Container ready'"
           }
         ]
       }
@@ -46,7 +47,8 @@
         "matcher": "Bash",
         "hooks": [
           {
-            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-commit-guard.py\""
+            "type": "command",
+            "command": "python3 .claude/hooks/debug-git-guard.py"
           }
         ]
       }
@@ -56,17 +58,9 @@
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
-            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts black . 2>/dev/null || true",
-            "timeout": 30
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/doc-consistency-check.py\"",
-            "timeout": 60
+            "type": "command",
+            "command": "python3 .claude/hooks/comprehensive-quality-check.py",
+            "timeout": 300
           }
         ]
       }
@@ -75,7 +69,8 @@
       {
         "hooks": [
           {
-            "command": "cd \"$CLAUDE_PROJECT_DIR/docker\" && docker compose exec -T mcts python /app/.claude/hooks/quality-gate.py",
+            "type": "command",
+            "command": "python3 .claude/hooks/quality-gate.py",
             "timeout": 600
           }
         ]

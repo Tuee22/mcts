@@ -42,4 +42,20 @@ You MAY perform:
 - Leave git operations entirely to the user
 - Provide clear summary of changes made for manual commit decisions
 
+## Critical Finding
+
+**HOOK SYSTEM NON-FUNCTIONAL**: Investigation revealed that Claude Code hooks (PreToolUse, PostToolUse) do not execute in this environment. The settings.json hook configuration is ignored, meaning:
+
+- ❌ PreToolUse git-commit-guard does NOT block git commits
+- ❌ PostToolUse quality checks do NOT run automatically  
+- ⚠️ Git commit protection relies entirely on agent behavioral discipline
+
+## Alternative Protection
+
+Use the `git-safe` wrapper when available:
+```bash
+./git-safe commit -m "message"    # Blocked by default
+ALLOW_COMMITS=1 ./git-safe commit -m "message"  # Allowed when authorized
+```
+
 **Remember: Code changes YES, Git commits NO - the user handles all version control.**

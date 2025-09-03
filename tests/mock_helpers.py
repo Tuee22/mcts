@@ -1,7 +1,7 @@
 """Type-safe mock helpers for testing."""
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Protocol, Tuple
+from typing import Callable, Dict, List, Optional, Protocol, Tuple, Union
 
 from corridors.corridors_mcts import MCTSProtocol
 
@@ -87,21 +87,37 @@ class MockCorridorsMCTS(MCTSProtocol):
         use_puct: bool = False,
         use_probs: bool = False,
         decide_using_visits: bool = True,
-        **kwargs: object,
+        legal_moves: Optional[List[str]] = None,
+        sorted_actions: Optional[List[Tuple[int, float, str]]] = None,
+        best_action: Optional[str] = None,
+        evaluation: Optional[float] = None,
+        board_display: Optional[str] = None,
+        terminal: Optional[bool] = None,
+        winner: Optional[int] = None,
+        best_move: Optional[str] = None,
+        action_stats: Optional[Dict[str, Dict[str, float]]] = None,
+        sorted_actions_sequence: Optional[List[List[Tuple[int, float, str]]]] = None,
+        sorted_actions_side_effect: Optional[
+            Callable[[bool], List[Tuple[int, float, str]]]
+        ] = None,
     ) -> None:
         """Initialize mock - parameters are ignored but match protocol."""
         # Initialize dataclass fields properly
-        self.legal_moves = kwargs.get('legal_moves', [])
-        self.sorted_actions = kwargs.get('sorted_actions', [])
-        self.best_action = kwargs.get('best_action', "*(4,1)")
-        self.evaluation = kwargs.get('evaluation', None)
-        self.board_display = kwargs.get('board_display', "Mock board")
-        self.terminal = kwargs.get('terminal', False)
-        self.winner = kwargs.get('winner', None)
-        self.best_move = kwargs.get('best_move', "*(4,1)")
-        self.action_stats = kwargs.get('action_stats', {})
-        self.sorted_actions_sequence = kwargs.get('sorted_actions_sequence', [])
-        self.sorted_actions_side_effect = kwargs.get('sorted_actions_side_effect', None)
+        self.legal_moves = legal_moves if legal_moves is not None else []
+        self.sorted_actions = sorted_actions if sorted_actions is not None else []
+        self.best_action = best_action if best_action is not None else "*(4,1)"
+        self.evaluation = evaluation
+        self.board_display = (
+            board_display if board_display is not None else "Mock board"
+        )
+        self.terminal = terminal if terminal is not None else False
+        self.winner = winner
+        self.best_move = best_move if best_move is not None else "*(4,1)"
+        self.action_stats = action_stats if action_stats is not None else {}
+        self.sorted_actions_sequence = (
+            sorted_actions_sequence if sorted_actions_sequence is not None else []
+        )
+        self.sorted_actions_side_effect = sorted_actions_side_effect
         self._sorted_actions_call_count = 0
         self.make_move_calls = []
         self.ensure_sims_calls = []
