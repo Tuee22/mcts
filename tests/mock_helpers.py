@@ -90,7 +90,22 @@ class MockCorridorsMCTS(MCTSProtocol):
         **kwargs: object,
     ) -> None:
         """Initialize mock - parameters are ignored but match protocol."""
-        pass
+        # Initialize dataclass fields properly
+        self.legal_moves = kwargs.get('legal_moves', [])
+        self.sorted_actions = kwargs.get('sorted_actions', [])
+        self.best_action = kwargs.get('best_action', "*(4,1)")
+        self.evaluation = kwargs.get('evaluation', None)
+        self.board_display = kwargs.get('board_display', "Mock board")
+        self.terminal = kwargs.get('terminal', False)
+        self.winner = kwargs.get('winner', None)
+        self.best_move = kwargs.get('best_move', "*(4,1)")
+        self.action_stats = kwargs.get('action_stats', {})
+        self.sorted_actions_sequence = kwargs.get('sorted_actions_sequence', [])
+        self.sorted_actions_side_effect = kwargs.get('sorted_actions_side_effect', None)
+        self._sorted_actions_call_count = 0
+        self.make_move_calls = []
+        self.ensure_sims_calls = []
+        self.reset_calls = 0
 
     def make_move(self, action: str, flip: bool = False) -> None:
         """Record a move."""

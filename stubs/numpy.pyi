@@ -28,7 +28,8 @@ class ndarray:
     ) -> Union["ndarray", ScalarValue]: ...
 
 def array(
-    object: Union[ScalarValue, Sequence[ScalarValue]], dtype: Optional[Type[ScalarValue]] = None
+    object: Union[ScalarValue, Sequence[ScalarValue]],
+    dtype: Optional[Type[ScalarValue]] = None,
 ) -> ndarray: ...
 def zeros(
     shape: Union[int, Tuple[int, ...]], dtype: Optional[Type[ScalarValue]] = None
