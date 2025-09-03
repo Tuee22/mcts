@@ -1,6 +1,7 @@
 ---
 name: builder-cpu
 description: Build CPU-only Docker containers to catch build and compile errors
+tools: [Read, Bash]
 ---
 
 # CPU-Only Docker Builder Agent

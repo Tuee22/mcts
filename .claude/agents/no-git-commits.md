@@ -1,6 +1,7 @@
 ---
 name: no-git-commits
 description: Guard against committing from within session unless checks pass and user explicitly confirms
+tools: []
 ---
 
 # No Git Commits Agent

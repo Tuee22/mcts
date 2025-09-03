@@ -1,6 +1,7 @@
 ---
 name: tester-pytest
 description: Run test suite and fix all failures and warnings until tests pass completely
+tools: [Read, Write, Edit, MultiEdit, Bash]
 ---
 
 # PyTest Test Runner Agent - INFINITE ITERATION MODE

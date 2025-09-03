@@ -153,6 +153,21 @@
         "1": "build_failed",
         "125": "docker_daemon_error"
       }
+    },
+    "doc-consistency-checker": {
+      "name": "Documentation Consistency Checker",
+      "file": "doc-consistency-checker.md",
+      "category": "quality",
+      "priority": 5,
+      "commands": [],
+      "triggers": ["doc_files", "interface_changes"],
+      "environment_vars": [],
+      "description": "Ensures documentation stays consistent with code changes",
+      "dependencies": [],
+      "exit_codes": {
+        "0": "docs_consistent",
+        "1": "docs_need_update"
+      }
     }
   },
   "pipeline": {

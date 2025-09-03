@@ -1,6 +1,7 @@
 ---
 name: mypy-type-checker
 description: Run strict type checking with MyPy and fix all type errors until zero errors remain
+tools: [Read, Write, Edit, MultiEdit, Bash]
 ---
 
 # MyPy Type Checker Agent (Comprehensive)

@@ -1,6 +1,7 @@
 ---
 name: formatter-black
 description: Format Python code with Black after every change to ensure PEP 8 compliance
+tools: [Read, Write, Edit, Bash]
 ---
 
 # Black Code Formatter Agent

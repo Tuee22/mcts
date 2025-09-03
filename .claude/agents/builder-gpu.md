@@ -1,6 +1,7 @@
 ---
 name: builder-gpu
 description: Build GPU-enabled Docker containers when GPU support is available and configured
+tools: [Read, Bash]
 ---
 
 # GPU-Enabled Docker Builder Agent

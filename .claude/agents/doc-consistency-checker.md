@@ -1,6 +1,7 @@
 ---
 name: doc-consistency-checker
 description: Keep documentation and code consistent and prompt updates when interfaces change
+tools: [Read, Write, Edit, Bash]
 ---
 
 # Documentation Consistency Checker

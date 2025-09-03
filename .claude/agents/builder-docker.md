@@ -1,6 +1,7 @@
 ---
 name: builder-docker
 description: Build Docker images to validate containerization and deployment readiness
+tools: [Read, Write, Edit, Bash]
 ---
 
 # Docker Builder Agent
