@@ -31,7 +31,7 @@ def main():
             )
             print("🔧 Run quality checks first: format → type check → build → tests")
             print("💡 Then ask user for explicit commit confirmation.")
-            print("🔄 Use quality-gate.py to run all checks")
+            print("🔄 Quality checks run automatically on Stop hook")
             return 1
 
         if re.search(git_push_pattern, command, re.IGNORECASE):

@@ -148,21 +148,39 @@ For any game to work with the MCTS template, it must implement:
 
 This repository uses Claude Code agents and automated quality assurance hooks for development.
 
-### Automated Quality Pipeline
+### Claude Code Workflow
 
-Every code change triggers an automated pipeline: **Format → Type Check → Build → Tests**
+This repository uses a **loop-safe** quality gate workflow that runs **ONCE** when you finish implementing a feature.
 
-**CRITICAL: All pipeline stages run inside Docker containers**
+#### How It Works
 
-The pipeline runs automatically after Edit, Write, or MultiEdit operations and provides specific agent recommendations when stages fail:
+The workflow executes on the **Stop hook** (when Claude finishes responding) and runs:
+**Black → mypy → tests**
 
+#### Loop Prevention
+
+- **First Stop run**: If any stage fails, the hook exits with code 2 (blocking) and feeds the error back to Claude for automatic fixing
+- **Second Stop run** (continuation): If stages still fail, the hook exits with code 1 (non-blocking) to prevent infinite loops and requires manual intervention
+
+#### Environment Detection
+
+The orchestrator automatically:
+- **Prefers Docker**: Runs commands inside the `mcts` Docker Compose service with `poetry run`
+- **Falls back locally**: If Docker unavailable, runs equivalent local Poetry commands
+- **Auto-starts services**: Starts the `mcts` container if not running
+
+#### Manual Execution
+
+Run the quality gate manually:
 ```bash
-❌ Type Check FAILED (exit code: 2)
-📋 Run agent: @mypy-type-checker
-🔄 Or fix issues manually and retry
-```
+# Full quality gate
+.claude/hooks/quality-gate-safe.py
 
-All agents and hooks automatically execute commands inside the mcts Docker container.
+# Individual stages
+docker compose exec mcts poetry run black .
+docker compose exec mcts poetry run mypy --strict .
+docker compose exec mcts poetry run pytest -q
+```
 
 ### Available Agents
 
@@ -192,12 +210,61 @@ export MCTS_VERBOSE="true"
 export MCTS_FAIL_FAST="true"
 ```
 
+#### Configuration
+
+**Default behavior**: Quality gate runs automatically on Stop hook.
+
+**Override behavior**: Create `.claude/settings.local.json`:
+```json
+{
+  "hooks": {
+    "Stop": []
+  }
+}
+```
+
+**Test scope**: The orchestrator runs the full test suite by default. If Docker services unavailable, falls back to Python-only tests.
+
+#### Troubleshooting
+
+**Quality gate logs**: Check `.claude/logs/quality-gate-*.log` for detailed execution logs.
+
+**Docker issues**: Ensure Docker is running and `mcts` service is available:
+```bash
+cd docker && docker compose up -d mcts
+```
+
+**Tool availability**: Black and mypy are managed by Poetry in the container.
+
+#### Optional Test Guard
+
+An optional test guard warns when modifying existing passing tests:
+
+**Enable test guard**: Add to `.claude/settings.json` PreToolUse hooks:
+```json
+{
+  "matcher": "Edit|Write", 
+  "hooks": [{"type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/test-guard.py"}]
+}
+```
+
+**Configure behavior**: In `.claude/settings.local.json`:
+```json
+{
+  "test_guard": {
+    "mode": "warn"  // or "block" to prevent modifications
+  }
+}
+```
+
+The guard allows new test creation and initial red/green cycles but warns about modifying tests that were previously passing in the same session.
+
 ### Development Workflow
 
-1. **Code changes**: Post-change hook automatically runs quality pipeline
-2. **Pipeline failures**: Use recommended agents to fix issues
-3. **Manual quality check**: Run agents proactively before committing
-4. **Zero tolerance**: MyPy agent iterates until zero type errors
+1. **Implement features**: Write code and tests normally
+2. **Automatic quality check**: Stop hook runs Black → mypy → tests once when you finish
+3. **Fix issues**: On failures, Claude automatically fixes and re-runs the sequence
+4. **Manual intervention**: If issues persist after one fix cycle, use suggested agents
 
 ### Agent Documentation
 

@@ -175,7 +175,7 @@ safe_path = os.path.join(safe_directory, secure_filename)
 ## Integration Points
 
 ### Triggered By
-- comprehensive-quality-check.py after all other stages pass
+- quality-gate.py after all other stages pass
 - Can be invoked manually via @code-reviewer agent call
 
 ### Outputs

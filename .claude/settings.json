@@ -1,5 +1,5 @@
 {
-  "_description": "Claude Code automated quality gate configuration - format, type check, build, test after every change. Git commits blocked until checks pass and user explicitly confirms. Temporary override for commits: set MCTS_ALLOW_COMMIT=1 to bypass quality gates in emergencies.",
+  "_description": "Claude Code loop-safe workflow configuration. Quality gate (Black → mypy → tests) runs ONCE on Stop hook. Prevents infinite loops with stop_hook_active awareness. Git commits blocked until user explicitly confirms. Override: set MCTS_ALLOW_COMMIT=1 to bypass.",
   "permissions": {
     "tool_permissions": {
       "Bash": {
@@ -53,18 +53,17 @@
         ]
       }
     ],
-    "PostToolUse": [
+    "PostToolUse": [],
+    "Stop": [
       {
-        "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/matthewnowak/mcts && python3 .claude/hooks/comprehensive-quality-check.py",
-            "timeout": 300
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.py",
+            "timeout": 600
           }
         ]
       }
-    ],
-    "Stop": []
+    ]
   }
 }

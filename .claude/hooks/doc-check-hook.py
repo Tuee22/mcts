@@ -90,7 +90,7 @@ def main() -> int:
         import subprocess
 
         result = subprocess.run(
-            ["python", str(Path(__file__).parent / "check_docs.py")],
+            ["python", str(Path(__file__).parent / "doc-checker.py")],
             capture_output=True,
             text=True,
         )

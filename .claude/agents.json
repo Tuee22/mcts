@@ -279,7 +279,7 @@
     "build_surface_dirs": ["backend/core", "docker"]
   },
   "environment": {
-    "hook_file": ".claude/hooks/on-change-chain.py",
+    "hook_file": ".claude/hooks/quality-gate.py",
     "settings_file": ".claude/settings.json",
     "agent_directory": ".claude/agents",
     "variables": {
@@ -287,6 +287,7 @@
       "MCTS_TYPECHECK_CMD": "docker compose exec mcts mypy --strict .",
       "MCTS_BUILD_CMD": "docker compose build",
       "MCTS_TEST_CMD": "docker compose exec mcts pytest -q",
+      "MCTS_RUN_ALL_TESTS": "0",
       "MCTS_SKIP_BUILD": "false",
       "MCTS_SKIP_TESTS": "false", 
       "MCTS_VERBOSE": "false",

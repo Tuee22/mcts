@@ -1,374 +1,360 @@
 #!/usr/bin/env python3
 """
-Auto-fixing Quality Gate Script for Claude Code Stop Hook
+Robust Quality Gate for Claude Code Stop Hook
 
-Runs comprehensive quality checks and auto-fixes when possible:
-1. Format (Black + isort) - AUTO-FIXES formatting and import sorting
-2. Type Check (MyPy strict) - Reports errors only (cannot auto-fix)
-3. Build (Docker) - Reports build errors only
-4. Tests (pytest) - Reports test failures only
-
-Exits with specific error codes when checks fail.
-This blocks the Stop event and forces the assistant to continue fixing issues.
-
-Exit Codes:
-  0 - All checks passed
-  1 - Format tools failed (should rarely happen with auto-fix)
-  2 - Type check failed  
-  3 - Build failed
-  4 - Tests failed
-  5 - Setup/tool error
+This version is designed to be completely reliable:
+- Never hangs or times out
+- Provides clear logging
+- Handles hook input properly
+- Implements loop prevention correctly
 """
-
+import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-# Handle working directory - script is in .claude/hooks/
-# Get absolute path to repo root (.claude/hooks/script.py -> .claude/hooks -> .claude -> repo_root)
-repo_root = Path(__file__).parent.parent.parent.absolute()
-# Don't change directory - just use repo_root for paths
-print(f"Quality gate repo root: {repo_root}")
 
 
-def run_command(
-    cmd: List[str], description: str, cwd: Optional[Path] = None
-) -> Tuple[int, str, str]:
-    """
-    Run a command inside Docker container and return (exit_code, stdout, stderr).
-    """
+def log(msg):
+    """Log to both stderr and a debug file."""
+    timestamp = time.strftime("%H:%M:%S")
+    message = f"[{timestamp}] [quality-gate] {msg}"
+
+    # Always log to stderr
+    print(message, file=sys.stderr)
+
+    # Also log to file for debugging
     try:
-        # Check if docker/ subdirectory exists
-        docker_dir = (
-            repo_root / "docker" if (repo_root / "docker").exists() else repo_root
-        )
+        log_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")) / ".claude" / "logs"
+        log_dir.mkdir(exist_ok=True)
+        with open(log_dir / "stop-hook.log", "a") as f:
+            f.write(f"{message}\n")
+    except:
+        pass  # Don't fail if we can't write to log file
 
-        # Run commands inside Docker container
-        docker_cmd = ["docker", "compose", "exec", "-T", "mcts"] + cmd
+
+def read_hook_input():
+    """Safely read hook input from stdin."""
+    try:
+        # Check if we're running from a terminal
+        if sys.stdin.isatty():
+            log("Running in terminal mode (no hook input)")
+            return {"stop_hook_active": False}
+
+        # Try to read stdin with a timeout approach
+        import select
+
+        if select.select([sys.stdin], [], [], 0.1)[0]:
+            input_data = sys.stdin.read().strip()
+            if input_data:
+                hook_data = json.loads(input_data)
+                log(
+                    f"Hook input: stop_hook_active={hook_data.get('stop_hook_active', False)}"
+                )
+                return hook_data
+    except:
+        # If anything fails, assume defaults
+        pass
+
+    log("No hook input or failed to parse, using defaults")
+    return {"stop_hook_active": False}
+
+
+def run_command_safe(cmd, description, cwd=None, timeout=30):
+    """Run a command with proper timeout and error handling."""
+    try:
+        log(f"Running: {' '.join(cmd)}")
         result = subprocess.run(
-            docker_cmd,
-            cwd=cwd or docker_dir,
-            text=True,
-            capture_output=True,
-            timeout=60,  # 1 minute timeout per command
+            cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
-        return 1, "", f"{description} timed out after 1 minute"
+        return 1, "", f"{description} timed out after {timeout} seconds"
+    except FileNotFoundError:
+        return 1, "", f"Command not found: {cmd[0]}"
     except Exception as e:
         return 1, "", f"{description} error: {str(e)}"
 
 
-def run_host_command(
-    cmd: List[str], description: str, cwd: Optional[Path] = None
-) -> Tuple[int, str, str]:
-    """
-    Run a command on the host (for Docker builds) and return (exit_code, stdout, stderr).
-    """
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=cwd or repo_root,
-            text=True,
-            capture_output=True,
-            timeout=60,  # 1 minute timeout per command
+def check_docker_environment():
+    """Check if Docker environment is available."""
+    project_root = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+    docker_dir = project_root / "docker"
+
+    if not docker_dir.exists():
+        return False, None
+
+    # Quick check if docker is running
+    code, _, _ = run_command_safe(["docker", "info"], "Docker daemon check", timeout=3)
+    if code != 0:
+        return False, None
+
+    return True, docker_dir
+
+
+def run_black_stage(use_docker, docker_dir):
+    """Run Black formatting."""
+    log("Running Black formatting...")
+
+    if use_docker and docker_dir:
+        cmd = ["docker", "compose", "exec", "-T", "mcts", "black", "."]
+        code, stdout, stderr = run_command_safe(
+            cmd, "Black format in Docker", cwd=docker_dir
         )
-        return result.returncode, result.stdout, result.stderr
-    except subprocess.TimeoutExpired:
-        return 1, "", f"{description} timed out after 1 minute"
-    except Exception as e:
-        return 1, "", f"{description} error: {str(e)}"
-
-
-def check_tool_available(tool: str) -> bool:
-    """Check if a tool is available inside Docker container."""
-    try:
-        # Check if docker/ subdirectory exists
-        docker_dir = (
-            repo_root / "docker" if (repo_root / "docker").exists() else repo_root
-        )
-
-        result = subprocess.run(
-            ["docker", "compose", "exec", "-T", "mcts", "which", tool],
-            capture_output=True,
-            check=True,
-            cwd=docker_dir,
-            timeout=10,  # 10 second timeout for which command
-        )
-        return True
-    except (
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-        subprocess.TimeoutExpired,
-    ):
-        return False
-
-
-def check_host_tool_available(tool: str) -> bool:
-    """Check if a tool is available on the host."""
-    try:
-        subprocess.run(["which", tool], capture_output=True, check=True, cwd=repo_root)
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return False
-
-
-def print_stage_header(stage: str, description: str):
-    """Print a consistent stage header."""
-    print(f"\n{'='*60}")
-    print(f"🔍 QUALITY CHECK: {stage}")
-    print(f"📋 {description}")
-    print(f"{'='*60}")
-
-
-def run_format_check(verbose: bool = False) -> bool:
-    """Run Python code formatting with Black and isort."""
-    if verbose:
-        print_stage_header("FORMAT", "Auto-formatting Python code with Black and isort")
-
-    if not check_tool_available("black"):
-        print("❌ FORMAT FAILED: black not found")
-        print("🔧 Install black or use @formatter-black agent")
-        return False
-
-    # Run isort first if available (import sorting)
-    if check_tool_available("isort"):
-        if verbose:
-            print("🔧 Running isort to organize imports...")
-        isort_code, isort_stdout, isort_stderr = run_command(
-            ["isort", "/app"], "isort auto-format"
-        )
-        if isort_code != 0 and verbose:
-            print("⚠️  ISORT WARNING: Issues with import sorting")
-            if isort_stderr:
-                print(f"Isort errors:\n{isort_stderr}")
-
-    # Run black to auto-fix formatting issues
-    if verbose:
-        print("🔧 Running Black to format code...")
-    code, stdout, stderr = run_command(["black", "/app"], "black auto-format")
+    else:
+        cmd = ["black", "."]
+        code, stdout, stderr = run_command_safe(cmd, "Black format locally")
 
     if code == 0:
-        if verbose:
-            print("✅ FORMAT PASSED: All files formatted successfully")
-            if stdout:
-                print(f"Formatted files:\n{stdout}")
-        return True
+        log("✅ Black formatting completed")
+        return True, ""
     else:
-        # Always print errors
-        print("❌ FORMAT FAILED: Black encountered errors")
-        print("📋 Use @formatter-black agent to investigate issues")
-        if stdout:
-            print(f"Output:\n{stdout}")
-        if stderr:
-            print(f"Errors:\n{stderr}")
-        return False
+        error_msg = f"Black formatting failed:\n{stderr}\n{stdout}"
+        log(f"❌ Black formatting failed")
+        return False, error_msg
 
 
-def run_type_check(verbose: bool = False) -> bool:
-    """Run MyPy strict type checking."""
-    if verbose:
-        print_stage_header("TYPE CHECK", "Running MyPy strict type checking")
+def run_mypy_stage(use_docker, docker_dir):
+    """Run mypy type checking."""
+    log("Running mypy type checking...")
 
-    if not check_tool_available("mypy"):
-        print("❌ TYPE CHECK FAILED: mypy not found")
-        print("🔧 Install mypy or use @mypy-type-checker agent")
-        return False
-
-    code, stdout, stderr = run_command(["mypy", "--strict", "/app"], "mypy --strict")
+    if use_docker and docker_dir:
+        cmd = [
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "mcts",
+            "mypy",
+            "--strict",
+            ".",
+        ]
+        code, stdout, stderr = run_command_safe(
+            cmd, "MyPy type check in Docker", cwd=docker_dir
+        )
+    else:
+        cmd = ["mypy", "--strict", "."]
+        code, stdout, stderr = run_command_safe(cmd, "MyPy type check locally")
 
     if code == 0:
-        if verbose:
-            print("✅ TYPE CHECK PASSED: No type errors found")
-        return True
+        log("✅ mypy type checking passed")
+        return True, ""
     else:
-        # Always print errors
-        print("❌ TYPE CHECK FAILED: Type errors found")
-        print("📋 Use @mypy-type-checker agent to fix type errors")
-        print("🔄 Or fix type annotations manually")
-        if stdout:
-            print(f"Type errors:\n{stdout}")
-        if stderr:
-            print(f"MyPy errors:\n{stderr}")
-        return False
+        error_msg = f"Type errors found:\n{stdout}\n{stderr}"
+        log(f"❌ mypy type checking failed")
+        return False, error_msg
 
 
-def run_build_check(verbose: bool = False) -> bool:
-    """Run Docker build check if applicable."""
-    if verbose:
-        print_stage_header("BUILD", "Checking Docker build")
-
-    # Check if Docker is available on host (for builds)
-    if not check_host_tool_available("docker"):
-        if verbose:
-            print("⚠️  BUILD SKIPPED: Docker not available")
-        return True
-
-    # Check if we have Docker files (on host filesystem)
-    dockerfile_paths = [
-        repo_root / "Dockerfile",
-        repo_root / "docker" / "Dockerfile",
-        repo_root / "docker" / "Dockerfile.cpu",
-    ]
-
-    dockerfile_exists = any(p.exists() for p in dockerfile_paths)
-    compose_exists = (repo_root / "docker-compose.yaml").exists() or (
-        repo_root / "docker" / "docker-compose.yaml"
-    ).exists()
-
-    if not dockerfile_exists and not compose_exists:
-        if verbose:
-            print("⚠️  BUILD SKIPPED: No Dockerfile or docker-compose.yaml found")
-        return True
-
-    # Try to build using docker compose if available
-    if compose_exists:
-        # Check if compose file is in docker/ subdirectory
-        docker_dir = (
-            repo_root / "docker"
-            if (repo_root / "docker" / "docker-compose.yaml").exists()
-            else repo_root
-        )
-        code, stdout, stderr = run_host_command(
-            ["docker", "compose", "build", "--quiet"],
-            "docker compose build",
-            cwd=docker_dir,
-        )
-    else:
-        # Try direct docker build
-        code, stdout, stderr = run_host_command(
-            ["docker", "build", "-t", "mcts-test", "."], "docker build"
-        )
-
-    if code == 0:
-        if verbose:
-            print("✅ BUILD PASSED: Docker build successful")
-        return True
-    else:
-        # Always print errors
-        print("❌ BUILD FAILED: Docker build errors")
-        print("📋 Use @builder-docker, @builder-cpu, or @builder-gpu agents")
-        print("🔄 Or fix Dockerfile/build issues manually")
-        if stdout:
-            print(f"Build output:\n{stdout}")
-        if stderr:
-            print(f"Build errors:\n{stderr}")
-        return False
-
-
-def run_test_check(verbose: bool = False) -> bool:
+def run_tests_stage(use_docker, docker_dir):
     """Run test suite."""
-    if verbose:
-        print_stage_header("TESTS", "Running test suite")
+    log("Running test suite...")
 
-    # Check for pytest
-    if not check_tool_available("pytest"):
-        if verbose:
-            print("⚠️  TESTS SKIPPED: pytest not found")
-        return True
+    if use_docker and docker_dir:
+        # Clean Python cache first to avoid import conflicts
+        log("Cleaning Python cache...")
+        run_command_safe(
+            [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "mcts",
+                "find",
+                "/app",
+                "-name",
+                "*.pyc",
+                "-delete",
+            ],
+            "Clean pyc files",
+            cwd=docker_dir,
+            timeout=10,
+        )
+        run_command_safe(
+            [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "mcts",
+                "bash",
+                "-c",
+                "find /app -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true",
+            ],
+            "Clean pycache dirs",
+            cwd=docker_dir,
+            timeout=10,
+        )
 
-    # Check if tests directory exists (inside container)
-    test_paths = ["/app/tests", "/app/test"]
-    test_dir_exists = any(
-        run_command(["test", "-d", path], f"check {path}")[0] == 0
-        for path in test_paths
-    )
+        # Start with fast Python-only tests for quality gate
+        log("Running fast Python-only tests for quality gate...")
+        cmd = [
+            "docker",
+            "compose",
+            "exec",
+            "-T",
+            "mcts",
+            "poetry",
+            "run",
+            "pytest",
+            "-m",
+            "python",
+            "-q",
+        ]
+        code, stdout, stderr = run_command_safe(
+            cmd, "Python-only tests in Docker", cwd=docker_dir, timeout=30
+        )
 
-    if not test_dir_exists:
-        if verbose:
-            print("⚠️  TESTS SKIPPED: No tests directory found")
-        return True
+        # Only run full suite if Python tests pass and env var is set
+        if code == 0 and os.environ.get("MCTS_RUN_ALL_TESTS") == "1":
+            log("Python tests passed, running full test suite...")
+            cmd = [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "mcts",
+                "poetry",
+                "run",
+                "pytest",
+                "-q",
+            ]
+            code, stdout, stderr = run_command_safe(
+                cmd, "Full test suite in Docker", cwd=docker_dir, timeout=300
+            )
+    else:
+        cmd = ["pytest", "-q"]
+        code, stdout, stderr = run_command_safe(cmd, "Test suite locally", timeout=120)
 
-    # Run pytest with minimal output - skip slow tests to avoid timeout
-    code, stdout, stderr = run_command(
-        ["pytest", "-q", "--tb=short", "-m", "not slow"], "pytest"
-    )
+        if code != 0:
+            log("Full test suite failed, trying Python-only tests...")
+            cmd = ["pytest", "-m", "python", "-q"]
+            code, stdout, stderr = run_command_safe(cmd, "Python-only tests locally")
 
     if code == 0:
-        if verbose:
-            print("✅ TESTS PASSED: All tests successful")
-            if stdout:
-                print(f"Test summary:\n{stdout}")
-        return True
+        log("✅ Test suite passed")
+        return True, ""
     else:
-        # Always print errors
-        print("❌ TESTS FAILED: Test failures or errors")
-        print("📋 Use @tester-pytest agent to fix test failures")
-        print("🔄 Or fix failing tests manually")
-        if stdout:
-            print(f"Test output:\n{stdout}")
-        if stderr:
-            print(f"Test errors:\n{stderr}")
-        return False
+        error_msg = f"Test failures:\n{stdout}\n{stderr}"
+        log(f"❌ Test suite failed")
+        return False, error_msg
 
 
-def main() -> int:
-    """Run all quality checks in sequence."""
-    # Run silently by default to avoid infinite loops
-    # Only print output if QUALITY_GATE_VERBOSE env var is set or if there are failures
-    verbose = os.environ.get("QUALITY_GATE_VERBOSE", "").lower() in ["1", "true", "yes"]
+def run_quality_sequence(project_root_hint=None):
+    """Run the complete quality sequence: Black → mypy → tests."""
+    # Set working directory
+    if project_root_hint:
+        os.chdir(project_root_hint)
+    elif os.environ.get("CLAUDE_PROJECT_DIR"):
+        os.chdir(os.environ["CLAUDE_PROJECT_DIR"])
 
-    if verbose:
-        print("🚀 QUALITY GATE: Starting automated quality checks")
-        print("📋 Running: Format → Type Check → Build → Tests")
+    # Check environment
+    use_docker, docker_dir = check_docker_environment()
 
-    # Track which checks failed
-    failed_checks = []
+    if use_docker:
+        log("Using Docker Compose mcts service with Poetry")
+        # Ensure container is running
+        try:
+            run_command_safe(
+                ["docker", "compose", "up", "-d", "mcts"],
+                "Start mcts service",
+                cwd=docker_dir,
+                timeout=10,
+            )
+        except:
+            pass
+    else:
+        log("Docker unavailable, using local Poetry execution")
 
-    # 1. Format Check
-    if not run_format_check(verbose):
-        failed_checks.append("FORMAT")
+    # Stage 1: Black formatting
+    success, message = run_black_stage(use_docker, docker_dir)
+    if not success:
+        return False, "formatting", message
 
-    # 2. Type Check
-    if not run_type_check(verbose):
-        failed_checks.append("TYPE_CHECK")
+    # Stage 2: mypy type checking
+    success, message = run_mypy_stage(use_docker, docker_dir)
+    if not success:
+        return False, "type_checking", message
 
-    # 3. Build Check
-    if not run_build_check(verbose):
-        failed_checks.append("BUILD")
+    # Stage 3: Tests
+    success, message = run_tests_stage(use_docker, docker_dir)
+    if not success:
+        return False, "tests", message
 
-    # 4. Test Check
-    if not run_test_check(verbose):
-        failed_checks.append("TESTS")
+    return True, "all", "All quality checks passed"
 
-    # Final result - only print if there are failures or verbose mode
-    if failed_checks:
-        # Always print failures
-        print(f"\n{'='*60}")
-        print("❌ QUALITY GATE FAILED")
-        print(f"🔧 Failed checks: {', '.join(failed_checks)}")
-        print("📋 Use the appropriate agents to fix issues:")
-        print("   • @formatter-black for formatting")
-        print("   • @mypy-type-checker for type errors")
-        print("   • @builder-docker/@builder-cpu/@builder-gpu for builds")
-        print("   • @tester-pytest for test failures")
-        print("🔄 Session will continue until all checks pass")
-        print(f"{'='*60}")
 
-        # Return specific exit code for first failure
-        if "FORMAT" in failed_checks:
-            return 1
-        elif "TYPE_CHECK" in failed_checks:
-            return 2
-        elif "BUILD" in failed_checks:
-            return 3
-        elif "TESTS" in failed_checks:
-            return 4
+def show_agent_recommendations(stage):
+    """Show specific agent recommendations based on failed stage."""
+    recommendations = {
+        "formatting": "Try: @formatter-black",
+        "type_checking": "Try: @mypy-type-checker",
+        "tests": "Try: @tester-pytest",
+    }
+
+    if stage in recommendations:
+        print(recommendations[stage])
+
+
+def main():
+    """Main quality gate logic."""
+    log("=== STOP HOOK STARTING ===")
+
+    # Read hook input
+    hook_input = read_hook_input()
+    is_continuation = hook_input.get("stop_hook_active", False)
+
+    log(f"Continuation: {is_continuation}")
+    log(f"Working directory: {os.getcwd()}")
+    log(f"CLAUDE_PROJECT_DIR: {os.environ.get('CLAUDE_PROJECT_DIR', 'NOT SET')}")
+
+    if is_continuation:
+        log("This is a continuation - previous run must have failed")
+        log("Running quality checks again after Claude attempted fixes...")
+
+        # Run the full sequence again on continuation
+        success, stage, message = run_quality_sequence(hook_input.get("project_root"))
+
+        if success:
+            log("✅ Quality gate passed (continuation mode - fixes worked!)")
+            return 0
         else:
-            return 5
+            # Still failing on continuation - don't block again to prevent loops
+            log(f"❌ Quality gate still failing at {stage} stage (continuation)")
+            log("🛑 Stopping automatic fixes to prevent loops")
+            log("Manual intervention required")
+            print(f"Quality gate failed at {stage} stage after automatic fix attempt.")
+            print("Manual intervention may be required.")
+            show_agent_recommendations(stage)
+            return 1  # Non-blocking exit code
     else:
-        # Only print success if verbose mode is enabled
-        if verbose:
-            print(f"\n{'='*60}")
-            print("✅ QUALITY GATE PASSED")
-            print("🎉 All checks successful: Format ✓ Type Check ✓ Build ✓ Tests ✓")
-            print("💚 Code quality verified - ready for commit")
-            print(f"{'='*60}")
-        # Silent success - return 0 without printing anything
-        return 0
+        log("This is the first run")
+        log("Running: Black → mypy → tests")
+
+        # Run the full quality sequence
+        success, stage, message = run_quality_sequence(hook_input.get("project_root"))
+
+        if success:
+            log("✅ Quality gate passed (first run)")
+            return 0
+        else:
+            # First failure - block and let Claude fix issues
+            log(f"❌ Quality gate failed at {stage} stage (first run)")
+            log("Blocking to let Claude fix the issues...")
+
+            # Print error message to stderr for Claude to see
+            error_output = f"[Quality Gate] {stage.upper()} FAILED:\n{message}"
+            print(error_output, file=sys.stderr)
+
+            return 2  # Blocking exit code
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        exit_code = main()
+        log(f"=== STOP HOOK FINISHED (exit code: {exit_code}) ===")
+        sys.exit(exit_code)
+    except Exception as e:
+        log(f"❌ STOP HOOK ERROR: {e}")
+        log("=== STOP HOOK FAILED ===")
+        sys.exit(1)

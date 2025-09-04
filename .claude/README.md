@@ -12,9 +12,9 @@ Comprehensive automated quality assurance system for the MCTS repository using C
 - ❌ Git commit blocking relies on behavioral discipline, not technical enforcement
 
 **Workarounds Available**:
-- Use `./git-safe commit` instead of `git commit` for technical blocking
+- Use `.claude/scripts/git-safe.sh commit` instead of `git commit` for technical blocking
 - Rely on agent behavioral policies for git commit prevention
-- Manually run quality checks: `python3 .claude/hooks/comprehensive-quality-check.py`
+- Manually run quality checks: `python3 .claude/hooks/quality-gate-safe.py`
 
 ## Overview
 
@@ -115,13 +115,13 @@ Call agents directly when needed:
 
 **Manual Quality Check** (since hooks don't work):
 ```bash
-python3 .claude/hooks/comprehensive-quality-check.py
+python3 .claude/hooks/quality-gate-safe.py
 ```
 
 **Git Commit Protection**:
 ```bash
-./git-safe commit -m "message"                    # Blocked by default
-ALLOW_COMMITS=1 ./git-safe commit -m "message"    # Allowed when authorized
+.claude/scripts/git-safe.sh commit -m "message"                    # Blocked by default
+ALLOW_COMMITS=1 .claude/scripts/git-safe.sh commit -m "message"    # Allowed when authorized
 ```
 
 ## Troubleshooting
@@ -132,7 +132,7 @@ ALLOW_COMMITS=1 ./git-safe commit -m "message"    # Allowed when authorized
 **Format Failures**: Run `@formatter-black`  
 **Type Errors**: Run `@mypy-type-checker`
 **Test Failures**: Run `@tester-pytest`
-**Git Commits Not Blocked**: Use `./git-safe` wrapper or behavioral discipline
+**Git Commits Not Blocked**: Use `.claude/scripts/git-safe.sh` wrapper or behavioral discipline
 
 ## Configuration
 

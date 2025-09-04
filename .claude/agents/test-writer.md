@@ -112,7 +112,7 @@ docker compose exec mcts pytest -q
 5. **Patterns Followed**: Tests follow established codebase patterns
 
 ## Integration with Pipeline
-- **Triggered By**: comprehensive-quality-check.py when new code detected
+- **Triggered By**: quality-gate.py when new code detected
 - **Runs Before**: Test execution stage
 - **Output**: New or updated test files in appropriate test directories
 - **Validation**: Coverage reports and test execution results

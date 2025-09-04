@@ -52,10 +52,10 @@ You MAY perform:
 
 ## Alternative Protection
 
-Use the `git-safe` wrapper when available:
+Use the `git-safe.sh` wrapper when available:
 ```bash
-./git-safe commit -m "message"    # Blocked by default
-ALLOW_COMMITS=1 ./git-safe commit -m "message"  # Allowed when authorized
+.claude/scripts/git-safe.sh commit -m "message"    # Blocked by default
+ALLOW_COMMITS=1 .claude/scripts/git-safe.sh commit -m "message"  # Allowed when authorized
 ```
 
 **Remember: Code changes YES, Git commits NO - the user handles all version control.**
