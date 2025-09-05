@@ -4,7 +4,7 @@ import asyncio
 import os
 import subprocess
 import time
-from typing import AsyncGenerator, Dict, Generator, List, TypedDict, Union
+from typing import AsyncGenerator, Dict, Generator, List, Optional, TypedDict, Union
 
 import pytest
 import pytest_asyncio
@@ -74,8 +74,41 @@ async def test_client(test_config: TestConfig) -> AsyncGenerator[AsyncClient, No
 @pytest.fixture(scope="session")
 def backend_server(
     test_config: TestConfig,
-) -> Generator[subprocess.Popen[bytes], None, None]:
-    """Start backend server for integration tests."""
+) -> Generator[Union[subprocess.Popen[bytes], None], None, None]:
+    """Start backend server for integration tests or use existing one."""
+    # First check if server is already running
+    try:
+        response = requests.get(
+            f"http://{test_config['api_host']}:{test_config['api_port']}/health",
+            timeout=1,
+        )
+        if response.status_code == 200:
+            print(f"Using existing backend server on port {test_config['api_port']}")
+            yield None  # No process to manage
+            return
+    except Exception:
+        pass  # Server not running, we'll start one
+
+    # If we're in a Docker container, don't try to start a subprocess
+    # as it may not work properly
+    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
+        print("Running in Docker container, assuming backend server is available")
+        # Wait a bit for server to be ready
+        max_retries = 10
+        for _ in range(max_retries):
+            try:
+                response = requests.get(
+                    f"http://{test_config['api_host']}:{test_config['api_port']}/health",
+                    timeout=1,
+                )
+                if response.status_code == 200:
+                    break
+            except Exception:
+                time.sleep(0.5)
+        yield None
+        return
+
+    # Start backend server only if not in Docker and server not already running
     env = os.environ.copy()
     env.update(
         {
@@ -86,7 +119,6 @@ def backend_server(
         }
     )
 
-    # Start backend server
     process: subprocess.Popen[bytes] = subprocess.Popen(
         [
             "python",
@@ -121,15 +153,22 @@ def backend_server(
     yield process
 
     # Cleanup
-    process.terminate()
-    process.wait(timeout=5)
+    if process:  # Only cleanup if we started a process
+        process.terminate()
+        process.wait(timeout=5)
 
 
 @pytest.fixture(scope="session")
 def frontend_server(
     test_config: TestConfig,
-) -> Generator[subprocess.Popen[bytes], None, None]:
-    """Start frontend development server for E2E tests."""
+) -> Generator[Union[subprocess.Popen[bytes], None], None, None]:
+    """Start frontend development server for E2E tests or use existing one."""
+    # Skip frontend server in Docker container environment
+    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
+        print("Running in Docker container, skipping frontend server")
+        yield None
+        return
+
     env = os.environ.copy()
     env.update(
         {
@@ -169,8 +208,9 @@ def frontend_server(
     yield process
 
     # Cleanup
-    process.terminate()
-    process.wait(timeout=5)
+    if process:  # Only cleanup if we started a process
+        process.terminate()
+        process.wait(timeout=5)
 
 
 @pytest.fixture

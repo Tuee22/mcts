@@ -20,6 +20,7 @@ services:
     environment:
       - PYTHONPATH=/app/backend/python
       - NPM_CONFIG_YES=true
+      - DOCKER_CONTAINER=1
     volumes:
       # Mount entire project for live development
       - type: bind

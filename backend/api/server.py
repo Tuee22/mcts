@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import uuid
@@ -549,26 +550,31 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
         # Keep connection alive
         while True:
             try:
-                raw_data = await websocket.receive_json()
+                # Receive raw message (could be text or json)
+                data = await websocket.receive_json()
 
                 # Parse and validate message using Pydantic
                 try:
-                    if not isinstance(raw_data, dict):
+                    if not isinstance(data, dict):
                         logger.warning("WebSocket message must be a dict")
                         continue
-                    message = parse_websocket_message(raw_data)
+                    message = parse_websocket_message(data)
+
+                    if message.type == "ping":
+                        response = PongMessage(type="pong")
+                        await websocket.send_json(response.model_dump())
+                    elif message.type == "create_game":
+                        await websocket.send_json(
+                            {"type": "game_created", "game_id": "test_game_123"}
+                        )
+
                 except (ValidationError, ValueError) as e:
                     logger.warning(f"Invalid WebSocket message: {e}")
                     continue
 
-                if message.type == "ping":
-                    response = PongMessage(type="pong")
-                    await websocket.send_json(response.model_dump())
-                elif message.type == "create_game":
-                    await websocket.send_json(
-                        {"type": "game_created", "game_id": "test_game_123"}
-                    )
-
+            except WebSocketDisconnect:
+                logger.info("WebSocket client disconnected")
+                break
             except Exception as e:
                 logger.error(f"WebSocket message error: {e}")
                 break

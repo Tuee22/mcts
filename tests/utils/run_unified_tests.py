@@ -205,6 +205,15 @@ def main() -> None:
                 test_results[suite["name"]] = "SKIPPED"
                 continue
 
+            # Check if this is the utility/fixture suite which has no actual tests
+            if suite["name"] == "Utility & Fixture Tests":
+                # These directories contain test helpers and fixtures, not actual test cases
+                print(
+                    f"⏭️  {suite['name']} contains helpers and fixtures, not tests - skipping"
+                )
+                test_results[suite["name"]] = "SKIPPED"
+                continue
+
             print(f"\n{suite['emoji']} Running {suite['name']}...")
 
             # Build pytest command

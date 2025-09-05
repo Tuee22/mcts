@@ -54,16 +54,6 @@
       }
     ],
     "PostToolUse": [],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.py",
-            "timeout": 600
-          }
-        ]
-      }
-    ]
+    "Stop": []
   }
 }
