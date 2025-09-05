@@ -12,6 +12,9 @@ temp_*.py
 temp_*.txt
 hook_test.py
 
+# Claude agent temporary files (if cleanup fails)
+.claude/temp/
+
 # C extensions
 *.so
 *.os

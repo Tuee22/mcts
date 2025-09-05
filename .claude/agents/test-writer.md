@@ -40,6 +40,12 @@ You are a specialized agent responsible for generating comprehensive unit tests 
 4. **Document**: Add clear docstrings explaining what each test verifies
 5. **Run Tests**: Execute tests to ensure they pass
 
+**CRITICAL: FILE CREATION RESTRICTIONS**
+- Only create/edit files within `tests/` directory
+- Use `.claude/temp/` for any temporary analysis files
+- Never create files in project root
+- Follow existing test file naming conventions
+
 ### 4. Quality Assurance
 1. **Verify Coverage**: Run coverage tools to confirm improvement
 2. **Check Integration**: Ensure new tests work with existing test suite

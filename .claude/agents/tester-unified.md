@@ -118,6 +118,12 @@ docker compose exec mcts poetry run test-all --coverage
 ## Automatic Test Fix Implementation - NO HUMAN INTERVENTION
 **YOU MUST FIX ALL ISSUES AUTOMATICALLY - DO NOT ASK FOR PERMISSION**
 
+**CRITICAL: NO TEMPORARY FILES IN PROJECT ROOT**
+- Use `.claude/temp/` for any temporary analysis files
+- Only edit existing test files in `tests/` directory
+- Never create new files in project root
+- Use Read-only operations for analysis when possible
+
 ### Mock/Async Issues
 - **See Mock used with async method?** → Replace with AsyncMock immediately
 - **See "coroutine never awaited"?** → Find the mock and make it AsyncMock
