@@ -50,12 +50,12 @@ You MAY perform:
 - ❌ PostToolUse quality checks do NOT run automatically  
 - ⚠️ Git commit protection relies entirely on agent behavioral discipline
 
-## Alternative Protection
+## Git Commit Protection
 
-Use the `git-safe.sh` wrapper when available:
+Git commits are blocked by the git-commit-guard.py PreToolUse hook:
 ```bash
-.claude/scripts/git-safe.sh commit -m "message"    # Blocked by default
-ALLOW_COMMITS=1 .claude/scripts/git-safe.sh commit -m "message"  # Allowed when authorized
+git commit -m "message"    # Blocked by default
+MCTS_ALLOW_COMMIT=1 git commit -m "message"  # Allowed when authorized
 ```
 
 **Remember: Code changes YES, Git commits NO - the user handles all version control.**

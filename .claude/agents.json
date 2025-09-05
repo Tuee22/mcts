@@ -75,23 +75,25 @@
         "125": "docker_daemon_error"
       }
     },
-    "tester-pytest": {
-      "name": "Pytest Test Runner",
-      "file": "tester-pytest.md",
+    "tester-unified": {
+      "name": "Unified Test Suite Runner",
+      "file": "tester-unified.md",
       "category": "validation",
       "priority": 4,
-      "commands": ["docker compose exec mcts poetry run pytest -q"],
+      "commands": ["docker compose exec mcts poetry run test-all"],
       "container_execution": true,
-      "triggers": ["python_files", "test_failures"],
+      "triggers": ["python_files", "frontend_files", "test_failures"],
       "environment_vars": ["MCTS_TEST_CMD", "MCTS_PYTEST_TIMEOUT", "PYTEST_ARGS"],
-      "description": "Comprehensive test suite execution and validation",
-      "dependencies": ["pytest"],
+      "description": "Complete unified test suite (Python, Frontend, E2E) execution and validation",
+      "dependencies": ["pytest", "jest", "playwright"],
       "test_types": [
-        "unit",
-        "integration", 
-        "performance",
-        "edge_cases",
-        "cpp_bindings"
+        "unit_core",
+        "unit_api",
+        "integration",
+        "utils_fixtures",
+        "benchmarks",
+        "frontend",
+        "e2e"
       ],
       "exit_codes": {
         "0": "all_tests_passed",
@@ -236,13 +238,13 @@
       },
       {
         "name": "test",
-        "agent": "tester-pytest", 
+        "agent": "tester-unified", 
         "required": true,
         "condition": "python_files_changed"
       },
       {
         "name": "coverage",
-        "agent": "tester-pytest",
+        "agent": "tester-unified",
         "required": false,
         "condition": "coverage_check_enabled"
       },
@@ -286,7 +288,7 @@
       "MCTS_FORMAT_CMD": "docker compose exec mcts poetry run black .",
       "MCTS_TYPECHECK_CMD": "docker compose exec mcts poetry run mypy --strict .",
       "MCTS_BUILD_CMD": "docker compose build",
-      "MCTS_TEST_CMD": "docker compose exec mcts poetry run pytest -q",
+      "MCTS_TEST_CMD": "docker compose exec mcts poetry run test-all",
       "MCTS_BLACK_TIMEOUT": "60",
       "MCTS_MYPY_TIMEOUT": "300",
       "MCTS_PYTEST_TIMEOUT": "120",
