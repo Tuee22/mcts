@@ -41,7 +41,7 @@ def test_config() -> TestConfig:
     """Test configuration with dedicated settings."""
     return TestConfig(
         api_host="127.0.0.1",
-        api_port=8001,  # Different from default 8000
+        api_port=8000,  # Use the default port where Docker container runs the server
         frontend_host="127.0.0.1",
         frontend_port=3001,  # Different from default 3000
         database_url="sqlite+aiosqlite:///:memory:",

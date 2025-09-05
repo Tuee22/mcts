@@ -53,15 +53,16 @@ scons sanitize=1        # Build with AddressSanitizer
 
 ### Testing
 **IMPORTANT: All tests MUST be run inside Docker containers**
+**IMPORTANT: Integration tests require the backend server, which runs automatically on port 8000 in the Docker container**
 
 ```bash
-# Start Docker services first
+# Start Docker services first (this also starts the backend server on port 8000)
 cd docker && docker compose up -d
 
-# Run all tests (inside container)
-docker compose exec mcts pytest
+# Run all tests (inside container) - recommended approach
+docker compose exec mcts poetry run test-all
 
-# Test categories (inside container)
+# Run specific test categories (inside container)
 docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
 docker compose exec mcts pytest -m "slow"        # Only slow tests  
 docker compose exec mcts pytest -m "integration" # Integration tests
@@ -72,7 +73,16 @@ docker compose exec mcts pytest -m "edge_cases"  # Edge case tests
 
 # Benchmarking (inside container)
 docker compose exec mcts pytest --benchmark-only # Run benchmarks
+
+# Quick test subsets (useful during development)
+docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fast tests only
 ```
+
+**Note on Test Execution:**
+- The Docker container automatically starts the backend API server on port 8000 (see Dockerfile CMD)
+- Integration tests connect to this running server on port 8000
+- DO NOT create instruction files for test execution - run tests directly
+- Agents should execute tests directly using Bash tool, not create documentation files
 
 ### Code Quality
 **IMPORTANT: All quality commands MUST be run inside Docker containers**

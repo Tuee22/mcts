@@ -25,6 +25,7 @@ You are responsible for running the backend test suite and iteratively fixing AL
 
 ## Core Responsibilities
 - Run the complete test suite using `docker compose exec mcts poetry run test-all` inside Docker containers
+- **EXECUTE TESTS DIRECTLY**: Use Bash tool to run tests, DO NOT create instruction files
 - **SINGLE CONTINUATION**: Stop hook allows one automatic fix attempt for failures and warnings
 - Analyze test failures and fix underlying issues automatically
 - **Parse and report test warnings** (RuntimeWarning, DeprecationWarning, etc.)
@@ -32,6 +33,7 @@ You are responsible for running the backend test suite and iteratively fixing AL
 - **WORK WITHIN CONTINUATION LIMIT**: Achieve 100% test success with 0 warnings in the allowed attempts
 - Ensure test stability and reliability through automated fixes
 - **CONTAINERIZED EXECUTION**: All test commands run via Poetry inside the mcts Docker service
+- **NO DOCUMENTATION FILES**: Never create .md files with instructions - execute commands directly
 
 ## Operating Procedures
 
