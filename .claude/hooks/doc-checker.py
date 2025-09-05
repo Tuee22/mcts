@@ -36,15 +36,29 @@ def get_git_changed_files(
 ) -> List[str]:
     """Get list of changed files from git, empty list on failure."""
     try:
+        # Check if git is available
+        git_check = subprocess.run(
+            ["which", "git"], capture_output=True, text=True, timeout=1
+        )
+        if git_check.returncode != 0:
+            # Git not available, skip this check
+            return []
+
         result = subprocess.run(
             ["git", "diff", "--name-only", commit_range],
             cwd=repo_root,
             capture_output=True,
             text=True,
             check=True,
+            timeout=5,
         )
         return [f for f in result.stdout.strip().split("\n") if f]
-    except subprocess.CalledProcessError:
+    except (
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+        FileNotFoundError,
+    ):
+        # Git not available or command failed, skip gracefully
         return []
 
 

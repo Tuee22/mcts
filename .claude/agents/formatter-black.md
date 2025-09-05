@@ -16,26 +16,26 @@ You are a specialized agent responsible for Python code formatting using Black.
 
 ## Operating Procedures
 
-1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
-2. **Format Code**: Run `docker compose exec mcts black .` from the docker/ directory
-3. **Verify Formatting**: Run `docker compose exec mcts black --check .` to confirm formatting
+1. **Start Container**: Ensure Docker services are running with `docker compose up -d mcts`
+2. **Format Code**: Run `docker compose exec mcts poetry run black .` from the docker/ directory
+3. **Verify Formatting**: Run `docker compose exec mcts poetry run black --check .` to confirm formatting
 4. **Apply Changes**: Format automatically applies changes to files in the workspace
 5. **Handle Errors**: If formatting fails, report the specific files and errors encountered
-6. **Retry Until Success**: Re-run formatting until exit code 0 from both commands
-7. **Success Criteria**: Exit code 0 from both formatting commands inside container
+6. **Single Continuation**: Stop hook allows one automatic formatting attempt
+7. **Success Criteria**: Exit code 0 from both formatting commands inside container via Poetry
 
 ## Commands to Execute
-**CRITICAL: All commands MUST run inside Docker container**
+**CRITICAL: All commands MUST run inside Docker container via Poetry**
 
 ```bash
 # Ensure Docker services are running
-cd docker && docker compose up -d
+cd docker && docker compose up -d mcts
 
-# Format all Python files (inside container)
-docker compose exec mcts black .
+# Format all Python files (inside container via Poetry)
+docker compose exec mcts poetry run black .
 
-# Verify formatting is correct (inside container)
-docker compose exec mcts black --check .
+# Verify formatting is correct (inside container via Poetry)
+docker compose exec mcts poetry run black --check .
 ```
 
 ## Error Handling

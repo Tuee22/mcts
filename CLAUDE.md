@@ -200,13 +200,17 @@ docker compose exec mcts poetry run pytest -q
 Control the automated pipeline with environment variables:
 
 ```bash
-export MCTS_FORMAT_CMD="docker compose exec mcts black ."
-export MCTS_TYPECHECK_CMD="docker compose exec mcts mypy --strict ."
+export MCTS_FORMAT_CMD="docker compose exec mcts poetry run black ."
+export MCTS_TYPECHECK_CMD="docker compose exec mcts poetry run mypy --strict ."
 export MCTS_BUILD_CMD="docker compose build"
-export MCTS_TEST_CMD="docker compose exec mcts pytest -q"
+export MCTS_TEST_CMD="docker compose exec mcts poetry run pytest -q"
+export MCTS_BLACK_TIMEOUT="60"
+export MCTS_MYPY_TIMEOUT="300"
+export MCTS_PYTEST_TIMEOUT="120"
+export MCTS_TEST_SCOPE="fast"  # Use "all" for full test suite
 export MCTS_SKIP_BUILD="false"
 export MCTS_SKIP_TESTS="false"
-export MCTS_VERBOSE="true"
+export MCTS_VERBOSE="false"
 export MCTS_FAIL_FAST="true"
 ```
 

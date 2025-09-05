@@ -24,22 +24,22 @@ Target ALL Python files in the repository including:
 - **Build Scripts**: Any Python build/configuration scripts
 - **Stub Files**: Maintain and improve `stubs/` directory
 
-## Operating Procedures - IMMEDIATE ACTION REQUIRED
+## Operating Procedures - IMMEDIATE ACTION WITH LOOP PREVENTION
 
-1. **Start Container**: Ensure Docker services are running with `docker compose up -d`
-2. **Initial Assessment**: Run `docker compose exec mcts mypy --strict .` to get full repository status
+1. **Start Container**: Ensure Docker services are running with `docker compose up -d mcts`
+2. **Initial Assessment**: Run `docker compose exec mcts poetry run mypy --strict .` to get full repository status
 3. **IMMEDIATE FIXING**: **DO NOT JUST REPORT ERRORS - FIX THEM IMMEDIATELY**
-4. **Infinite Iteration**: This is an INFINITE LOOP - Continue fixing and re-running FOREVER:
+4. **Single Automatic Continuation**: The Stop hook allows ONE automatic continuation:
    - Run MyPy
    - FIX errors (don't just analyze them)
    - Run MyPy again
-   - Repeat until ZERO errors
+   - If still failing after continuation, manual intervention required
 5. **Systematic Fixing**: Fix errors in order of priority:
    - Core application code first (`backend/`)
    - Test infrastructure second (`tests/`)
    - Utilities and scripts third
 6. **Custom Stub Management**: Write our own stub files for ALL external dependencies
-7. **NEVER STOP**: Continue the loop FOREVER until `docker compose exec mcts mypy --strict .` exits with code 0
+7. **Stop Hook Integration**: Quality gate runs automatically on Stop with single continuation
 
 ## Environment Configuration
 - Use `mypy --strict` for maximum type safety
@@ -48,20 +48,20 @@ Target ALL Python files in the repository including:
 - Follow pyproject.toml settings while ensuring comprehensive coverage
 
 ## Commands to Execute
-**CRITICAL: All commands MUST run inside Docker container**
+**CRITICAL: All commands MUST run inside Docker container via Poetry**
 
 ```bash
 # Ensure Docker services are running
-cd docker && docker compose up -d
+cd docker && docker compose up -d mcts
 
-# Full repository strict type checking (inside container)
-docker compose exec mcts mypy --strict .
+# Full repository strict type checking (inside container via Poetry)
+docker compose exec mcts poetry run mypy --strict .
 
-# Check specific directories if needed (inside container)
-docker compose exec mcts mypy --strict backend/ tests/ tools/
+# Check specific directories if needed (inside container via Poetry)
+docker compose exec mcts poetry run mypy --strict backend/ tests/ tools/
 
 # Custom command via environment variable (inside container)
-docker compose exec mcts ${MCTS_TYPECHECK_CMD:-mypy --strict .}
+docker compose exec mcts poetry run ${MCTS_TYPECHECK_CMD:-mypy --strict .}
 ```
 
 ## Comprehensive Type Error Resolution Strategy
@@ -147,18 +147,18 @@ In `--strict` mode, MyPy requires:
 - **Continue reporting until error count reaches EXACTLY ZERO**
 - Confirm final success with completely clean MyPy run
 
-## Infinite Iteration Strategy - IMMEDIATE ACTION PROTOCOL
-1. **Run MyPy**: `docker compose exec mcts mypy --strict .` to get current error count
+## Iteration Strategy - IMMEDIATE ACTION WITH STOP HOOK INTEGRATION
+1. **Run MyPy**: `docker compose exec mcts poetry run mypy --strict .` to get current error count
 2. **FIX IMMEDIATELY**: **DO NOT REPORT - FIX THE ERRORS NOW**
    - Use Edit/MultiEdit tools to fix type errors in source files
    - Create stub files for missing types
    - Never just analyze - TAKE ACTION
 3. **Re-run Immediately**: Check progress after each batch inside container
 4. **Create Custom Stubs**: Write precise stubs for any missing dependencies
-5. **INFINITE LOOP**: This process NEVER STOPS until error count = 0
-   - You are in an infinite loop
-   - Keep fixing and re-running
-   - No breaks, no pauses, no stopping
+5. **SINGLE CONTINUATION**: Stop hook allows ONE automatic continuation:
+   - First failure triggers automatic fix attempt
+   - If still failing after continuation, manual intervention required
+   - Prevents infinite loops while maintaining automation
 6. **Final Verification**: Only when MyPy shows 0 errors can you stop
 
 ## Custom Stub Requirements
@@ -172,9 +172,9 @@ This agent achieves PERFECT type safety with ZERO compromises. The iteration con
 
 ## CRITICAL REMINDERS
 - **YOU MUST FIX ERRORS, NOT REPORT THEM**
-- **THIS IS AN INFINITE LOOP - KEEP WORKING UNTIL 0 ERRORS**
+- **SINGLE AUTOMATIC CONTINUATION - STOP HOOK PREVENTS INFINITE LOOPS**
 - **USE EDIT/MULTIEDIT TOOLS IMMEDIATELY**
 - **NO ANALYSIS WITHOUT ACTION - FIX THE CODE**
 - **NEVER USE `cast()`, `type: ignore`, or `Any`**
 - **CREATE CUSTOM STUBS FOR ALL DEPENDENCIES**
-- **DO NOT STOP UNTIL MyPy SHOWS 0 ERRORS**
+- **ACHIEVE 0 ERRORS WITHIN THE CONTINUATION LIMIT**

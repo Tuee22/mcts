@@ -4,11 +4,14 @@ Documentation consistency check wrapper.
 
 Runs lightweight documentation checking only when relevant files are changed.
 This prevents unnecessary overhead on general code edits.
+
+Executes the doc-checker.py script inside the Docker container via Poetry.
 """
 
 import json
 import os
 import sys
+import subprocess
 from pathlib import Path
 
 
@@ -75,25 +78,75 @@ def should_check_docs(tool_call_data: dict) -> bool:
         return False
 
 
+def read_tool_call():
+    """Read tool call data from stdin or environment."""
+    try:
+        # Try stdin first (Claude CLI provides on stdin)
+        if not sys.stdin.isatty():
+            input_data = sys.stdin.read().strip()
+            if input_data:
+                return json.loads(input_data)
+    except:
+        pass
+
+    # Fall back to environment variable
+    try:
+        tool_call_json = os.environ.get("TOOL_CALL", "{}")
+        return json.loads(tool_call_json)
+    except:
+        return {}
+
+
+def get_docker_compose_dir():
+    """Get the docker compose directory from CLAUDE_PROJECT_DIR."""
+    project_root = Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd()))
+    docker_dir = project_root / "docker"
+
+    if docker_dir.exists():
+        return docker_dir
+    return None
+
+
 def main() -> int:
     """Check if docs consistency check should run and execute if needed."""
     try:
-        # Get the tool call data from environment
-        tool_call_json = os.environ.get("TOOL_CALL", "{}")
-        tool_call_data = json.loads(tool_call_json)
+        # Get the tool call data
+        tool_call_data = read_tool_call()
 
         if not should_check_docs(tool_call_data):
             # Skip silently for non-documentation changes
             return 0
 
-        # Run the actual documentation consistency check
-        import subprocess
+        # Get docker compose directory
+        docker_dir = get_docker_compose_dir()
 
-        result = subprocess.run(
-            ["python", str(Path(__file__).parent / "doc-checker.py")],
-            capture_output=True,
-            text=True,
-        )
+        if docker_dir:
+            # Run documentation check inside container via Poetry
+            cmd = [
+                "docker",
+                "compose",
+                "exec",
+                "-T",
+                "mcts",
+                "poetry",
+                "run",
+                "python",
+                "/app/.claude/hooks/doc-checker.py",
+            ]
+
+            result = subprocess.run(
+                cmd, cwd=docker_dir, capture_output=True, text=True, timeout=30
+            )
+        else:
+            # Fall back to local execution if Docker not available
+            # This allows the hook to work in environments without Docker
+            checker_path = Path(__file__).parent / "doc-checker.py"
+            result = subprocess.run(
+                ["python", str(checker_path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
 
         # Only print output if there are issues
         if result.returncode != 0:
@@ -105,6 +158,9 @@ def main() -> int:
 
         return result.returncode
 
+    except subprocess.TimeoutExpired:
+        print("Documentation check timed out", file=sys.stderr)
+        return 0  # Don't block on timeout
     except Exception as e:
         print(f"Documentation check wrapper error: {e}", file=sys.stderr)
         return 0  # Don't block on wrapper errors
