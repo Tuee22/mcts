@@ -346,8 +346,6 @@ docker compose exec mcts poetry run test-all
 
 # Individual test runners
 docker compose exec mcts poetry run test-python      # All Python tests
-docker compose exec mcts poetry run test-python-core # Core MCTS tests only  
-docker compose exec mcts poetry run test-python-api  # API server tests only
 docker compose exec mcts poetry run test-frontend    # Frontend tests only
 docker compose exec mcts poetry run test-e2e         # E2E tests across all browsers
 
@@ -421,7 +419,7 @@ poetry run mypy --strict .
 poetry run check-type-safety
 
 # Run flake8 linting
-flake8 .
+poetry run lint
 
 # Run all type and quality checks
 bash tools/run_type_checks.sh

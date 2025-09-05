@@ -139,7 +139,7 @@ Message types:
 
 1. Build the C++ MCTS library:
 ```bash
-cd src
+cd backend/core
 scons
 ```
 
@@ -231,7 +231,7 @@ async with websockets.connect(f"ws://localhost:8000/games/{game_id}/ws") as ws:
 
 ### Unit Tests
 ```bash
-pytest tests/test_api.py
+poetry run pytest tests/test_api.py
 ```
 
 ### Load Testing

@@ -20,5 +20,5 @@ scons
 The Python API server can be run with:
 
 ```bash
-python -m backend.api.server
+poetry run server
 ```

@@ -130,5 +130,5 @@ EXPOSE 8000 3000
 # --init --ipc=host flags (e.g., docker run --init --ipc=host mcts:cpu)
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Default command - clean and rebuild C++ to ensure correct architecture, then launch backend API server
-CMD ["sh", "-c", "cd /app/backend/core && scons -c -Q && scons -Q && cd /app && exec python -m backend.api.server"]
+# Default command - clean and rebuild C++ to ensure correct architecture, then launch backend API server via Poetry
+CMD ["sh", "-c", "cd /app/backend/core && scons -c -Q && scons -Q && cd /app && exec poetry run server"]

@@ -20,10 +20,16 @@ This directory contains debugging scripts used during development to isolate and
 These scripts can be run independently to reproduce specific debugging scenarios:
 
 ```bash
-cd debug
-python debug_terminal.py
-python debug_board_state.py
+# Run debug scripts directly (Poetry shortcuts are disabled)
+poetry run python tools/debug/debug_terminal.py
+poetry run python tools/debug/debug_board_state.py
+poetry run python tools/debug/debug_evaluation.py
+poetry run python tools/debug/debug_visits.py
+poetry run python tools/debug/debug_cpp_terminal.py
 # etc.
+
+# Or run in Docker container:
+docker compose exec mcts poetry run python tools/debug/debug_terminal.py
 ```
 
 ## Purpose

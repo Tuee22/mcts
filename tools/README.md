@@ -19,5 +19,11 @@ The debug scripts help analyze various aspects of the MCTS algorithm:
 Run debug scripts from the project root:
 
 ```bash
-python tools/debug/debug_terminal.py
+# Debug tools must be run directly (Poetry scripts are disabled due to missing main() functions)
+poetry run python tools/debug/debug_terminal.py
+poetry run python tools/debug/debug_board_state.py
+poetry run python tools/debug/debug_evaluation.py
+
+# Or run inside Docker container:
+docker compose exec mcts poetry run python tools/debug/debug_terminal.py
 ```
