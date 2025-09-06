@@ -51,7 +51,7 @@ class TestNetworkFailures:
 
         async with websockets.connect(uri) as websocket:
             # Send connection message
-            await websocket.recv()  # Skip connect message
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Skip connect message
 
             # Queue multiple messages rapidly
             messages = [{"type": "ping", "id": i} for i in range(10)]
@@ -97,7 +97,7 @@ class TestNetworkFailures:
         uri = f"ws://{test_config['api_host']}:{test_config['api_port']}/ws"
 
         async with websockets.connect(uri) as websocket:
-            await websocket.recv()  # Skip connect message
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Skip connect message
 
             # Send partial JSON (server will ignore it due to validation error)
             await websocket.send('{"type": "ping", "incomplete')
@@ -156,7 +156,7 @@ class TestNetworkFailures:
 
         # Use longer timeout to simulate high latency
         async with websockets.connect(uri) as websocket:
-            await websocket.recv()  # Connection message
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Connection message
 
             # Send message with simulated processing delay
             start_time = time.time()
@@ -165,7 +165,7 @@ class TestNetworkFailures:
             # Add artificial delay
             await asyncio.sleep(0.5)
 
-            response = await websocket.recv()
+            response = await asyncio.wait_for(websocket.recv(), timeout=5)
             total_time = time.time() - start_time
 
             data = json.loads(response)
@@ -179,7 +179,7 @@ class TestNetworkFailures:
         uri = f"ws://{test_config['api_host']}:{test_config['api_port']}/ws"
 
         async with websockets.connect(uri) as websocket:
-            await websocket.recv()  # Connection message
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Connection message
 
             # Send large message (but not too large to cause issues)
             large_data = "x" * 1024  # 1KB of data
@@ -188,7 +188,7 @@ class TestNetworkFailures:
             await websocket.send(json.dumps(large_message))
 
             # Should still get pong
-            response = await websocket.recv()
+            response = await asyncio.wait_for(websocket.recv(), timeout=5)
             data = json.loads(response)
             assert data["type"] == "pong"
 
@@ -201,9 +201,9 @@ class TestNetworkFailures:
         # Perform multiple rapid connect/disconnect cycles
         for i in range(5):
             websocket = await websockets.connect(uri)
-            await websocket.recv()  # Connection message
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Connection message
             await websocket.send(json.dumps({"type": "ping", "cycle": i}))
-            await websocket.recv()  # Pong
+            await asyncio.wait_for(websocket.recv(), timeout=5)  # Pong
             await websocket.close()
 
             # Small delay between cycles
@@ -213,7 +213,7 @@ class TestNetworkFailures:
         async with websockets.connect(uri) as websocket:
             await websocket.recv()
             await websocket.send(json.dumps({"type": "ping", "final": True}))
-            response = await websocket.recv()
+            response = await asyncio.wait_for(websocket.recv(), timeout=5)
             data = json.loads(response)
             assert data["type"] == "pong"
 
@@ -227,14 +227,16 @@ class TestNetworkFailures:
         async def create_connection(connection_id: int) -> int:
             try:
                 async with websockets.connect(uri, open_timeout=5) as websocket:
-                    await websocket.recv()  # Connection message
+                    await asyncio.wait_for(
+                        websocket.recv(), timeout=5
+                    )  # Connection message
 
                     # Send unique ping
                     await websocket.send(
                         json.dumps({"type": "ping", "connection_id": connection_id})
                     )
 
-                    response = await websocket.recv()
+                    response = await asyncio.wait_for(websocket.recv(), timeout=5)
                     data = json.loads(response)
                     assert data["type"] == "pong"
                     return connection_id
@@ -262,11 +264,13 @@ class TestNetworkFailures:
         # First, establish a normal connection
         try:
             async with websockets.connect(uri, open_timeout=5) as websocket:
-                await websocket.recv()  # Connection message
+                await asyncio.wait_for(
+                    websocket.recv(), timeout=5
+                )  # Connection message
 
                 # Send valid message first
                 await websocket.send(json.dumps({"type": "ping"}))
-                await websocket.recv()  # Pong
+                await asyncio.wait_for(websocket.recv(), timeout=5)  # Pong
 
                 # Try to send binary data (server expects JSON text)
                 # This might cause the connection to close
