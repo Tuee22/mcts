@@ -136,7 +136,7 @@ class TestWebSocketConnection:
         # Non-existent host
         uri = f"ws://192.0.2.1:{test_config['api_port']}/ws"
 
-        with pytest.raises(asyncio.TimeoutError):
+        with pytest.raises((asyncio.TimeoutError, OSError)):
             async with websockets.connect(uri, close_timeout=1, open_timeout=2):
                 pass
 

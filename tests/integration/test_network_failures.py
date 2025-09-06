@@ -81,10 +81,10 @@ class TestNetworkFailures:
             base_url="http://10.255.255.1:8000",  # Non-routable IP
             timeout=0.5,  # 0.5 second timeout
         ) as client:
-            # This should timeout trying to connect
-            from httpx import ConnectTimeout
+            # This should timeout or fail to connect
+            from httpx import ConnectTimeout, ConnectError
 
-            with pytest.raises(ConnectTimeout):
+            with pytest.raises((ConnectTimeout, ConnectError)):
                 await client.get("/games")
 
     async def test_partial_json_message_handling(
