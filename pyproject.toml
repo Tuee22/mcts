@@ -77,17 +77,6 @@ check-type-safety = "tools.check_type_safety:main"
 # Setup tools
 setup-playwright = "tools.setup_playwright:main"
 
-# Code quality tools
-format = "black ."
-sort-imports = "isort ."
-lint = "flake8 ."
-typecheck = "mypy --strict ."
-# quality-check = "tools.run_quality_checks:main"  # Disabled - file doesn't exist
-
-# Debug tools (run directly with: poetry run python tools/debug/script_name.py)
-# debug-terminal = "tools.debug.debug_terminal:main"  # Disabled - no main() function
-# debug-board = "tools.debug.debug_board_state:main"   # Disabled - no main() function
-
 # Server aliases for convenience
 server = "backend.api.server:main"
 server-dev = "backend.api.server:dev"
