@@ -41,10 +41,19 @@ class E2EConfig(TypedDict):
 @pytest.fixture(scope="session")
 def e2e_config() -> E2EConfig:
     """E2E test configuration."""
+    # Use different ports to avoid conflicts
+    import random
+
+    backend_port = str(random.randint(8100, 8200))
+    frontend_port = str(random.randint(3100, 3200))
     return E2EConfig(
-        backend_url=os.environ.get("E2E_BACKEND_URL", "http://localhost:8002"),
-        frontend_url=os.environ.get("E2E_FRONTEND_URL", "http://localhost:3002"),
-        ws_url=os.environ.get("E2E_WS_URL", "ws://localhost:8002/ws"),
+        backend_url=os.environ.get(
+            "E2E_BACKEND_URL", f"http://localhost:{backend_port}"
+        ),
+        frontend_url=os.environ.get(
+            "E2E_FRONTEND_URL", f"http://localhost:{frontend_port}"
+        ),
+        ws_url=os.environ.get("E2E_WS_URL", f"ws://localhost:{backend_port}/ws"),
         headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true",
         slow_mo=int(os.environ.get("E2E_SLOW_MO", "0")),
         timeout=int(os.environ.get("E2E_TIMEOUT", "30000")),

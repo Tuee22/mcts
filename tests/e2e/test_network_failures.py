@@ -10,7 +10,7 @@ from playwright.async_api import Route, async_playwright, expect
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_connection_timeout_handling() -> None:
+async def test_connection_timeout_handling(e2e_urls: Dict[str, str]) -> None:
     """Test handling of connection timeouts."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -27,7 +27,7 @@ async def test_connection_timeout_handling() -> None:
 
             # Try to load the page with short timeout - should fail
             try:
-                await page.goto("http://localhost:3002", timeout=2000)
+                await page.goto(e2e_urls["frontend"], timeout=2000)
                 print("⚠️  Page loaded unexpectedly despite timeout")
             except Exception as e:
                 print(f"✅ Timeout handled correctly: {type(e).__name__}")
@@ -40,7 +40,7 @@ async def test_connection_timeout_handling() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_partial_message_delivery() -> None:
+async def test_partial_message_delivery(e2e_urls: Dict[str, str]) -> None:
     """Test handling of partial WebSocket messages."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -49,7 +49,7 @@ async def test_partial_message_delivery() -> None:
 
         try:
             # Navigate to page
-            await page.goto("http://localhost:3002", wait_until="domcontentloaded")
+            await page.goto(e2e_urls["frontend"], wait_until="domcontentloaded")
             await page.wait_for_timeout(2000)
 
             # Simulate partial message by intercepting WebSocket
@@ -62,7 +62,7 @@ async def test_partial_message_delivery() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_basic_network_failure_resilience() -> None:
+async def test_basic_network_failure_resilience(e2e_urls: Dict[str, str]) -> None:
     """Test basic network failure handling."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -71,7 +71,7 @@ async def test_basic_network_failure_resilience() -> None:
 
         try:
             # Start by loading the page normally
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Block all network requests to simulate network failure
@@ -89,7 +89,7 @@ async def test_basic_network_failure_resilience() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_websocket_protocol_violation() -> None:
+async def test_websocket_protocol_violation(e2e_urls: Dict[str, str]) -> None:
     """Test handling of WebSocket protocol violations."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -103,7 +103,7 @@ async def test_websocket_protocol_violation() -> None:
                 lambda route: route.fulfill(status=400, body="Invalid WebSocket"),
             )
 
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_timeout(2000)
 
             # App should handle WebSocket failure gracefully
@@ -117,7 +117,7 @@ async def test_websocket_protocol_violation() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_request_timeout_with_retry() -> None:
+async def test_request_timeout_with_retry(e2e_urls: Dict[str, str]) -> None:
     """Test request timeout and retry behavior."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -139,7 +139,7 @@ async def test_request_timeout_with_retry() -> None:
 
         try:
             await page.route("**/*", count_and_delay)
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_timeout(3000)
 
             # Check if retries happened
@@ -151,7 +151,7 @@ async def test_request_timeout_with_retry() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_network_latency_impact() -> None:
+async def test_network_latency_impact(e2e_urls: Dict[str, str]) -> None:
     """Test impact of network latency on app behavior."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -166,7 +166,7 @@ async def test_network_latency_impact() -> None:
             await page.route("**/api/**", add_latency)
 
             start_time = time.time()
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
             load_time = time.time() - start_time
 
@@ -180,7 +180,7 @@ async def test_network_latency_impact() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_connection_drops_during_game_move() -> None:
+async def test_connection_drops_during_game_move(e2e_urls: Dict[str, str]) -> None:
     """Test connection drop during game move submission."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -188,7 +188,7 @@ async def test_connection_drops_during_game_move() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Simulate connection drop during API calls
@@ -209,7 +209,7 @@ async def test_connection_drops_during_game_move() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_server_error_responses() -> None:
+async def test_server_error_responses(e2e_urls: Dict[str, str]) -> None:
     """Test handling of various server error responses."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -228,7 +228,7 @@ async def test_server_error_responses() -> None:
 
                 await page.route("**/api/**", error_handler)
 
-                await page.goto("http://localhost:3002")
+                await page.goto(e2e_urls["frontend"])
                 await page.wait_for_timeout(1000)
 
                 # Page should handle error gracefully
@@ -244,7 +244,7 @@ async def test_server_error_responses() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_websocket_reconnection_backoff() -> None:
+async def test_websocket_reconnection_backoff(e2e_urls: Dict[str, str]) -> None:
     """Test WebSocket reconnection with exponential backoff."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -262,7 +262,7 @@ async def test_websocket_reconnection_backoff() -> None:
 
         try:
             await page.route("**/*", track_ws_attempts)
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
 
             # Wait for multiple reconnection attempts
             await page.wait_for_timeout(8000)
@@ -284,7 +284,7 @@ async def test_websocket_reconnection_backoff() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_message_queuing_during_disconnect() -> None:
+async def test_message_queuing_during_disconnect(e2e_urls: Dict[str, str]) -> None:
     """Test message queuing during temporary disconnection."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -292,7 +292,7 @@ async def test_message_queuing_during_disconnect() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Block WebSocket temporarily

@@ -550,25 +550,19 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
         # Keep connection alive
         while True:
             try:
-                # Receive raw message (could be text, json, or binary)
-                raw_message = await websocket.receive()
-                
-                # Handle different message types
-                if "text" in raw_message:
-                    # Try to parse as JSON
+                # Try to receive JSON message first
+                try:
+                    data = await websocket.receive_json()
+                except ValueError:
+                    # If JSON parsing fails, try to receive as text
                     try:
-                        data = json.loads(raw_message["text"])
-                    except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON in text message: {raw_message['text']}")
+                        text_data = await websocket.receive_text()
+                        logger.warning(f"Invalid JSON in text message: {text_data}")
                         continue
-                elif "bytes" in raw_message:
-                    # Binary data received - just log and continue
-                    logger.warning(f"Binary message received (ignoring): {len(raw_message['bytes'])} bytes")
-                    continue
-                else:
-                    # Unknown message type
-                    logger.warning(f"Unknown message type: {raw_message}")
-                    continue
+                    except Exception:
+                        # If text also fails, just log the error and continue
+                        logger.warning("Failed to parse message as JSON or text")
+                        continue
 
                 # Parse and validate message using Pydantic
                 try:

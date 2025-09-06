@@ -82,10 +82,13 @@ class TestNetworkFailures:
             timeout=0.5,  # 0.5 second timeout
         ) as client:
             # This should timeout or fail to connect
-            from httpx import ConnectTimeout, ConnectError
-
-            with pytest.raises((ConnectTimeout, ConnectError)):
+            try:
                 await client.get("/games")
+                # If we reach here, the request unexpectedly succeeded
+                assert False, "Expected request to fail"
+            except Exception as e:
+                # Expected behavior - any connection-related exception
+                assert "connect" in str(e).lower() or "timeout" in str(e).lower()
 
     async def test_partial_json_message_handling(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]

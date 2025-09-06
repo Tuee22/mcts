@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright, expect
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_successful_connection_on_load() -> None:
+async def test_successful_connection_on_load(e2e_urls: Dict[str, str]) -> None:
     """Test that app successfully connects to backend on load."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -24,7 +24,7 @@ async def test_successful_connection_on_load() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
 
             # Wait for page to load
             await page.wait_for_load_state("networkidle", timeout=10000)
@@ -55,7 +55,7 @@ async def test_successful_connection_on_load() -> None:
             except Exception as e:
                 print(f"⚠️  Connection status check failed: {e}")
                 # Fall back to basic health check
-                response = await page.request.get("http://localhost:8002/health")
+                response = await page.request.get(e2e_urls["backend"] + "/health")
                 assert response.ok
                 print("✅ Backend health verified as fallback")
 
@@ -67,7 +67,7 @@ async def test_successful_connection_on_load() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_game_creation_flow() -> None:
+async def test_game_creation_flow(e2e_urls: Dict[str, str]) -> None:
     """Test creating a game via the UI or API."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -76,12 +76,12 @@ async def test_game_creation_flow() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Try to create a game via API (since UI might not have create game button)
             response = await page.request.post(
-                "http://localhost:8002/games",
+                e2e_urls["backend"] + "/games",
                 data={
                     "player1_name": "TestPlayer1",
                     "player2_name": "TestPlayer2",
@@ -104,7 +104,9 @@ async def test_game_creation_flow() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_backend_unreachable_shows_disconnection() -> None:
+async def test_backend_unreachable_shows_disconnection(
+    e2e_urls: Dict[str, str]
+) -> None:
     """Test that app shows disconnection when backend is unreachable."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -113,7 +115,7 @@ async def test_backend_unreachable_shows_disconnection() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Test requests to non-existent backend port
@@ -147,7 +149,7 @@ async def test_backend_unreachable_shows_disconnection() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_wrong_api_url_configuration() -> None:
+async def test_wrong_api_url_configuration(e2e_urls: Dict[str, str]) -> None:
     """Test app behavior with wrong API URL configuration."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -156,12 +158,12 @@ async def test_wrong_api_url_configuration() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Test API request to wrong URL
             try:
-                response = await page.request.get("http://localhost:8002/nonexistent")
+                response = await page.request.get(e2e_urls["backend"] + "/nonexistent")
                 if response.status == 404:
                     print("✅ 404 response for invalid endpoint as expected")
                 else:
@@ -170,7 +172,7 @@ async def test_wrong_api_url_configuration() -> None:
                 print(f"✅ Request to invalid endpoint failed as expected: {e}")
 
             # Verify correct endpoint still works
-            health_response = await page.request.get("http://localhost:8002/health")
+            health_response = await page.request.get(e2e_urls["backend"] + "/health")
             assert health_response.ok
             print("✅ Valid health endpoint still works")
 
@@ -182,7 +184,9 @@ async def test_wrong_api_url_configuration() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_connection_recovery_after_backend_restart() -> None:
+async def test_connection_recovery_after_backend_restart(
+    e2e_urls: Dict[str, str]
+) -> None:
     """Test connection recovery after backend restart simulation."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -191,11 +195,11 @@ async def test_connection_recovery_after_backend_restart() -> None:
 
         try:
             # Navigate to frontend and verify connection
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Verify backend is up initially
-            response1 = await page.request.get("http://localhost:8002/health")
+            response1 = await page.request.get(e2e_urls["backend"] + "/health")
             assert response1.ok
             print("✅ Initial backend connection verified")
 
@@ -203,7 +207,7 @@ async def test_connection_recovery_after_backend_restart() -> None:
             try:
                 # Make request with very short timeout to simulate interruption
                 response2 = await page.request.get(
-                    "http://localhost:8002/health", timeout=1
+                    e2e_urls["backend"] + "/health", timeout=1
                 )
                 print("✅ Backend still responsive")
             except Exception:
@@ -212,7 +216,7 @@ async def test_connection_recovery_after_backend_restart() -> None:
             # Wait a moment then verify recovery
             await page.wait_for_timeout(1000)
 
-            response3 = await page.request.get("http://localhost:8002/health")
+            response3 = await page.request.get(e2e_urls["backend"] + "/health")
             assert response3.ok
             print("✅ Backend connection recovered")
 
@@ -224,7 +228,7 @@ async def test_connection_recovery_after_backend_restart() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_network_interruption_during_game() -> None:
+async def test_network_interruption_during_game(e2e_urls: Dict[str, str]) -> None:
     """Test app behavior during network interruption during gameplay."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -233,12 +237,12 @@ async def test_network_interruption_during_game() -> None:
 
         try:
             # Navigate and create a game
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Create game first
             create_response = await page.request.post(
-                "http://localhost:8002/games",
+                e2e_urls["backend"] + "/games",
                 data={
                     "player1_name": "Player1",
                     "player2_name": "Player2",
@@ -257,7 +261,7 @@ async def test_network_interruption_during_game() -> None:
             # Simulate network issues by making requests with very short timeouts
             try:
                 game_response = await page.request.get(
-                    f"http://localhost:8002/games/{game_id}", timeout=1
+                    e2e_urls["backend"] + f"/games/{game_id}", timeout=1
                 )
                 if game_response.ok:
                     print("✅ Game still accessible")
@@ -269,7 +273,7 @@ async def test_network_interruption_during_game() -> None:
             # Verify recovery
             await page.wait_for_timeout(1000)
             recovery_response = await page.request.get(
-                f"http://localhost:8002/games/{game_id}"
+                e2e_urls["backend"] + f"/games/{game_id}"
             )
             assert recovery_response.ok
             print("✅ Game access recovered after interruption")
@@ -282,7 +286,7 @@ async def test_network_interruption_during_game() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_cors_blocked_request() -> None:
+async def test_cors_blocked_request(e2e_urls: Dict[str, str]) -> None:
     """Test CORS handling."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -290,13 +294,13 @@ async def test_cors_blocked_request() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Test CORS by making request from frontend origin
             response = await page.request.get(
-                "http://localhost:8002/health",
-                headers={"Origin": "http://localhost:3002"},
+                e2e_urls["backend"] + "/health",
+                headers={"Origin": e2e_urls["frontend"]},
             )
 
             assert response.ok
@@ -320,7 +324,7 @@ async def test_cors_blocked_request() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_multiple_tabs_connection_handling() -> None:
+async def test_multiple_tabs_connection_handling(e2e_urls: Dict[str, str]) -> None:
     """Test connection handling with multiple browser tabs."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -332,16 +336,16 @@ async def test_multiple_tabs_connection_handling() -> None:
             page2 = await context.new_page()
 
             # Navigate both tabs to frontend
-            await page1.goto("http://localhost:3002")
-            await page2.goto("http://localhost:3002")
+            await page1.goto(e2e_urls["frontend"])
+            await page2.goto(e2e_urls["frontend"])
 
             # Wait for both to load
             await page1.wait_for_load_state("networkidle")
             await page2.wait_for_load_state("networkidle")
 
             # Test backend access from both tabs
-            response1 = await page1.request.get("http://localhost:8002/health")
-            response2 = await page2.request.get("http://localhost:8002/health")
+            response1 = await page1.request.get(e2e_urls["backend"] + "/health")
+            response2 = await page2.request.get(e2e_urls["backend"] + "/health")
 
             assert response1.ok
             assert response2.ok

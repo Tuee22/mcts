@@ -50,12 +50,13 @@ async def async_page(context: BrowserContext) -> AsyncGenerator[Page, None]:
 
 @pytest.fixture
 def e2e_urls(
+    e2e_config: Dict[str, object],
     frontend_e2e_server: None,  # Ensure frontend server is started
     backend_e2e_server: None,  # Ensure backend server is started
 ) -> Dict[str, str]:
     """E2E Test URLs - depends on servers being started."""
     return {
-        "frontend": os.environ.get("E2E_FRONTEND_URL", "http://localhost:3002"),
-        "backend": os.environ.get("E2E_BACKEND_URL", "http://localhost:8002"),
-        "ws": os.environ.get("E2E_WS_URL", "ws://localhost:8002/ws"),
+        "frontend": str(e2e_config["frontend_url"]),
+        "backend": str(e2e_config["backend_url"]),
+        "ws": str(e2e_config["ws_url"]),
     }

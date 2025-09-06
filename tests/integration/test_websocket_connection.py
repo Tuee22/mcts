@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import pytest
 import websockets
@@ -136,9 +136,14 @@ class TestWebSocketConnection:
         # Non-existent host
         uri = f"ws://192.0.2.1:{test_config['api_port']}/ws"
 
-        with pytest.raises((asyncio.TimeoutError, OSError)):
+        try:
             async with websockets.connect(uri, close_timeout=1, open_timeout=2):
                 pass
+            # If we reach here, the connection unexpectedly succeeded
+            assert False, "Expected connection to fail"
+        except (asyncio.TimeoutError, OSError):
+            # Expected behavior - connection should fail
+            pass
 
     async def test_multiple_concurrent_websocket_connections(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]

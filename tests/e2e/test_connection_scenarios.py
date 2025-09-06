@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright, expect
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_successful_connection_on_load() -> None:
+async def test_successful_connection_on_load(e2e_urls: Dict[str, str]) -> None:
     """Test that app successfully connects to backend on load."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -24,7 +24,7 @@ async def test_successful_connection_on_load() -> None:
 
         try:
             # Navigate to frontend
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
 
             # Wait for page to load
             await page.wait_for_load_state("networkidle", timeout=10000)
@@ -68,7 +68,7 @@ async def test_successful_connection_on_load() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_game_creation_flow() -> None:
+async def test_game_creation_flow(e2e_urls: Dict[str, str]) -> None:
     """Test creating a new game."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -76,7 +76,7 @@ async def test_game_creation_flow() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle", timeout=10000)
 
             # Check for game settings button
@@ -122,7 +122,9 @@ async def test_game_creation_flow() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_backend_unreachable_shows_disconnection() -> None:
+async def test_backend_unreachable_shows_disconnection(
+    e2e_urls: Dict[str, str]
+) -> None:
     """Test UI shows disconnection when backend is unreachable."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -134,7 +136,7 @@ async def test_backend_unreachable_shows_disconnection() -> None:
             await page.route("**/health", lambda route: route.abort())
             await page.route("**/ws", lambda route: route.abort())
 
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_timeout(2000)
 
             # Check for disconnection indicators
@@ -155,7 +157,7 @@ async def test_backend_unreachable_shows_disconnection() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_wrong_api_url_configuration() -> None:
+async def test_wrong_api_url_configuration(e2e_urls: Dict[str, str]) -> None:
     """Test handling of incorrect API URL configuration."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -166,7 +168,7 @@ async def test_wrong_api_url_configuration() -> None:
             # Override API calls to wrong URL
             await page.route("**/:9999/**", lambda route: route.abort())
 
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_timeout(3000)
 
             # Should show disconnected state
@@ -192,7 +194,9 @@ async def test_wrong_api_url_configuration() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_connection_recovery_after_backend_restart() -> None:
+async def test_connection_recovery_after_backend_restart(
+    e2e_urls: Dict[str, str]
+) -> None:
     """Test that frontend recovers connection after backend restart."""
     # Get backend process
     backend_pid = None
@@ -209,7 +213,7 @@ async def test_connection_recovery_after_backend_restart() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Initially should be connected
@@ -239,7 +243,7 @@ async def test_connection_recovery_after_backend_restart() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_network_interruption_during_game() -> None:
+async def test_network_interruption_during_game(e2e_urls: Dict[str, str]) -> None:
     """Test handling network interruption during active game."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -247,7 +251,7 @@ async def test_network_interruption_during_game() -> None:
         page = await context.new_page()
 
         try:
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_load_state("networkidle")
 
             # Try to start a game
@@ -272,7 +276,7 @@ async def test_network_interruption_during_game() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_cors_blocked_request() -> None:
+async def test_cors_blocked_request(e2e_urls: Dict[str, str]) -> None:
     """Test handling of CORS blocked requests."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -286,7 +290,7 @@ async def test_cors_blocked_request() -> None:
                 lambda route: route.fulfill(status=403, body="CORS blocked"),
             )
 
-            await page.goto("http://localhost:3002")
+            await page.goto(e2e_urls["frontend"])
             await page.wait_for_timeout(2000)
 
             # Should handle CORS errors gracefully
@@ -301,7 +305,7 @@ async def test_cors_blocked_request() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_multiple_tabs_connection_handling() -> None:
+async def test_multiple_tabs_connection_handling(e2e_urls: Dict[str, str]) -> None:
     """Test connection handling with multiple tabs open."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
@@ -312,8 +316,8 @@ async def test_multiple_tabs_connection_handling() -> None:
 
         try:
             # Open app in both tabs
-            await page1.goto("http://localhost:3002")
-            await page2.goto("http://localhost:3002")
+            await page1.goto(e2e_urls["frontend"])
+            await page2.goto(e2e_urls["frontend"])
 
             await page1.wait_for_load_state("networkidle")
             await page2.wait_for_load_state("networkidle")
