@@ -43,6 +43,8 @@ playwright = ">=1.40.0,<2.0"
 
 # Test utilities (used in test files)
 psutil = ">=5.9.7,<6.0"
+types-requests = "^2.32.4.20250809"
+types-psutil = "^7.0.0.20250822"
 
 [build-system]
 requires = ["poetry-core"]

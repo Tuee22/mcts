@@ -46,142 +46,188 @@ def create_mock_mcts(
 
 
 def assert_valid_game_response(
-    response_data: Dict[str, Union[str, int, Dict[str, Union[str, int, bool]]]],
+    response_data: Dict[str, object],
 ) -> None:
     """
-    Assert that a game response has all required fields.
+    Assert that a game response contains all required fields with valid values.
 
     Args:
-        response_data: Game response dictionary
+        response_data: Game response dictionary to validate
     """
-    required_fields = [
-        "game_id",
-        "status",
-        "mode",
-        "player1",
-        "player2",
-        "current_turn",
-        "move_count",
-        "created_at",
-    ]
-
+    # Required top-level fields
+    required_fields = ["id", "status", "player1", "player2", "current_player", "board"]
     for field in required_fields:
-        assert field in response_data, f"Missing field: {field}"
+        assert field in response_data, f"Missing required field: {field}"
 
-    # Validate player structure
+    # Validate ID format
+    game_id = response_data["id"]
+    assert (
+        isinstance(game_id, str) and len(game_id) > 0
+    ), "Game ID must be non-empty string"
+
+    # Validate status
+    valid_statuses = ["waiting", "in_progress", "finished", "abandoned"]
+    assert (
+        response_data["status"] in valid_statuses
+    ), f"Invalid status: {response_data['status']}"
+
+    # Validate players
     for player_key in ["player1", "player2"]:
         player = response_data[player_key]
-        if isinstance(player, dict):
-            player_fields = ["id", "name", "type", "is_hero"]
-            for field in player_fields:
-                assert field in player, f"Missing player field: {field}"
+        assert isinstance(player, dict), f"{player_key} must be a dictionary"
+        assert "name" in player, f"{player_key} missing name field"
+        assert "type" in player, f"{player_key} missing type field"
+        assert player["type"] in [
+            "human",
+            "machine",
+        ], f"Invalid {player_key} type: {player['type']}"
+
+    # Validate current player
+    current_player = response_data["current_player"]
+    assert current_player in [1, 2], f"Invalid current_player: {current_player}"
+
+    # Validate board
+    board = response_data["board"]
+    assert isinstance(board, dict), "Board must be a dictionary"
 
 
 def assert_valid_move_response(
-    response_data: Dict[str, Union[str, bool, Dict[str, Union[str, int]]]],
+    response_data: Dict[str, object],
 ) -> None:
     """
-    Assert that a move response has all required fields.
+    Assert that a move response contains all required fields with valid values.
 
     Args:
-        response_data: Move response dictionary
+        response_data: Move response dictionary to validate
     """
-    required_fields = [
-        "success",
-        "game_id",
-        "move",
-        "game_status",
-        "next_turn",
-        "next_player_type",
-    ]
-
+    required_fields = ["success", "action", "game_state"]
     for field in required_fields:
-        assert field in response_data, f"Missing field: {field}"
+        assert field in response_data, f"Missing required field: {field}"
 
-    # Validate move structure
-    move = response_data["move"]
-    if isinstance(move, dict):
-        move_fields = ["player_id", "action", "move_number", "timestamp"]
-        for field in move_fields:
-            assert field in move, f"Missing move field: {field}"
+    # Validate success flag
+    assert isinstance(response_data["success"], bool), "Success must be a boolean"
+
+    # Validate action
+    action = response_data["action"]
+    assert (
+        isinstance(action, str) and len(action) > 0
+    ), "Action must be non-empty string"
+
+    # If move was successful, validate game state
+    if response_data["success"]:
+        game_state = response_data["game_state"]
+        assert isinstance(game_state, dict), "Game state must be a dictionary"
+        assert_valid_game_response(game_state)
+
+
+def create_test_websocket_message(
+    msg_type: str, data: Optional[Dict[str, object]] = None
+) -> str:
+    """
+    Create a properly formatted WebSocket message for testing.
+
+    Args:
+        msg_type: Message type (e.g., "move", "analysis", "status")
+        data: Optional message data
+
+    Returns:
+        JSON-encoded WebSocket message string
+    """
+    import json
+
+    message: Dict[str, object] = {"type": msg_type}
+    if data is not None:
+        message["data"] = data
+
+    return json.dumps(message)
+
+
+def assert_websocket_message_format(message: str) -> Dict[str, object]:
+    """
+    Assert that a WebSocket message has proper format and return parsed data.
+
+    Args:
+        message: Raw WebSocket message string
+
+    Returns:
+        Parsed message dictionary
+    """
+    import json
+
+    # Must be valid JSON
+    try:
+        data = json.loads(message)
+    except json.JSONDecodeError as e:
+        raise AssertionError(f"Invalid JSON in WebSocket message: {e}")
+
+    # Must be a dictionary
+    assert isinstance(data, dict), "WebSocket message must be a JSON object"
+
+    # Must have type field
+    assert "type" in data, "WebSocket message must have 'type' field"
+    assert isinstance(data["type"], str), "Message type must be a string"
+
+    return data
 
 
 async def wait_for_condition(
-    condition_func: Callable[[], bool],
-    timeout_seconds: float = 5.0,
-    check_interval: float = 0.1,
-) -> bool:
+    condition: Callable[[], bool], timeout: float = 10.0, interval: float = 0.1
+) -> None:
     """
-    Wait for a condition to become true.
+    Wait for a condition to become true with timeout.
 
     Args:
-        condition_func: Function that returns True when condition is met
-        timeout_seconds: Maximum time to wait
-        check_interval: How often to check the condition
-
-    Returns:
-        True if condition was met, False if timeout
+        condition: Function that returns True when condition is met
+        timeout: Maximum time to wait in seconds
+        interval: Check interval in seconds
     """
-    elapsed = 0.0
-    while elapsed < timeout_seconds:
-        if condition_func():
-            return True
-        await asyncio.sleep(check_interval)
-        elapsed += check_interval
+    import time
 
-    return False
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if condition():
+            return
+        await asyncio.sleep(interval)
+
+    raise TimeoutError(f"Condition not met within {timeout} seconds")
 
 
-def extract_game_moves(
-    game_data: Dict[str, Union[str, int, List[Dict[str, str]]]],
-) -> List[str]:
+def generate_test_game_config(
+    player1_type: str = "human",
+    player2_type: str = "human",
+    board_size: int = 9,
+    **kwargs: object,
+) -> Dict[str, object]:
     """
-    Extract move actions from a game response.
+    Generate a test game configuration with sensible defaults.
 
     Args:
-        game_data: Game response dictionary
+        player1_type: Type of player 1 ("human" or "machine")
+        player2_type: Type of player 2 ("human" or "machine")
+        board_size: Size of the game board
+        **kwargs: Additional configuration options
 
     Returns:
-        List of move action strings
+        Game configuration dictionary
     """
-    if "move_history" not in game_data:
-        return []
+    config: Dict[str, object] = {
+        "player1_type": player1_type,
+        "player2_type": player2_type,
+        "player1_name": "TestPlayer1",
+        "player2_name": "TestPlayer2",
+        "settings": {
+            "board_size": board_size,
+            "time_limit_seconds": 30,
+            "use_analysis": False,
+        },
+    }
 
-    move_history = game_data["move_history"]
-    if isinstance(move_history, list):
-        return [
-            move["action"]
-            for move in move_history
-            if isinstance(move, dict) and "action" in move
-        ]
-    return []
+    # Merge any additional settings
+    if "settings" in kwargs:
+        settings = kwargs["settings"]
+        if isinstance(settings, dict) and isinstance(config["settings"], dict):
+            config["settings"].update(settings)
+        del kwargs["settings"]
+    config.update(kwargs)
 
-
-def count_test_results(test_output: str) -> Dict[str, int]:
-    """
-    Parse pytest output to count test results.
-
-    Args:
-        test_output: Raw pytest output string
-
-    Returns:
-        Dictionary with counts of passed, failed, skipped tests
-    """
-    results = {"passed": 0, "failed": 0, "skipped": 0, "errors": 0}
-
-    lines = test_output.split("\n")
-    for line in lines:
-        if "passed" in line and "failed" not in line:
-            try:
-                passed = int(line.split("passed")[0].strip().split()[-1])
-                results["passed"] = passed
-            except (ValueError, IndexError):
-                pass
-        if "failed" in line:
-            try:
-                failed = int(line.split("failed")[0].strip().split()[-1])
-                results["failed"] = failed
-            except (ValueError, IndexError):
-                pass
-
-    return results
+    return config

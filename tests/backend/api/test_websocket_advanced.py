@@ -11,8 +11,10 @@ from fastapi import WebSocket
 
 from backend.api.api_types import OutgoingWebSocketMessage, WebSocketProtocol
 from backend.api.models import (
+    GameMode,
     GameResponse,
     GameSession,
+    GameStatus,
     MoveResponse,
     Player,
     PlayerType,
@@ -206,7 +208,7 @@ class TestWebSocketManagerBroadcasting:
             success=True,
             game_id="game1",
             move=mock_move,
-            game_status="in_progress",
+            game_status=GameStatus.IN_PROGRESS,
             next_turn=2,
             next_player_type=PlayerType.HUMAN,
             board_display="board_string",
@@ -248,8 +250,8 @@ class TestWebSocketManagerBroadcasting:
         )
         game_response = GameResponse(
             game_id="game1",
-            status="in_progress",
-            mode="pvp",
+            status=GameStatus.IN_PROGRESS,
+            mode=GameMode.PVP,
             player1=player1,
             player2=player2,
             current_turn=1,

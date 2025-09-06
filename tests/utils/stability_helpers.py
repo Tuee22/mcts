@@ -16,7 +16,6 @@ from typing import (
     Set,
     TypeVar,
     Union,
-    cast,
     overload,
 )
 
@@ -30,74 +29,97 @@ T = TypeVar("T")
 F = TypeVar("F")
 
 
+def retry_on_failure_sync(
+    max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """Decorator to retry flaky sync test functions with exponential backoff."""
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @functools.wraps(func)
+        def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception: Optional[Exception] = None
+            current_delay = delay
+
+            for attempt in range(max_attempts):
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_attempts - 1:
+                        logger.warning(
+                            f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
+                        )
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                    else:
+                        logger.error(
+                            f"Test {func.__name__} failed after {max_attempts} attempts"
+                        )
+
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError("Unexpected failure in sync retry decorator")
+
+        return sync_wrapper
+
+    return decorator
+
+
+def retry_on_failure_async(
+    max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    """Decorator to retry flaky async test functions with exponential backoff."""
+
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        @functools.wraps(func)
+        async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception: Optional[Exception] = None
+            current_delay = delay
+
+            for attempt in range(max_attempts):
+                try:
+                    result = await func(*args, **kwargs)
+                    return result
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_attempts - 1:
+                        logger.warning(
+                            f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
+                        )
+                        await asyncio.sleep(current_delay)
+                        current_delay *= backoff
+                    else:
+                        logger.error(
+                            f"Test {func.__name__} failed after {max_attempts} attempts"
+                        )
+
+            if last_exception is not None:
+                raise last_exception
+            raise RuntimeError("Unexpected failure in async retry decorator")
+
+        return async_wrapper
+
+    return decorator
+
+
+# Legacy compatibility function - detect sync vs async and call appropriate decorator
 def retry_on_failure(
     max_attempts: int = 3, delay: float = 1.0, backoff: float = 2.0
 ) -> Callable[
-    [Callable[P, Union[Awaitable[T], T]]], Callable[P, Union[Awaitable[T], T]]
+    [Callable[P, Union[T, Awaitable[T]]]], Callable[P, Union[T, Awaitable[T]]]
 ]:
     """Decorator to retry flaky test functions with exponential backoff."""
 
     def decorator(
-        func: Callable[P, Union[Awaitable[T], T]]
-    ) -> Callable[P, Union[Awaitable[T], T]]:
+        func: Callable[P, Union[T, Awaitable[T]]]
+    ) -> Callable[P, Union[T, Awaitable[T]]]:
         if asyncio.iscoroutinefunction(func):
-
-            @functools.wraps(func)
-            async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                last_exception: Optional[Exception] = None
-                current_delay = delay
-
-                for attempt in range(max_attempts):
-                    try:
-                        result = await func(*args, **kwargs)
-                        return cast(T, result)
-                    except Exception as e:
-                        last_exception = e
-                        if attempt < max_attempts - 1:
-                            logger.warning(
-                                f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
-                            )
-                            await asyncio.sleep(current_delay)
-                            current_delay *= backoff
-                        else:
-                            logger.error(
-                                f"Test {func.__name__} failed after {max_attempts} attempts"
-                            )
-
-                if last_exception is not None:
-                    raise last_exception
-                raise RuntimeError("Unexpected failure in retry decorator")
-
-            return async_wrapper
+            async_func = func  # This is guaranteed to be async by the check above
+            return retry_on_failure_async(max_attempts, delay, backoff)(async_func)
         else:
-
-            @functools.wraps(func)
-            def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-                last_exception: Optional[Exception] = None
-                current_delay = delay
-
-                for attempt in range(max_attempts):
-                    try:
-                        result = func(*args, **kwargs)
-                        return cast(T, result)
-                    except Exception as e:
-                        last_exception = e
-                        if attempt < max_attempts - 1:
-                            logger.warning(
-                                f"Test {func.__name__} failed on attempt {attempt + 1}/{max_attempts}: {e}"
-                            )
-                            time.sleep(current_delay)
-                            current_delay *= backoff
-                        else:
-                            logger.error(
-                                f"Test {func.__name__} failed after {max_attempts} attempts"
-                            )
-
-                if last_exception is not None:
-                    raise last_exception
-                raise RuntimeError("Unexpected failure in sync retry decorator")
-
-            return sync_wrapper
+            sync_func = func  # This is guaranteed to be sync by the check above
+            return retry_on_failure_sync(max_attempts, delay, backoff)(sync_func)
 
     return decorator
 
@@ -245,24 +267,36 @@ class TestDataIsolation:
         }
 
 
-def quarantine(reason: str) -> Callable[[F], F]:
+def quarantine(reason: str) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to mark tests as quarantined due to flakiness."""
 
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         # Mark test as skipped with quarantine reason
+        # We know pytest.mark.skip preserves the function signature
         marked_func = pytest.mark.skip(reason=f"Quarantined: {reason}")(func)
-        return cast(F, marked_func)
+        # Use a controlled assertion to convince mypy
+        if not callable(marked_func):
+            raise TypeError("pytest.mark.skip should return a callable")
+        # Since we verified it's callable and pytest preserves signatures, this is safe
+        return marked_func
 
     return decorator
 
 
-def flaky_on_ci(reason: str = "Flaky on CI") -> Callable[[F], F]:
+def flaky_on_ci(
+    reason: str = "Flaky on CI",
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to skip tests that are flaky specifically on CI."""
 
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         if os.environ.get("CI") == "true":
+            # We know pytest.mark.skip preserves the function signature
             marked_func = pytest.mark.skip(reason=f"Skipped on CI: {reason}")(func)
-            return cast(F, marked_func)
+            # Use a controlled assertion to convince mypy
+            if not callable(marked_func):
+                raise TypeError("pytest.mark.skip should return a callable")
+            # Since we verified it's callable and pytest preserves signatures, this is safe
+            return marked_func
         return func
 
     return decorator

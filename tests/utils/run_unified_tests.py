@@ -178,9 +178,9 @@ def main() -> None:
         },
         {
             "name": "Utility & Fixture Tests",
-            "path": "tests/utils/ tests/fixtures/",
+            "path": "tests/test_utilities/",
             "markers": "not e2e and not benchmark",
-            "coverage_target": None,  # Skip coverage for test utilities
+            "coverage_target": "tests.utils tests.fixtures",  # Test the utilities themselves
             "skip_flag": skip_utils,
             "emoji": "🛠️",
         },
@@ -202,15 +202,6 @@ def main() -> None:
         for suite in python_test_suites:
             if suite["skip_flag"]:
                 print(f"⏭️  Skipping {suite['name']}")
-                test_results[suite["name"]] = "SKIPPED"
-                continue
-
-            # Check if this is the utility/fixture suite which has no actual tests
-            if suite["name"] == "Utility & Fixture Tests":
-                # These directories contain test helpers and fixtures, not actual test cases
-                print(
-                    f"⏭️  {suite['name']} contains helpers and fixtures, not tests - skipping"
-                )
                 test_results[suite["name"]] = "SKIPPED"
                 continue
 

@@ -7,7 +7,7 @@ from backend.api.models import GameSettings, MCTSSettings, PlayerType
 # Common game configurations
 FAST_GAME_SETTINGS = GameSettings(
     mcts_settings=MCTSSettings(
-        c=0.158, min_simulations=50, max_simulations=50, use_rollout=True, seed=42
+        c=0.158, min_simulations=100, max_simulations=100, use_rollout=True, seed=42
     )
 )
 

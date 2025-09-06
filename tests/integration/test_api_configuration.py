@@ -28,6 +28,11 @@ from tests.models import (
 class TestAPIConfiguration:
     """Test API configuration including environment variables and URL handling."""
 
+    def _assert_dict(self, obj: object) -> Dict[str, object]:
+        """Assert that an object is a dictionary and return it typed."""
+        assert isinstance(obj, dict)
+        return obj
+
     async def test_api_base_url_configuration(self, test_config: TestConfig) -> None:
         """Test that API responds on configured host and port."""
         # Start server with custom configuration
@@ -73,7 +78,7 @@ class TestAPIConfiguration:
                 f"http://{test_config['api_host']}:{test_config['api_port']}/health"
             )
             assert response.status_code == 200
-            health_data = HealthResponse.model_validate(response.json())
+            health_data = HealthResponse.from_dict(self._assert_dict(response.json()))
             assert health_data.status == "healthy"
 
         finally:
@@ -164,7 +169,7 @@ class TestAPIConfiguration:
             # Test 404 error
             response = await client.get("/games/non-existent-game")
             assert response.status_code == 404
-            error = ErrorResponse.model_validate(response.json())
+            error = ErrorResponse.from_dict(self._assert_dict(response.json()))
             assert error.detail == "Game not found"
 
             # Test 400 error (invalid move)
@@ -177,14 +182,14 @@ class TestAPIConfiguration:
                     "player2_name": "P2",
                 },
             )
-            game = GameResponse.model_validate(game_response.json())
+            game = GameResponse.from_dict(self._assert_dict(game_response.json()))
 
             move_response = await client.post(
                 f"/games/{game.game_id}/moves",
                 json={"player_id": "wrong-player", "action": "*(0,0)"},
             )
             assert move_response.status_code == 403
-            error = ErrorResponse.model_validate(move_response.json())
+            error = ErrorResponse.from_dict(self._assert_dict(move_response.json()))
 
     async def test_api_health_endpoint_components(
         self, backend_server: subprocess.Popen[bytes], test_config: TestConfig
@@ -196,7 +201,7 @@ class TestAPIConfiguration:
             response = await client.get("/health")
             assert response.status_code == 200
 
-            health = HealthResponse.model_validate(response.json())
+            health = HealthResponse.from_dict(self._assert_dict(response.json()))
             assert health.status == "healthy"
             assert health.active_games >= 0
             assert health.connected_clients >= 0
