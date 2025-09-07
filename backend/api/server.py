@@ -73,6 +73,7 @@ app = FastAPI(
 # Static files configuration for frontend - updated for container path
 FRONTEND_BUILD_DIR = Path("/app/frontend/build")
 
+
 def setup_static_files() -> None:
     """Setup static file serving if frontend build exists."""
     if FRONTEND_BUILD_DIR.exists():
@@ -85,14 +86,13 @@ def setup_static_files() -> None:
 
         # Serve other static files (favicon, manifest, etc.)
         app.mount(
-            "/assets", 
-            StaticFiles(directory=str(FRONTEND_BUILD_DIR)), 
-            name="assets"
+            "/assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="assets"
         )
         logger.info(f"Static files configured from {FRONTEND_BUILD_DIR}")
     else:
         logger.warning(f"Frontend build directory not found: {FRONTEND_BUILD_DIR}")
         logger.warning("Run 'npm run build' in the frontend directory")
+
 
 # Setup static files
 setup_static_files()

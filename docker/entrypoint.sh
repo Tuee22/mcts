@@ -7,7 +7,12 @@ echo "🚀 Starting MCTS container setup..."
 if [ ! -d "/app/frontend/build" ] || [ -z "$(ls -A /app/frontend/build 2>/dev/null)" ]; then
     echo "📦 Building frontend (not found or empty)..."
     cd /app/frontend
-    npm ci
+    # Use npm ci if package-lock.json exists, otherwise use npm install
+    if [ -f "package-lock.json" ]; then
+        npm ci
+    else
+        npm install
+    fi
     npm run build
     echo "✅ Frontend build complete"
 else
@@ -15,7 +20,7 @@ else
 fi
 
 # Check and build C++ backend if needed
-if [ ! -f "/app/backend/core/_corridors_mcts.so" ]; then
+if [ ! -f "/app/backend/python/corridors/_corridors_mcts.so" ]; then
     echo "🔧 Building C++ backend (not found)..."
     cd /app/backend/core
     scons -c -Q  # Clean first for fresh build

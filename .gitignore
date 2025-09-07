@@ -15,6 +15,9 @@ __pycache__/
 *.os
 *.o
 
+# Specific C++ build artifacts
+backend/python/corridors/_corridors_mcts.so
+
 # Distribution / packaging
 .Python
 env/

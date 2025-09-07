@@ -60,12 +60,12 @@ class TestSingleServerConfiguration:
         ) as client:
             # Test root path serves frontend
             response = await client.get("/")
-            
+
             assert response.status_code == 200
             assert "text/html" in response.headers.get("content-type", "")
             # Should contain React app HTML
             assert "<!doctype html>" in response.text.lower()
-            assert "id=\"root\"" in response.text
+            assert 'id="root"' in response.text
 
     async def test_websocket_endpoint_no_cors_needed(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
@@ -124,7 +124,7 @@ class TestSingleServerConfiguration:
             response = await client.get("/static/css/main.627403ef.css")
             assert response.status_code == 200
             assert "text/css" in response.headers.get("content-type", "")
-            
+
             # Test that JS files are served
             response = await client.get("/static/js/main.823d7458.js")
             assert response.status_code == 200

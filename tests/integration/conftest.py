@@ -151,7 +151,6 @@ def backend_server(
         process.wait(timeout=5)
 
 
-
 @pytest.fixture
 def seeded_game_data() -> Dict[str, Union[str, List[Dict[str, Union[int, str]]]]]:
     """Provide seeded game data for consistent testing."""

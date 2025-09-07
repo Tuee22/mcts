@@ -56,8 +56,6 @@ def e2e_config() -> E2EConfig:
     )
 
 
-
-
 # Import async fixtures for Playwright
 from .async_fixtures import async_page, browser, context, e2e_urls  # noqa: F401
 
