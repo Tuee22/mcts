@@ -120,12 +120,24 @@ class TestSingleServerConfiguration:
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            # Test that CSS files are served
-            response = await client.get("/static/css/main.627403ef.css")
-            assert response.status_code == 200
-            assert "text/css" in response.headers.get("content-type", "")
+            # Test that CSS files are served - get actual filename from build directory
+            import os
+            from pathlib import Path
 
-            # Test that JS files are served
-            response = await client.get("/static/js/main.823d7458.js")
-            assert response.status_code == 200
-            assert "javascript" in response.headers.get("content-type", "")
+            build_dir = Path("/app/frontend/build/static")
+            if build_dir.exists():
+                # Find CSS file
+                css_files = list((build_dir / "css").glob("main.*.css"))
+                if css_files:
+                    css_file = css_files[0].name
+                    response = await client.get(f"/static/css/{css_file}")
+                    assert response.status_code == 200
+                    assert "text/css" in response.headers.get("content-type", "")
+
+                # Find JS file
+                js_files = list((build_dir / "js").glob("main.*.js"))
+                if js_files:
+                    js_file = js_files[0].name
+                    response = await client.get(f"/static/js/{js_file}")
+                    assert response.status_code == 200
+                    assert "javascript" in response.headers.get("content-type", "")

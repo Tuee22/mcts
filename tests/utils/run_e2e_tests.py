@@ -61,74 +61,40 @@ def check_server_health(url: str, max_retries: int = 30) -> bool:
     return False
 
 
-def start_backend_server() -> "subprocess.Popen[bytes]":
-    """Start backend server for E2E tests."""
-    env = os.environ.copy()
-    env.update(
-        {
-            "MCTS_API_HOST": "0.0.0.0",
-            "MCTS_API_PORT": "8002",
-            "MCTS_CORS_ORIGINS": "*",
-        }
-    )
+def check_docker_container_health() -> bool:
+    """Check if Docker container is running and healthy."""
+    try:
+        # Check if docker compose service is running
+        result = subprocess.run(
+            ["docker", "compose", "ps", "--services", "--filter", "status=running"],
+            cwd="../docker",
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
 
-    process: subprocess.Popen[bytes] = subprocess.Popen(
-        [
-            "python",
-            "-m",
-            "uvicorn",
-            "backend.api.server:app",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            "8002",
-        ],
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+        if result.returncode != 0 or not result.stdout or "mcts" not in result.stdout:
+            print("❌ Docker container not running, starting it...")
+            # Start the container
+            start_result = subprocess.run(
+                ["docker", "compose", "up", "-d"], cwd="../docker", timeout=60
+            )
+            if start_result.returncode != 0:
+                return False
 
-    # Wait for server to be ready
-    if not check_server_health("http://localhost:8002/health"):
-        process.terminate()
-        raise RuntimeError("Backend server failed to start for E2E tests")
+            # Wait a bit for container to fully start
+            time.sleep(5)
 
-    print("✅ Backend server started on port 8002")
-    return process
+        # Check if the server is healthy
+        if not check_server_health("http://localhost:8000/health"):
+            return False
 
+        print("✅ Docker container is running and healthy on port 8000")
+        return True
 
-def start_frontend_server() -> "subprocess.Popen[bytes]":
-    """Start frontend server for E2E tests."""
-    # Build frontend if not already built
-    if not os.path.exists("frontend/build"):
-        print("📦 Building frontend...")
-        result = subprocess.run(["npm", "run", "build"], cwd="frontend", check=True)
-        if result.returncode != 0:
-            raise RuntimeError("Frontend build failed")
-
-    env = os.environ.copy()
-    env.update(
-        {
-            "REACT_APP_API_URL": "http://localhost:8002",
-            "REACT_APP_WS_URL": "ws://localhost:8002/ws",
-        }
-    )
-
-    process: subprocess.Popen[bytes] = subprocess.Popen(
-        ["npx", "serve", "-s", "build", "-l", "3002"],
-        cwd="frontend",
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    # Wait for server to be ready
-    if not check_server_health("http://localhost:3002"):
-        process.terminate()
-        raise RuntimeError("Frontend server failed to start for E2E tests")
-
-    print("✅ Frontend server started on port 3002")
-    return process
+    except Exception as e:
+        print(f"❌ Failed to check/start Docker container: {e}")
+        return False
 
 
 def run_command(
@@ -170,33 +136,28 @@ def main() -> None:
 
     print("🌐 Running E2E tests with Playwright...")
 
-    # Ensure ports are free before starting E2E tests
+    # Clean up any leftover processes from previous test runs
     ensure_ports_free()
     time.sleep(1)  # Give ports time to be freed
 
-    # Start backend and frontend servers
-    backend_process = None
-    frontend_process = None
-
+    # Check Docker container health and start if needed
     try:
-        print("🚀 Starting backend server...")
-        backend_process = start_backend_server()
+        print("🐳 Checking Docker container status...")
+        if not check_docker_container_health():
+            raise RuntimeError("Docker container failed to start or is unhealthy")
 
-        print("🚀 Starting frontend server...")
-        frontend_process = start_frontend_server()
-
-        # Set up environment for E2E tests
+        # Set up environment for E2E tests to use Docker container
         env = os.environ.copy()
-        env["E2E_BACKEND_URL"] = "http://localhost:8002"
-        env["E2E_FRONTEND_URL"] = "http://localhost:3002"
-        env["E2E_WS_URL"] = "ws://localhost:8002/ws"
+        env["E2E_BACKEND_URL"] = "http://localhost:8000"
+        env["E2E_FRONTEND_URL"] = "http://localhost:8000"
+        env["E2E_WS_URL"] = "ws://localhost:8000/ws"
 
         if args.headed:
             env["E2E_HEADLESS"] = "false"
         if args.debug:
             env["PWDEBUG"] = "1"
 
-        # Run ALL E2E tests
+        # Run ALL E2E tests against Docker container
         e2e_cmd = [
             "pytest",
             "tests/e2e/",
@@ -209,14 +170,8 @@ def main() -> None:
         success = run_command(e2e_cmd, "E2E Tests", env=env)
 
     finally:
-        # Clean up servers
-        print("\n🧹 Cleaning up servers...")
-        if backend_process:
-            backend_process.terminate()
-            backend_process.wait(timeout=5)
-        if frontend_process:
-            frontend_process.terminate()
-            frontend_process.wait(timeout=5)
+        # Docker container continues running for other uses
+        print("\n✅ Docker container remains running for continued use")
 
     # Final summary
     print(f"\n{'='*60}")

@@ -329,6 +329,9 @@ class TestMainFunction:
         ), patch("os.chdir"), patch(
             "tests.utils.run_unified_tests.run_command", return_value=True
         ), patch(
+            "tests.utils.run_unified_tests.check_docker_container_health",
+            return_value=True,
+        ), patch(
             "builtins.print"
         ), patch(
             "sys.exit"

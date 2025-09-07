@@ -100,6 +100,23 @@ def check_server_health(url: str, max_retries: int = 30) -> bool:
     return False
 
 
+def check_docker_container_health() -> bool:
+    """Check if we're running inside Docker container and server is healthy."""
+    try:
+        # When running inside Docker container, just check if server is healthy
+        # The server should be running on localhost:8000 in the same container
+        if not check_server_health("http://localhost:8000/health"):
+            print("❌ Server is not healthy on localhost:8000")
+            return False
+
+        print("✅ Server is running and healthy on port 8000")
+        return True
+
+    except Exception as e:
+        print(f"❌ Failed to check server health: {e}")
+        return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run all MCTS tests: Python (Unit → Integration → Benchmarks) → Frontend → E2E"
@@ -268,18 +285,31 @@ def main() -> None:
     if not args.skip_e2e and (not args.fail_fast or success):
         print("\n🌐 Running E2E tests with Playwright...")
 
-        # Use our dedicated E2E test runner
-        e2e_cmd = ["python", "tests/utils/run_e2e_tests.py"]
-        if args.verbose:
-            e2e_cmd.append("--verbose")
-        if args.headed:
-            e2e_cmd.append("--headed")
-        if args.debug:
-            e2e_cmd.append("--debug")
+        # Check Docker container health before running E2E tests
+        if not check_docker_container_health():
+            print("❌ Docker container is not healthy, E2E tests cannot run")
+            test_results["E2E Tests"] = "FAILED"
+            success = False
+        else:
+            # Set up environment for E2E tests to use Docker container
+            env = os.environ.copy()
+            env["E2E_BACKEND_URL"] = "http://localhost:8000"
+            env["E2E_FRONTEND_URL"] = "http://localhost:8000"
+            env["E2E_WS_URL"] = "ws://localhost:8000/ws"
 
-        e2e_success = run_command(e2e_cmd, "E2E Tests")
-        test_results["E2E Tests"] = "PASSED" if e2e_success else "FAILED"
-        success = success and e2e_success
+            if args.headed:
+                env["E2E_HEADLESS"] = "false"
+            if args.debug:
+                env["PWDEBUG"] = "1"
+
+            # Run E2E tests directly with pytest
+            e2e_cmd = ["pytest", "tests/e2e/", "-v"]
+            if args.verbose:
+                e2e_cmd.append("-s")
+
+            e2e_success = run_command(e2e_cmd, "E2E Tests", env=env)
+            test_results["E2E Tests"] = "PASSED" if e2e_success else "FAILED"
+            success = success and e2e_success
 
     # Final summary
     print(f"\n{'='*80}")

@@ -52,12 +52,26 @@ class WebSocketService {
         // Handle different message types
         switch (data.type) {
           case 'connect':
-            // Connection confirmed
+            // Connection confirmed from server
+            useGameStore.getState().setIsConnected(true);
+            useGameStore.getState().setError(null);
+            console.log('WebSocket connection confirmed by server');
             break;
           case 'game_created':
-            // Handle game creation
+            // Handle game creation response
+            if (data.game_id) {
+              useGameStore.getState().setGameId(data.game_id);
+              useGameStore.getState().setIsLoading(false);
+              console.log('Game created:', data.game_id);
+            }
+            break;
+          case 'pong':
+            // Handle ping/pong for keepalive
+            console.log('WebSocket pong received');
             break;
           // Add other message types as needed
+          default:
+            console.log('Unknown WebSocket message type:', data.type);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -66,17 +80,50 @@ class WebSocketService {
 
   }
 
-  createGame(settings: any) {
+  async createGame(settings: any) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       useGameStore.getState().setError('Not connected to server');
       return;
     }
 
     useGameStore.getState().setIsLoading(true);
-    this.socket.send(JSON.stringify({
-      type: 'create_game',
-      data: settings
-    }));
+
+    try {
+      // Convert frontend game settings to backend format
+      const gameRequest = {
+        player1_type: 'human',
+        player2_type: settings.mode === 'human_vs_human' ? 'human' : 'machine',
+        player1_name: 'Player 1',
+        player2_name: settings.mode === 'human_vs_human' ? 'Player 2' : 'AI',
+        settings: {
+          board_size: settings.board_size,
+          ai_config: settings.ai_config
+        }
+      };
+
+      // Create game via REST API
+      const response = await fetch('/games', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(gameRequest)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create game: ${response.statusText}`);
+      }
+
+      const gameData = await response.json();
+      useGameStore.getState().setGameId(gameData.game_id);
+      useGameStore.getState().setGameState(gameData.state);
+      useGameStore.getState().setIsLoading(false);
+      
+    } catch (error) {
+      console.error('Error creating game:', error);
+      useGameStore.getState().setError(`Failed to create game: ${error}`);
+      useGameStore.getState().setIsLoading(false);
+    }
   }
 
   joinGame(gameId: string) {
