@@ -30,8 +30,8 @@ config: Dict[
     "reporter": "list",
     # Global test configuration
     "use": {
-        # Base URL for navigation
-        "base_url": os.environ.get("E2E_FRONTEND_URL", "http://localhost:3002"),
+        # Base URL for navigation - single server on port 8000
+        "base_url": os.environ.get("E2E_FRONTEND_URL", "http://localhost:8000"),
         # Viewport size
         "viewport": {"width": 1280, "height": 720},
         # Ignore HTTPS errors
@@ -63,27 +63,16 @@ config: Dict[
             },
         },
     ],
-    # Web server configuration - start backend and frontend before tests
+    # Web server configuration - single server serving both API and frontend
     "web_server": [
         {
-            "command": "python -m uvicorn backend.api.server:app --host 0.0.0.0 --port 8002",
-            "port": 8002,
+            "command": "python -m uvicorn backend.api.server:app --host 0.0.0.0 --port 8000",
+            "port": 8000,
             "timeout": 30 * 1000,
             "reuse_existing_server": not os.environ.get("CI"),
             "env": {
                 "MCTS_API_HOST": "0.0.0.0",
-                "MCTS_API_PORT": "8002",
-                "MCTS_CORS_ORIGINS": "*",
-            },
-        },
-        {
-            "command": "cd frontend && npx serve -s build -l 3002",
-            "port": 3002,
-            "timeout": 30 * 1000,
-            "reuse_existing_server": not os.environ.get("CI"),
-            "env": {
-                "REACT_APP_API_URL": "http://localhost:8002",
-                "REACT_APP_WS_URL": "ws://localhost:8002/ws",
+                "MCTS_API_PORT": "8000",
             },
         },
     ],

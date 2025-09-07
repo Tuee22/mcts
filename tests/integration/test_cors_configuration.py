@@ -1,4 +1,4 @@
-"""Integration tests for CORS configuration and cross-origin requests."""
+"""Integration tests for single-server architecture (no CORS needed)."""
 
 import subprocess
 from typing import Dict, List
@@ -9,17 +9,17 @@ from httpx import AsyncClient
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-class TestCORSConfiguration:
-    """Test CORS configuration for different scenarios."""
+class TestSingleServerConfiguration:
+    """Test single-server configuration without CORS."""
 
-    async def test_cors_headers_on_api_endpoints(
+    async def test_no_cors_headers_in_single_server(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test that CORS headers are properly set on API responses."""
+        """Test that CORS headers are NOT present in single-server architecture."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            # Test preflight request
+            # Test preflight request - should fail in single-server mode
             response = await client.options(
                 "/games",
                 headers={
@@ -29,70 +29,52 @@ class TestCORSConfiguration:
                 },
             )
 
-            assert response.status_code == 200
-            assert "Access-Control-Allow-Origin" in response.headers
-            # When credentials are allowed, CORS returns the specific origin, not "*"
-            assert response.headers["Access-Control-Allow-Origin"] in [
-                "http://localhost:3001",
-                "*",
-            ]
-            assert "Access-Control-Allow-Methods" in response.headers
-            assert "POST" in response.headers["Access-Control-Allow-Methods"]
+            # OPTIONS method should not be allowed (405 Method Not Allowed)
+            assert response.status_code == 405
+            # CORS headers should NOT be present
+            assert "Access-Control-Allow-Origin" not in response.headers
 
-    async def test_cors_with_actual_request(
+    async def test_api_requests_work_without_cors(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test CORS headers on actual API requests."""
+        """Test that API requests work without CORS headers."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            # Make request with Origin header
+            # Make request with Origin header (would require CORS in multi-server setup)
             response = await client.get(
                 "/health", headers={"Origin": "http://localhost:3001"}
             )
 
             assert response.status_code == 200
-            # When credentials are allowed, CORS returns the specific origin, not "*"
-            assert response.headers.get("Access-Control-Allow-Origin") in [
-                "http://localhost:3001",
-                "*",
-            ]
-            assert response.headers.get("Access-Control-Allow-Credentials") == "true"
+            # No CORS headers should be present in single-server architecture
+            assert "Access-Control-Allow-Origin" not in response.headers
+            assert "Access-Control-Allow-Credentials" not in response.headers
 
-    async def test_cors_with_different_origins(
+    async def test_frontend_served_from_same_server(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test CORS behavior with different origin headers."""
-        origins: List[str] = [
-            "http://localhost:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3001",
-            "https://example.com",
-            "http://192.168.1.100:3000",
-        ]
-
+        """Test that frontend is served from the same server as API."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            for origin in origins:
-                response = await client.get("/health", headers={"Origin": origin})
+            # Test root path serves frontend
+            response = await client.get("/")
+            
+            assert response.status_code == 200
+            assert "text/html" in response.headers.get("content-type", "")
+            # Should contain React app HTML
+            assert "<!doctype html>" in response.text.lower()
+            assert "id=\"root\"" in response.text
 
-                assert response.status_code == 200
-                # When credentials are allowed, CORS returns the specific origin
-                assert response.headers.get("Access-Control-Allow-Origin") in [
-                    origin,
-                    "*",
-                ]
-
-    async def test_cors_preflight_for_websocket_endpoint(
+    async def test_websocket_endpoint_no_cors_needed(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test CORS preflight for WebSocket endpoint."""
+        """Test that WebSocket endpoint doesn't need CORS in single-server setup."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            # WebSocket endpoints typically don't use CORS the same way
-            # but we should test the upgrade request headers
+            # OPTIONS should not be allowed on WebSocket endpoint
             response = await client.options(
                 "/ws",
                 headers={
@@ -102,16 +84,18 @@ class TestCORSConfiguration:
                 },
             )
 
-            assert response.status_code == 200
-            assert "Access-Control-Allow-Origin" in response.headers
+            # WebSocket endpoints don't support OPTIONS
+            assert response.status_code == 405
+            assert "Access-Control-Allow-Origin" not in response.headers
 
-    async def test_cors_with_credentials(
+    async def test_api_works_with_same_origin_requests(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test CORS with credentials flag."""
+        """Test that API requests work without CORS complexity."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
+            # This would work in single-server setup without CORS
             response = await client.post(
                 "/games",
                 json={
@@ -121,78 +105,27 @@ class TestCORSConfiguration:
                     "player2_name": "AI",
                 },
                 headers={
-                    "Origin": "http://localhost:3001",
-                    "Cookie": "session=test123",  # Simulate credentials
+                    "Origin": f"http://{test_config['api_host']}:{test_config['api_port']}",
                 },
             )
 
             assert response.status_code == 200
-            assert response.headers.get("Access-Control-Allow-Credentials") == "true"
+            # No CORS headers needed
+            assert "Access-Control-Allow-Credentials" not in response.headers
 
-    async def test_cors_blocked_methods(
+    async def test_single_server_static_assets(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
     ) -> None:
-        """Test that CORS configuration allows all needed methods."""
-        methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
-
+        """Test that static assets are served correctly."""
         async with AsyncClient(
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
-            for method in methods:
-                response = await client.options(
-                    "/games",
-                    headers={
-                        "Origin": "http://localhost:3001",
-                        "Access-Control-Request-Method": method,
-                    },
-                )
-
-                assert response.status_code == 200
-                allowed_methods = response.headers.get(
-                    "Access-Control-Allow-Methods", ""
-                )
-                assert method in allowed_methods or "*" in allowed_methods
-
-    async def test_cors_custom_headers(
-        self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
-    ) -> None:
-        """Test CORS with custom headers."""
-        async with AsyncClient(
-            base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
-        ) as client:
-            # Test preflight with custom headers
-            response = await client.options(
-                "/games",
-                headers={
-                    "Origin": "http://localhost:3001",
-                    "Access-Control-Request-Method": "POST",
-                    "Access-Control-Request-Headers": "X-Custom-Header, X-Request-ID",
-                },
-            )
-
+            # Test that CSS files are served
+            response = await client.get("/static/css/main.627403ef.css")
             assert response.status_code == 200
-            allowed_headers = response.headers.get("Access-Control-Allow-Headers", "")
-            # Check that requested headers are allowed
-            assert "X-Custom-Header" in allowed_headers
-            assert "X-Request-ID" in allowed_headers
-
-    async def test_cors_max_age_header(
-        self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
-    ) -> None:
-        """Test CORS max age header for preflight caching."""
-        async with AsyncClient(
-            base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
-        ) as client:
-            response = await client.options(
-                "/games",
-                headers={
-                    "Origin": "http://localhost:3001",
-                    "Access-Control-Request-Method": "POST",
-                },
-            )
-
+            assert "text/css" in response.headers.get("content-type", "")
+            
+            # Test that JS files are served
+            response = await client.get("/static/js/main.823d7458.js")
             assert response.status_code == 200
-            # Check if max age is set (optional but good practice)
-            max_age = response.headers.get("Access-Control-Max-Age")
-            if max_age:
-                assert int(max_age) > 0
+            assert "javascript" in response.headers.get("content-type", "")

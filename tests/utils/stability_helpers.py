@@ -203,21 +203,11 @@ class PortManager:
 
     _used_ports: Set[int] = set()
     _base_api_port: int = 8000
-    _base_frontend_port: int = 3000
 
     @classmethod
     def get_available_api_port(cls) -> int:
         """Get an available API port for testing."""
         port = cls._base_api_port
-        while port in cls._used_ports:
-            port += 1
-        cls._used_ports.add(port)
-        return port
-
-    @classmethod
-    def get_available_frontend_port(cls) -> int:
-        """Get an available frontend port for testing."""
-        port = cls._base_frontend_port
         while port in cls._used_ports:
             port += 1
         cls._used_ports.add(port)
@@ -232,16 +222,13 @@ class PortManager:
     def get_test_config(cls) -> Dict[str, Union[str, int]]:
         """Get test configuration with unique ports."""
         api_port = cls.get_available_api_port()
-        frontend_port = cls.get_available_frontend_port()
 
         return {
             "api_host": "127.0.0.1",
             "api_port": api_port,
-            "frontend_host": "127.0.0.1",
-            "frontend_port": frontend_port,
             "ws_url": f"ws://127.0.0.1:{api_port}/ws",
             "backend_url": f"http://127.0.0.1:{api_port}",
-            "frontend_url": f"http://127.0.0.1:{frontend_port}",
+            "frontend_url": f"http://127.0.0.1:{api_port}",  # Same as backend now
         }
 
 

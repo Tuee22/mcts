@@ -17,7 +17,6 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
@@ -71,27 +70,35 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Static files configuration for frontend
-FRONTEND_BUILD_DIR = Path("/home/mcts/frontend/build")
-if FRONTEND_BUILD_DIR.exists():
-    # Mount static assets first (CSS, JS, images)
-    app.mount(
-        "/static",
-        StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
-        name="static",
-    )
+# Static files configuration for frontend - updated for container path
+FRONTEND_BUILD_DIR = Path("/app/frontend/build")
 
-    # Serve other static files (favicon, manifest, etc.)
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="assets")
+def setup_static_files() -> None:
+    """Setup static file serving if frontend build exists."""
+    if FRONTEND_BUILD_DIR.exists():
+        # Mount static assets first (CSS, JS, images, etc.)
+        app.mount(
+            "/static",
+            StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
+            name="static",
+        )
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+        # Serve other static files (favicon, manifest, etc.)
+        app.mount(
+            "/assets", 
+            StaticFiles(directory=str(FRONTEND_BUILD_DIR)), 
+            name="assets"
+        )
+        logger.info(f"Static files configured from {FRONTEND_BUILD_DIR}")
+    else:
+        logger.warning(f"Frontend build directory not found: {FRONTEND_BUILD_DIR}")
+        logger.warning("Run 'npm run build' in the frontend directory")
+
+# Setup static files
+setup_static_files()
+
+# CORS configuration - removed for single-server architecture
+# All requests come from same origin, no CORS needed
 
 
 # ==================== Game Management Endpoints ====================

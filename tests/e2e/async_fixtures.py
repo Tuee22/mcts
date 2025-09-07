@@ -51,10 +51,8 @@ async def async_page(context: BrowserContext) -> AsyncGenerator[Page, None]:
 @pytest.fixture
 def e2e_urls(
     e2e_config: Dict[str, object],
-    frontend_e2e_server: None,  # Ensure frontend server is started
-    backend_e2e_server: None,  # Ensure backend server is started
 ) -> Dict[str, str]:
-    """E2E Test URLs - depends on servers being started."""
+    """E2E Test URLs - uses Docker container server."""
     return {
         "frontend": str(e2e_config["frontend_url"]),
         "backend": str(e2e_config["backend_url"]),

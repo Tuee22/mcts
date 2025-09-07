@@ -10,8 +10,9 @@ class WebSocketService {
       return;
     }
 
-    // Support environment variable for API URL
-    const wsUrl = url || process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
+    // Use relative WebSocket URL for single-server architecture
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = url || `${protocol}//${window.location.host}/ws`;
 
     try {
       this.socket = new WebSocket(wsUrl);

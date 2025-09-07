@@ -27,10 +27,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 class TestConfig(TypedDict):
     api_host: str
     api_port: int
-    frontend_host: str
-    frontend_port: int
     database_url: str
-    cors_origins: List[str]
     websocket_timeout: int
     connection_retry_max: int
     connection_retry_delay: float
@@ -41,11 +38,8 @@ def test_config() -> TestConfig:
     """Test configuration with dedicated settings."""
     return TestConfig(
         api_host="127.0.0.1",
-        api_port=8000,  # Use the default port where Docker container runs the server
-        frontend_host="127.0.0.1",
-        frontend_port=3001,  # Different from default 3000
+        api_port=8000,  # Single server serves both API and frontend
         database_url="sqlite+aiosqlite:///:memory:",
-        cors_origins=["http://localhost:3001", "http://127.0.0.1:3001"],
         websocket_timeout=5,
         connection_retry_max=3,
         connection_retry_delay=0.5,
@@ -114,7 +108,6 @@ def backend_server(
         {
             "MCTS_API_HOST": test_config["api_host"],
             "MCTS_API_PORT": str(test_config["api_port"]),
-            "MCTS_CORS_ORIGINS": ",".join(test_config["cors_origins"]),
             "MCTS_DATABASE_URL": test_config["database_url"],
         }
     )
@@ -157,60 +150,6 @@ def backend_server(
         process.terminate()
         process.wait(timeout=5)
 
-
-@pytest.fixture(scope="session")
-def frontend_server(
-    test_config: TestConfig,
-) -> Generator[Union[subprocess.Popen[bytes], None], None, None]:
-    """Start frontend development server for E2E tests or use existing one."""
-    # Skip frontend server in Docker container environment
-    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
-        print("Running in Docker container, skipping frontend server")
-        yield None
-        return
-
-    env = os.environ.copy()
-    env.update(
-        {
-            "REACT_APP_API_URL": f"http://{test_config['api_host']}:{test_config['api_port']}",
-            "REACT_APP_WS_URL": f"ws://{test_config['api_host']}:{test_config['api_port']}/ws",
-            "PORT": str(test_config["frontend_port"]),
-        }
-    )
-
-    # Build frontend first
-    subprocess.run(["npm", "run", "build"], cwd="frontend", env=env, check=True)
-
-    # Start frontend server
-    process: subprocess.Popen[bytes] = subprocess.Popen(
-        ["npm", "run", "serve", "--", "-l", str(test_config["frontend_port"])],
-        cwd="frontend",
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-
-    # Wait for server to be ready
-    max_retries = 30
-    for _ in range(max_retries):
-        try:
-            response = requests.get(
-                f"http://{test_config['frontend_host']}:{test_config['frontend_port']}"
-            )
-            if response.status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.5)
-    else:
-        process.terminate()
-        raise RuntimeError("Frontend server failed to start")
-
-    yield process
-
-    # Cleanup
-    if process:  # Only cleanup if we started a process
-        process.terminate()
-        process.wait(timeout=5)
 
 
 @pytest.fixture

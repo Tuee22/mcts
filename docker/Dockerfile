@@ -95,16 +95,20 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev
 
-# Install frontend dependencies for E2E tests
-RUN cd frontend && npm install && npm install --save-dev serve
+# Build frontend during image creation
+RUN cd frontend && npm install && npm run build
 
 # Install Playwright browsers and dependencies
 # Must be done as root for system-wide installation
 RUN playwright install --with-deps chromium firefox webkit
 
-# Skip C++ build during image creation - will be built on container start
-# This ensures the module is compiled for the runtime architecture
+# Build C++ during image creation (changed from skipping to building)
 WORKDIR /app/backend/core
+RUN scons -Q
+
+# Copy entrypoint script and make executable (before switching to user)
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Fix ownership of all built files
 RUN chown -R ${USER_ID}:${GROUP_ID} /app
@@ -122,13 +126,8 @@ RUN which scons && echo "✅ SCons available for runtime build"
 WORKDIR /app
 RUN mkdir -p /home/mcts && ln -s /app/frontend /home/mcts/frontend || true
 
-# Expose API port (backend) and frontend port for E2E tests
-EXPOSE 8000 3000
+# Expose only the single server port
+EXPOSE 8000
 
-# Use tini for proper signal handling
-# Note: For improved browser reliability when running directly with docker run, use:
-# --init --ipc=host flags (e.g., docker run --init --ipc=host mcts:cpu)
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# Default command - clean and rebuild C++ to ensure correct architecture, then launch backend API server via Poetry
-CMD ["sh", "-c", "cd /app/backend/core && scons -c -Q && scons -Q && cd /app && exec poetry run server"]
+# Use tini for proper signal handling with our entrypoint script
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

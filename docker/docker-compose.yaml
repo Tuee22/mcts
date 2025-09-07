@@ -27,3 +27,12 @@ services:
         source: ..
         target: /app
         read_only: false
+      # Named volumes for build artifacts (preserves them across bind mounts)
+      - frontend-build:/app/frontend/build
+      - cpp-build:/app/backend/core
+      - node-modules:/app/frontend/node_modules
+
+volumes:
+  frontend-build:
+  cpp-build:
+  node-modules:

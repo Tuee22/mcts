@@ -46,41 +46,29 @@ A React TypeScript frontend for the Corridors board game, featuring real-time ga
 cd docker
 docker compose up -d
 
-# Frontend will be available at http://localhost:3000
-# Backend API at http://localhost:8000
+# Application will be available at http://localhost:8000
+# Serves both frontend and API from single server
 # WebSocket at ws://localhost:8000/ws
 ```
 
 **Option 2: Local Development**
 
 ```bash
-# Install dependencies
-npm install
+# Build frontend first
+npm run build
 
-# Set environment variables (optional)
-export REACT_APP_API_URL=http://localhost:8000
-export REACT_APP_WS_URL=ws://localhost:8000/ws
+# Start backend server (from project root)
+cd ..
+poetry run server
 
-# Start development server
-npm start
+# Application available at http://localhost:8000
 ```
 
-The application will open at [http://localhost:3000](http://localhost:3000).
+The application will be available at [http://localhost:8000](http://localhost:8000).
 
 ## Environment Configuration
 
-The frontend can be configured via environment variables:
-
-```bash
-# Backend API base URL
-REACT_APP_API_URL=http://localhost:8000
-
-# WebSocket URL for real-time communication
-REACT_APP_WS_URL=ws://localhost:8000/ws
-
-# Frontend port (development)
-PORT=3000
-```
+The frontend now uses relative URLs and runs from the same server as the backend. No environment variables are needed for URL configuration in the single-server architecture.
 
 ## Available Scripts
 
@@ -113,12 +101,9 @@ The frontend connects to the backend WebSocket server for:
 - `POST /games/{game_id}/moves` - Make a move
 - `GET /health` - Backend health check
 
-### CORS Configuration
+### Same-Origin Architecture
 
-The backend is configured to accept requests from:
-- `http://localhost:3000` (development)
-- `http://localhost:3001` (testing)
-- Custom origins via `MCTS_CORS_ORIGINS` environment variable
+The frontend and backend run from the same server, eliminating CORS concerns. All requests are same-origin.
 
 ## Game Rules Integration
 
@@ -174,14 +159,13 @@ npx serve -s build -l 3000
 ### Docker Production
 
 ```bash
-# Build production image
-docker build -t mcts-frontend .
+# Build production image (includes both frontend and backend)
+cd docker && docker compose build
 
-# Run container
-docker run -p 3000:3000 \
-  -e REACT_APP_API_URL=http://your-backend:8000 \
-  -e REACT_APP_WS_URL=ws://your-backend:8000/ws \
-  mcts-frontend
+# Run container (single port for entire application)
+docker compose up -d
+
+# Application available at http://localhost:8000
 ```
 
 ## Development Guidelines
@@ -211,7 +195,7 @@ docker run -p 3000:3000 \
 ### Connection Issues
 
 ```bash
-# Check backend status
+# Check application status (frontend and backend together)
 curl http://localhost:8000/health
 
 # Verify WebSocket endpoint

@@ -21,6 +21,10 @@ This project uses the @no-git-commits agent policy. You may stage changes with `
 
 This is a Monte Carlo Tree Search (MCTS) implementation for the Corridors board game, featuring a high-performance C++ backend with Python bindings. The project combines advanced MCTS algorithms with efficient board representation and supports both traditional UCT and modern PUCT (Alpha-Zero style) formulations.
 
+### Architecture
+
+The project uses a **single-server architecture** where FastAPI serves both the API and frontend from port 8000. The Docker setup uses named volumes to preserve build artifacts while supporting bind mounts for live development.
+
 ## Development Commands
 
 ### Environment Setup
@@ -32,12 +36,21 @@ poetry install --with dev
 cd docker
 
 # CPU-only build
-docker compose build    # Build images
-docker compose up -d    # Run services
+docker compose build    # Build images (includes frontend and C++ compilation)
+docker compose up -d    # Run unified server on port 8000
 
 # GPU build (AMD64 only, requires NVIDIA Docker)
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml build
 docker compose -f docker-compose.yaml -f docker-compose.gpu.yaml up -d
+
+# Clean build (if needed)
+docker compose down -v  # Remove named volumes
+docker compose build --no-cache
+
+# Managing build artifacts
+docker compose exec mcts rm -rf /app/frontend/build  # Force frontend rebuild
+docker compose exec mcts rm -rf /app/backend/core/*.so  # Force C++ rebuild
+docker compose restart mcts  # Restart to trigger rebuilds
 ```
 
 ### Building C++ Components
@@ -53,10 +66,10 @@ scons sanitize=1        # Build with AddressSanitizer
 
 ### Testing
 **IMPORTANT: All tests MUST be run inside Docker containers**
-**IMPORTANT: Integration tests require the backend server, which runs automatically on port 8000 in the Docker container**
+**IMPORTANT: Integration tests require the unified server, which runs automatically on port 8000 in the Docker container and serves both API and frontend**
 
 ```bash
-# Start Docker services first (this also starts the backend server on port 8000)
+# Start Docker services first (this also starts the unified server on port 8000)
 cd docker && docker compose up -d
 
 # Run all tests (inside container) - recommended approach
@@ -79,7 +92,8 @@ docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fas
 ```
 
 **Note on Test Execution:**
-- The Docker container automatically starts the backend API server on port 8000 (see Dockerfile CMD)
+- The Docker container automatically starts the unified server on port 8000 (see Dockerfile CMD)
+- This server serves both the API and frontend from a single port
 - Integration tests connect to this running server on port 8000
 - DO NOT create instruction files for test execution - run tests directly
 - Agents should execute tests directly using Bash tool, not create documentation files
