@@ -19,9 +19,16 @@ async def test_connection_timeout_handling(e2e_urls: Dict[str, str]) -> None:
 
         try:
             # Set up request interception to delay responses significantly
+            cancel_event = asyncio.Event()
+
             async def delay_route(route: Route) -> None:
-                await asyncio.sleep(10)  # 10 second delay
-                await route.continue_()
+                try:
+                    await asyncio.wait_for(cancel_event.wait(), timeout=10.0)
+                    # If cancelled, abort the route
+                    await route.abort()
+                except asyncio.TimeoutError:
+                    # If timeout occurs, continue with route
+                    await route.continue_()
 
             await page.route("**/*", delay_route)
 
@@ -33,6 +40,11 @@ async def test_connection_timeout_handling(e2e_urls: Dict[str, str]) -> None:
                 print(f"✅ Timeout handled correctly: {type(e).__name__}")
 
         finally:
+            # Cancel any pending route handlers before cleanup
+            cancel_event.set()
+            await asyncio.sleep(0.1)  # Give time for handlers to process cancellation
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -96,6 +108,8 @@ async def test_partial_message_delivery(e2e_urls: Dict[str, str]) -> None:
                 print(f"ℹ️  Backend request affected by simulation: {e}")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -159,6 +173,8 @@ async def test_websocket_protocol_violation(e2e_urls: Dict[str, str]) -> None:
                 print(f"ℹ️  Backend affected by protocol violations: {e}")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -216,6 +232,8 @@ async def test_request_timeout_with_retry(e2e_urls: Dict[str, str]) -> None:
             print("✅ Request timeout and recovery pattern test completed")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -232,9 +250,16 @@ async def test_network_latency_impact(e2e_urls: Dict[str, str]) -> None:
 
         try:
             # Add 1 second delay to all requests
+            cancel_event = asyncio.Event()
+
             async def delay_route(route: Route) -> None:
-                await asyncio.sleep(1)  # 1 second delay
-                await route.continue_()
+                try:
+                    await asyncio.wait_for(cancel_event.wait(), timeout=1.0)
+                    # If cancelled, abort the route
+                    await route.abort()
+                except asyncio.TimeoutError:
+                    # If timeout occurs, continue with route
+                    await route.continue_()
 
             await page.route("**/*", delay_route)
 
@@ -260,6 +285,11 @@ async def test_network_latency_impact(e2e_urls: Dict[str, str]) -> None:
                 print(f"ℹ️  Request failed under high latency: {e}")
 
         finally:
+            # Cancel any pending route handlers before cleanup
+            cancel_event.set()
+            await asyncio.sleep(0.1)  # Give time for handlers to process cancellation
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -339,6 +369,8 @@ async def test_connection_drops_during_game_move(e2e_urls: Dict[str, str]) -> No
             print("✅ Game access recovered after connection restored")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -400,6 +432,8 @@ async def test_server_error_responses(e2e_urls: Dict[str, str]) -> None:
             print("✅ Other endpoints still functional after error")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -485,6 +519,8 @@ async def test_websocket_reconnection_backoff(e2e_urls: Dict[str, str]) -> None:
                 print("ℹ️  Not enough reconnection attempts captured in test duration")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
@@ -564,6 +600,8 @@ async def test_message_queuing_during_disconnect(e2e_urls: Dict[str, str]) -> No
             print("✅ Game access restored after connection recovery")
 
         finally:
+            # Clean up route handlers before closing to prevent pending task warnings
+            await page.unroute("**/*")
             await page.close()
             await context.close()
             await browser.close()
