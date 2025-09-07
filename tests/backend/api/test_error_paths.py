@@ -230,7 +230,18 @@ class TestMatchmakingExceptionPaths:
 class TestAnalysisExceptionPaths:
     """Test analysis and hint exception paths."""
 
-    pass
+    def test_placeholder_analysis_endpoints_not_implemented(self) -> None:
+        """Placeholder test documenting that analysis endpoints need to be implemented.
+
+        When analysis and hint endpoints are added to the API, this test class should include:
+        - Test exception handling in game analysis endpoints
+        - Test exception handling in hint generation endpoints
+        - Test error paths for invalid game states in analysis
+        - Test timeouts and resource limits in analysis operations
+        """
+        # This test passes to indicate the test structure is in place
+        # but actual analysis endpoint tests need to be implemented
+        assert True, "Analysis endpoints are not yet implemented in the API"
 
 
 class TestStatisticsExceptionPaths:

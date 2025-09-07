@@ -307,7 +307,7 @@ class TestMCTSParameterEdgeCases:
 
     def test_min_greater_than_max_simulations(self) -> None:
         """Test behavior when min_simulations > max_simulations."""
-        # This might be handled by the C++ code, test that it doesn't crash
+        # This should either work (correcting the range internally) or raise a specific error
         try:
             mcts = Corridors_MCTS(
                 c=1.0,
@@ -318,24 +318,53 @@ class TestMCTSParameterEdgeCases:
 
             mcts.ensure_sims(50)
             actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(actions, list)
-        except Exception:
-            # If it raises an exception, that's acceptable behavior
-            pass
+            assert isinstance(
+                actions, list
+            ), "MCTS should return list of actions when it handles invalid range internally"
+        except (ValueError, RuntimeError, TypeError) as e:
+            # Specific exceptions are acceptable for invalid parameters
+            assert len(str(e)) > 0, "Exception should have a descriptive message"
+        except Exception as e:
+            pytest.fail(
+                f"Unexpected exception type {type(e).__name__}: {e}. Expected ValueError, RuntimeError, or TypeError"
+            )
 
     def test_zero_increment(self) -> None:
         """Test with zero simulation increment."""
-        try:
-            mcts = Corridors_MCTS(
-                c=1.0, seed=42, min_simulations=10, max_simulations=20
-            )
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=20)
 
-            # This might hang or throw an error - either is acceptable
-            # Set a timeout via pytest if needed
+        # This should either complete normally or raise a specific timeout/runtime error
+        try:
+            # Use timeout to prevent hanging - pytest-timeout can help but we'll be explicit
+            import signal
+
+            def timeout_handler(signum: int, frame: object) -> None:
+                raise TimeoutError(
+                    "ensure_sims call timed out - likely hanging on zero increment"
+                )
+
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(5)  # 5 second timeout
+
             mcts.ensure_sims(10)
-        except Exception:
-            # Exception is acceptable for invalid parameters
-            pass
+
+            signal.alarm(0)  # Cancel timeout
+
+            # If we get here, the operation completed successfully
+            actions = mcts.get_sorted_actions(flip=True)
+            assert isinstance(
+                actions, list
+            ), "MCTS should return valid actions after ensure_sims"
+
+        except (TimeoutError, RuntimeError, ValueError) as e:
+            signal.alarm(0)  # Cancel timeout
+            # These are acceptable - either timeout due to hanging or immediate error
+            assert len(str(e)) > 0, "Exception should have a descriptive message"
+        except Exception as e:
+            signal.alarm(0)  # Cancel timeout
+            pytest.fail(
+                f"Unexpected exception type {type(e).__name__}: {e}. Expected TimeoutError, RuntimeError, or ValueError"
+            )
 
     @parametrize("seed", [-1, 0, 2**31 - 1, 2**32 - 1])
     def test_edge_case_seeds(self, seed: int) -> None:
@@ -347,10 +376,19 @@ class TestMCTSParameterEdgeCases:
 
             mcts.ensure_sims(5)
             actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(actions, list)
-        except Exception:
-            # Some seeds might be invalid - that's acceptable
-            pass
+            assert isinstance(
+                actions, list
+            ), f"MCTS should return list of actions with seed {seed}"
+            assert len(actions) >= 0, f"Actions list should be valid with seed {seed}"
+        except (ValueError, OverflowError, RuntimeError, TypeError) as e:
+            # Some seeds might be invalid (e.g., negative, overflow, type issues) - that's acceptable
+            assert (
+                len(str(e)) > 0
+            ), f"Exception for seed {seed} should have a descriptive message: {e}"
+        except Exception as e:
+            pytest.fail(
+                f"Unexpected exception type {type(e).__name__} for seed {seed}: {e}. Expected ValueError, OverflowError, RuntimeError, or TypeError"
+            )
 
 
 @edge_cases

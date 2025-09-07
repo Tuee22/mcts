@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
 import pytest
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import Timeout as RequestsTimeout
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
@@ -75,8 +77,17 @@ def backend_e2e_server(
             print("Backend server already running, reusing existing server")
             yield None
             return
-    except Exception:
-        pass
+    except (RequestsConnectionError, RequestsTimeout) as e:
+        # Expected when server is not running - proceed to start it
+        print(
+            f"Backend server not running ({type(e).__name__}), will start new instance"
+        )
+    except Exception as e:
+        # Unexpected error checking server health
+        print(
+            f"Warning: Unexpected error checking backend server health: {type(e).__name__}: {e}"
+        )
+        print("Proceeding to start new backend server instance")
 
     port = e2e_config["backend_url"].split(":")[-1]
     env = os.environ.copy()
@@ -151,8 +162,17 @@ def frontend_e2e_server(
             print("Frontend server already running, reusing existing server")
             yield None
             return
-    except Exception:
-        pass
+    except (RequestsConnectionError, RequestsTimeout) as e:
+        # Expected when server is not running - proceed to start it
+        print(
+            f"Frontend server not running ({type(e).__name__}), will start new instance"
+        )
+    except Exception as e:
+        # Unexpected error checking server health
+        print(
+            f"Warning: Unexpected error checking frontend server health: {type(e).__name__}: {e}"
+        )
+        print("Proceeding to start new frontend server instance")
 
     port = e2e_config["frontend_url"].split(":")[-1]
     env = os.environ.copy()
@@ -167,9 +187,21 @@ def frontend_e2e_server(
     # Build frontend if not already built
     if not os.path.exists("frontend/build"):
         print("Building frontend...")
-        result = subprocess.run(["npm", "run", "build"], cwd="frontend", env=env)
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd="frontend",
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+        )
         if result.returncode != 0:
-            print("Warning: Frontend build failed, continuing anyway")
+            error_msg = f"Frontend build failed with code {result.returncode}"
+            if result.stderr:
+                error_msg += f"\nSTDERR: {result.stderr!s}"
+            if result.stdout:
+                error_msg += f"\nSTDOUT: {result.stdout!s}"
+            raise RuntimeError(error_msg)
 
     # Start frontend server using serve
     print(f"Starting frontend server on port {port}...")

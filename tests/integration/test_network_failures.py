@@ -11,6 +11,7 @@ import pytest
 import websockets
 from httpx import AsyncClient
 from websockets.client import WebSocketClientProtocol
+from websockets.exceptions import ConnectionClosed
 
 from tests.fixtures.test_data_seeder import TestDataSeeder
 
@@ -116,7 +117,10 @@ class TestNetworkFailures:
             except asyncio.TimeoutError:
                 # If timeout occurs, it means server handled the error gracefully
                 # by ignoring the bad message and continuing to process good ones
-                pass
+                # This is acceptable behavior for partial JSON corruption
+                print(
+                    "Server gracefully ignored corrupted JSON message (expected behavior)"
+                )
 
     async def test_connection_recovery_after_network_interruption(
         self, test_config: Dict[str, object]
@@ -242,9 +246,17 @@ class TestNetworkFailures:
                     data = json.loads(response)
                     assert data["type"] == "pong"
                     return connection_id
+            except (asyncio.TimeoutError, ConnectionClosed, OSError) as e:
+                # Expected connection issues under stress - log for debugging
+                print(
+                    f"Connection {connection_id} failed with expected error: {type(e).__name__}: {e}"
+                )
+                return -1
             except Exception as e:
-                # Log error but don't fail - concurrent connections might stress the server
-                print(f"Connection {connection_id} failed: {e}")
+                # Unexpected error types should be reported
+                print(
+                    f"Connection {connection_id} failed with unexpected error: {type(e).__name__}: {e}"
+                )
                 return -1
 
         # Run 3 concurrent connections (reduced from 5 to avoid overwhelming test server)
@@ -253,9 +265,20 @@ class TestNetworkFailures:
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # At least some connections should succeed
+        # At least some connections should succeed - if all fail, there's likely a server issue
         successful_results = [r for r in results if isinstance(r, int) and r >= 0]
-        assert len(successful_results) >= 2  # At least 2 out of 3 should succeed
+        failed_results = [r for r in results if isinstance(r, int) and r == -1]
+        exception_results = [r for r in results if isinstance(r, Exception)]
+
+        # Log summary for debugging
+        print(
+            f"Concurrent connection results: {len(successful_results)} succeeded, {len(failed_results)} failed gracefully, {len(exception_results)} raised exceptions"
+        )
+
+        # At least 2 out of 3 should succeed under normal conditions
+        assert (
+            len(successful_results) >= 2
+        ), f"Only {len(successful_results)} out of 3 connections succeeded. This suggests server overload or configuration issues."
 
     async def test_websocket_protocol_error_recovery(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]
@@ -278,10 +301,26 @@ class TestNetworkFailures:
                 # This might cause the connection to close
                 try:
                     await websocket.send(b"binary data")
-                except Exception:
-                    pass  # Expected to fail
-        except Exception:
-            pass  # Connection might close, which is OK
+                    # If we get here without exception, server accepted binary data
+                    print("Warning: Server accepted binary data unexpectedly")
+                except (ConnectionClosed, TypeError, ValueError) as e:
+                    # Expected exceptions for invalid binary data
+                    print(
+                        f"Expected exception sending binary data: {type(e).__name__}: {e}"
+                    )
+                except Exception as e:
+                    pytest.fail(
+                        f"Unexpected exception type {type(e).__name__}: {e}. Expected ConnectionClosed, TypeError, or ValueError"
+                    )
+        except (ConnectionClosed, OSError) as e:
+            # Connection might close due to protocol errors, which is OK
+            print(
+                f"Connection closed as expected during protocol error test: {type(e).__name__}: {e}"
+            )
+        except Exception as e:
+            pytest.fail(
+                f"Unexpected outer exception type {type(e).__name__}: {e}. Expected ConnectionClosed or OSError"
+            )
 
         # Wait a moment before reconnecting
         await asyncio.sleep(0.5)
