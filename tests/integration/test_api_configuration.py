@@ -151,7 +151,7 @@ class TestAPIConfiguration:
         for url in ws_urls:
             try:
                 async with websockets.connect(url) as websocket:
-                    message = await websocket.recv()
+                    message = await asyncio.wait_for(websocket.recv(), timeout=5)
                     data = parse_test_websocket_message(json.loads(message))
                     assert data.type == "connect"
             except Exception as e:

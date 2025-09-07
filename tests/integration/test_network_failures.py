@@ -126,11 +126,11 @@ class TestNetworkFailures:
 
         # First connection
         websocket1 = await websockets.connect(uri)
-        await websocket1.recv()  # Connection message
+        await asyncio.wait_for(websocket1.recv(), timeout=5)  # Connection message
 
         # Send ping to verify connection
         await websocket1.send(json.dumps({"type": "ping"}))
-        await websocket1.recv()  # Pong response
+        await asyncio.wait_for(websocket1.recv(), timeout=5)  # Pong response
 
         # Simulate network interruption by closing
         await websocket1.close()
@@ -140,11 +140,13 @@ class TestNetworkFailures:
 
         # Should be able to reconnect
         async with websockets.connect(uri) as websocket2:
-            await websocket2.recv()  # New connection message
+            await asyncio.wait_for(
+                websocket2.recv(), timeout=5
+            )  # New connection message
 
             # Should work normally
             await websocket2.send(json.dumps({"type": "ping"}))
-            response = await websocket2.recv()
+            response = await asyncio.wait_for(websocket2.recv(), timeout=5)
             data = json.loads(response)
             assert data["type"] == "pong"
 
@@ -211,7 +213,7 @@ class TestNetworkFailures:
 
         # Final connection should still work
         async with websockets.connect(uri) as websocket:
-            await websocket.recv()
+            await asyncio.wait_for(websocket.recv(), timeout=5)
             await websocket.send(json.dumps({"type": "ping", "final": True}))
             response = await asyncio.wait_for(websocket.recv(), timeout=5)
             data = json.loads(response)
@@ -286,9 +288,11 @@ class TestNetworkFailures:
 
         # Should be able to reconnect after any protocol issues
         async with websockets.connect(uri, open_timeout=5) as websocket2:
-            await websocket2.recv()  # New connection message
+            await asyncio.wait_for(
+                websocket2.recv(), timeout=5
+            )  # New connection message
             await websocket2.send(json.dumps({"type": "ping"}))
-            response = await websocket2.recv()
+            response = await asyncio.wait_for(websocket2.recv(), timeout=5)
             data = json.loads(response)
             assert data["type"] == "pong"
 

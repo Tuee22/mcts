@@ -60,13 +60,13 @@ class TestWebSocketConnection:
 
         # First connection
         async with websockets.connect(uri) as websocket1:
-            message = await websocket1.recv()
+            message = await asyncio.wait_for(websocket1.recv(), timeout=5)
             data = json.loads(message)
             assert data["type"] == "connect"
 
         # Should be able to reconnect
         async with websockets.connect(uri) as websocket2:
-            message = await websocket2.recv()
+            message = await asyncio.wait_for(websocket2.recv(), timeout=5)
             data = json.loads(message)
             assert data["type"] == "connect"
 
@@ -170,7 +170,7 @@ class TestWebSocketConnection:
 
         # All should receive connection message
         for ws in websockets_list:
-            message = await ws.recv()
+            message = await asyncio.wait_for(ws.recv(), timeout=5)
             data = json.loads(message)
             assert data["type"] == "connect"
 
