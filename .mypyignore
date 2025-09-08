@@ -1,0 +1,38 @@
+# Ignore all build-generated directories and files
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+backend/core/build/
+backend/core/*.so
+backend/core/*.os
+backend/core/*.o
+
+# Ignore Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Ignore distribution and packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Ignore cache directories
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# Ignore any temporary or generated files
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+.tox/
+
+# Ignore OS and IDE files
+.DS_Store
+.vscode/
+.idea/

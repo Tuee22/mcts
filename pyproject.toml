@@ -100,6 +100,9 @@ exclude = '''
   | build
   | dist
   | __pycache__
+  | frontend/node_modules
+  | frontend/build
+  | backend/core/build
 )/
 '''
 
@@ -192,6 +195,17 @@ files = ["backend/", "tests/", "tools/"]
 mypy_path = ["stubs", "backend/python"]
 explicit_package_bases = true
 namespace_packages = true
+
+# Exclude build-generated files and directories
+exclude = [
+    "frontend/node_modules/",
+    "frontend/build/",
+    "backend/core/build/",
+    "build/",
+    "dist/",
+    ".venv/",
+    "venv/",
+]
 
 # Performance and caching
 incremental = true
