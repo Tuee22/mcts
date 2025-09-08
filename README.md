@@ -522,7 +522,6 @@ Corridors is a two-player board game where players race to reach the opposite si
 - Verify your image: `docker compose exec mcts cat /etc/os-release | head -2`
 - Use `docker compose logs mcts` to debug startup issues
 - For ARM builds on x86, expect slower performance due to QEMU emulation
-- Check available platforms: `docker buildx ls`
 - The C++ module is rebuilt on container start for architecture compatibility
 
 **Import Errors:**

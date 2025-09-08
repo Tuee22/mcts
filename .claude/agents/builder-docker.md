@@ -66,8 +66,11 @@ ${MCTS_BUILD_CMD:-docker compose build}
 # Clean build for dependency changes
 docker compose build --no-cache
 
-# Multi-architecture build
-docker buildx build --platform linux/amd64,linux/arm64 -t mcts:latest .
+# Multi-architecture builds using DOCKER_DEFAULT_PLATFORM
+# For AMD64:
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build -t mcts:amd64 .
+# For ARM64:
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build -t mcts:arm64 .
 ```
 
 ### Full Suite Build Commands

@@ -53,23 +53,17 @@ docker build -f docker/Dockerfile.cpu \
 docker build -f docker/Dockerfile.cpu --no-cache -t mcts-cpu .
 
 # Multi-architecture build for dependency changes (MANDATORY)
-docker buildx build --platform linux/amd64,linux/arm64 \
+# For AMD64:
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build \
   -f docker/Dockerfile.cpu \
   --no-cache \
-  -t mcts-cpu:latest .
+  -t mcts-cpu:amd64 .
 
-# Test build on both architectures
-docker buildx build --platform linux/amd64 \
+# For ARM64:
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build \
   -f docker/Dockerfile.cpu \
   --no-cache \
-  -t mcts-cpu:amd64 \
-  --load .
-
-docker buildx build --platform linux/arm64 \
-  -f docker/Dockerfile.cpu \
-  --no-cache \
-  -t mcts-cpu:arm64 \
-  --load .
+  -t mcts-cpu:arm64 .
 ```
 
 ### 3. Post-Build Validation
@@ -157,10 +151,16 @@ docker run --rm --platform linux/arm64 mcts-cpu:arm64 python -c "from corridors.
 
 ### Cross-Platform Builds
 ```bash
-# Multi-platform build with buildx
-docker buildx build --platform linux/amd64,linux/arm64 \
+# Multi-platform builds using DOCKER_DEFAULT_PLATFORM
+# Build for AMD64:
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build \
   -f docker/Dockerfile.cpu \
-  -t mcts-cpu:latest .
+  -t mcts-cpu:amd64 .
+
+# Build for ARM64:
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker build \
+  -f docker/Dockerfile.cpu \
+  -t mcts-cpu:arm64 .
 ```
 
 ## Integration with Main Pipeline
