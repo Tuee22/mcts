@@ -251,6 +251,58 @@ def run_black_stage(docker_dir):
         return True, ""
 
 
+def run_type_safety_stage(docker_dir):
+    """Run type safety check using containerized Poetry."""
+    log("Running type safety check stage...")
+
+    if not docker_dir:
+        log("❌ Docker directory not available, cannot run type safety check")
+        return False, "Docker environment not available"
+
+    # Get timeout from environment or use default
+    timeout = int(os.environ.get("MCTS_TYPE_SAFETY_TIMEOUT", "60"))
+
+    cmd = [
+        "docker",
+        "compose",
+        "exec",
+        "-T",
+        "mcts",
+        "poetry",
+        "run",
+        "check-type-safety",
+    ]
+    code, stdout, stderr = run_command_safe(
+        cmd, "Type safety check", cwd=docker_dir, timeout=timeout
+    )
+
+    if code == 0:
+        log("✅ Type safety check passed - no violations found")
+        return True, ""
+    else:
+        # Combine stdout and stderr for full diagnostics
+        full_output = f"{stdout}\n{stderr}".strip()
+
+        # Extract violation lines for summary
+        violation_lines = [
+            line for line in full_output.split("\n") if "TYP" in line and ":" in line
+        ]
+
+        if violation_lines:
+            summary = (
+                f"Found {len(violation_lines)} type safety violation(s). First few:\n"
+            )
+            summary += "\n".join(violation_lines[:5])
+            if len(violation_lines) > 5:
+                summary += f"\n... and {len(violation_lines) - 5} more violations"
+        else:
+            summary = "Type safety check failed"
+
+        error_msg = f"Type safety violations:\n{full_output}"
+        log(f"❌ {summary}")
+        return False, error_msg
+
+
 def run_mypy_stage(docker_dir):
     """Run mypy type checking using containerized Poetry."""
     log("Running mypy type checking stage...")
@@ -463,12 +515,17 @@ def run_quality_sequence():
     if not success:
         return False, "formatting", message
 
-    # Stage 2: mypy type checking
+    # Stage 2: Type safety check
+    success, message = run_type_safety_stage(docker_dir)
+    if not success:
+        return False, "type_safety", message
+
+    # Stage 3: mypy type checking
     success, message = run_mypy_stage(docker_dir)
     if not success:
         return False, "type_checking", message
 
-    # Stage 3: Tests
+    # Stage 4: Tests
     success, message = run_tests_stage(docker_dir)
     if not success:
         return False, "tests", message
@@ -481,6 +538,7 @@ def show_agent_recommendations(stage):
     """Show specific agent recommendations based on failed stage."""
     recommendations = {
         "formatting": "Recommended agent: @formatter-black",
+        "type_safety": "Run: poetry run check-type-safety --fix to automatically fix violations",
         "type_checking": "Recommended agent: @mypy-type-checker",
         "tests": "Recommended agent: @tester-pytest",
         "environment": "Check Docker setup and ensure 'mcts' service is defined",

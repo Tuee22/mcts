@@ -1,0 +1,66 @@
+# Pre-commit hooks for MCTS project
+# Install with: pip install pre-commit && pre-commit install
+# Run manually with: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      # Type safety check - MUST be first to catch violations early
+      - id: check-type-safety
+        name: Type Safety Check
+        entry: poetry run check-type-safety
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit, push]
+        
+      # Black formatting
+      - id: black
+        name: Black Code Formatting
+        entry: poetry run black
+        language: system
+        types: [python]
+        args: ["--check", "--diff"]
+        
+      # MyPy strict type checking
+      - id: mypy-strict
+        name: MyPy Strict Type Check
+        entry: poetry run mypy
+        language: system
+        types: [python]
+        args: ["--strict", "."]
+        pass_filenames: false
+        
+      # Prevent common issues
+      - id: check-added-large-files
+        name: Check for Large Files
+        entry: check-added-large-files
+        language: python
+        
+      - id: check-yaml
+        name: Check YAML Syntax
+        entry: check-yaml
+        language: python
+        types: [yaml]
+        
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        entry: trailing-whitespace-fixer
+        language: python
+        types: [text]
+        
+      - id: end-of-file-fixer
+        name: Fix End of Files
+        entry: end-of-file-fixer
+        language: python
+        types: [text]
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-json
+      - id: trailing-whitespace
+      - id: end-of-file-fixer

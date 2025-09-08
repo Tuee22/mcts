@@ -1,7 +1,7 @@
 """Comprehensive tests for game data fixtures and validation."""
 
 import pytest
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from backend.api.models import GameSettings, MCTSSettings, PlayerType
 from tests.fixtures.game_data import (

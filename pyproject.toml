@@ -145,51 +145,62 @@ filterwarnings = [
 
 [tool.mypy]
 python_version = "3.12"
-# Final optimized configuration for maximum achievable type safety
+# Maximum type safety configuration with zero tolerance policy
+# Core strictness settings
+strict = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
+warn_return_any = true
 implicit_reexport = false
 strict_equality = true
-# Core achievements: strong typing where possible
+strict_concatenate = true
+
+# Function definition requirements
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-# Flexible for ecosystem compatibility
-disallow_untyped_calls = false
-disallow_untyped_decorators = false
-# Key achievement: no explicit Any usage in source code
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+
+# Any type restrictions - zero tolerance
 disallow_any_explicit = true
-# Allow implicit Any where needed for ecosystem compatibility
-warn_return_any = false
-disallow_any_generics = false
-disallow_any_decorated = false
-disallow_any_unimported = false
-disallow_subclassing_any = false
-# Focus on our code, be permissive with ecosystem
-ignore_missing_imports = false  # We have stubs
+disallow_any_expr = false  # Too restrictive for ecosystem compatibility
+disallow_any_decorated = false  # Would break FastAPI decorators
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_subclassing_any = true
+
+# Import and module handling
+ignore_missing_imports = false  # We have comprehensive stubs
 follow_imports = "normal"
+strict_optional = true
+no_implicit_optional = true
+
+# Error reporting and display
 show_error_context = true
 show_column_numbers = true
+show_error_codes = true
 pretty = true
-# Check all Python files in the project - comprehensive coverage
-files = ["backend/", "tests/", "tools/"]
-# Check corridors as a top-level module  
-mypy_path = ["stubs", "backend/python"]
-# Resolve module path conflicts
-explicit_package_bases = true
-namespace_packages = true
-# Display options
 color_output = true
 error_summary = true
-# Reports disabled for now - can be enabled with lxml installed
-# any_exprs_report = "mypy-reports"
-# html_report = "mypy-reports/html"
-# linecount_report = "mypy-reports/linecount"
-# linecoverage_report = "mypy-reports/linecoverage"
-# txt_report = "mypy-reports/txt"
+
+# File coverage - check everything
+files = ["backend/", "tests/", "tools/"]
+mypy_path = ["stubs", "backend/python"]
+explicit_package_bases = true
+namespace_packages = true
+
+# Performance and caching
+incremental = true
+cache_dir = ".mypy_cache"
+sqlite_cache = true
+
+# Additional strictness for our codebase
+no_implicit_reexport = true
+disallow_redefinition = true
 
 # No per-file overrides - we're going for 100% type safety
 

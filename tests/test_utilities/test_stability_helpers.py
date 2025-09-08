@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from typing import Any, Awaitable, Callable, Union
+from typing import Awaitable, Callable, Union
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
