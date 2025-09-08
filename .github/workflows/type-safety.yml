@@ -53,21 +53,6 @@ jobs:
           echo "::group::Type Safety Check"
           poetry run python tools/check_type_safety.py --verbose
           echo "::endgroup::"
-          
-      - name: Verify no type violations exist
-        run: |
-          echo "::group::Verification Report"
-          violation_count=$(poetry run python tools/check_type_safety.py 2>&1 | grep -o "[0-9]\+ type safety violation" | head -1 | cut -d' ' -f1 || echo "0")
-          echo "Found $violation_count type safety violations"
-          
-          if [ "$violation_count" != "0" ]; then
-            echo "❌ Type safety violations detected!"
-            echo "Run 'poetry run python tools/check_type_safety.py --fix' to auto-fix common issues"
-            exit 1
-          else
-            echo "✅ No type safety violations found"
-          fi
-          echo "::endgroup::"
 
   mypy-strict-check:
     name: MyPy Strict Type Check
