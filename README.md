@@ -532,4 +532,4 @@ Corridors is a two-player board game where players race to reach the opposite si
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.# Test comment to trigger workflow Mon Sep  8 10:12:42 EDT 2025
