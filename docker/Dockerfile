@@ -68,10 +68,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 
 # Upgrade pip and install base tools
-RUN python3 -m pip install --upgrade pip wheel setuptools
-
-# Install Poetry using pip for system-wide access without permission issues
-RUN python3 -m pip install poetry
+RUN python3 -m pip install --upgrade pip wheel setuptools poetry
 
 # Create user with matching UID/GID for development
 RUN groupadd -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
@@ -118,7 +115,6 @@ RUN which scons && echo "✅ SCons available for runtime build"
 
 # Create symlink for static assets (optional, soft fail)
 WORKDIR /app
-RUN mkdir -p /home/mcts && ln -s /app/frontend /home/mcts/frontend || true
 
 # Expose only the single server port
 EXPOSE 8000
