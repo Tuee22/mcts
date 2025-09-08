@@ -140,9 +140,6 @@ poetry.lock
 mypy-reports/
 .mypy_cache/
 
-# Flake8 cache and reports
-.flake8_cache/
-flake8-report/
 
 # Type checking reports
 type-check-results/

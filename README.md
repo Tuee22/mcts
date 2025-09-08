@@ -418,8 +418,6 @@ poetry run mypy --strict .
 # Run custom type safety checker (no Any, cast, or type: ignore)
 poetry run check-type-safety
 
-# Run flake8 linting
-poetry run lint
 
 # Run all type and quality checks
 bash tools/run_type_checks.sh
@@ -434,7 +432,7 @@ The codebase maintains 100% type safety through:
    - No usage of `Any` type (imports or annotations)
    - No usage of `cast` function
    - No `type: ignore` comments
-3. **Flake8 Integration**: Style and import checking via `.flake8` configuration
+3. **Black Integration**: Automatic code formatting with PEP 8 compliance
 
 Run the complete type checking pipeline:
 ```bash

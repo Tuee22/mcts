@@ -54,7 +54,6 @@ def cleanup_temp_files(project_root: str) -> int:
         "pytest.ini",
         ".gitignore",
         ".dockerignore",
-        ".flake8",
     }
 
     os.chdir(project_root)
