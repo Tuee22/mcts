@@ -89,7 +89,9 @@ class TestNetworkFailures:
                 assert False, "Expected request to fail"
             except Exception as e:
                 # Expected behavior - any connection-related exception
-                assert "connect" in str(e).lower() or "timeout" in str(e).lower()
+                # Check for timeout/connect in exception type or message
+                exception_info = f"{type(e).__name__} {str(e)}".lower()
+                assert "connect" in exception_info or "timeout" in exception_info
 
     async def test_partial_json_message_handling(
         self, backend_server: subprocess.Popen[bytes], test_config: Dict[str, object]

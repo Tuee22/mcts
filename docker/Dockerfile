@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.6
-
 # Build arguments must be defined before FROM to use in FROM
 ARG VARIANT=cpu
 ARG CPU_BASE=ubuntu:22.04
@@ -38,9 +36,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Install system dependencies - same for both CPU and CUDA since both use Ubuntu 22.04
-RUN --mount=type=cache,target=/var/cache/apt,id=mcts-apt-${VARIANT} \
-    --mount=type=cache,target=/var/lib/apt/lists,id=mcts-aptlists-${VARIANT} \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git wget gpg gpg-agent \
       software-properties-common build-essential pkg-config cmake scons \
       tini \
@@ -115,9 +111,6 @@ RUN chown -R ${USER_ID}:${GROUP_ID} /app
 
 # Switch to user for runtime
 USER ${USER_ID}:${GROUP_ID}
-
-# Install Playwright browsers for the user (stores in user cache)
-RUN playwright install chromium firefox webkit
 
 # Verify scons is available for runtime build
 RUN which scons && echo "✅ SCons available for runtime build"
