@@ -64,19 +64,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.py"
-          },
-          {
-            "type": "command", 
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/cleanup-temp-files.py"
-          }
-        ]
-      }
-    ]
+    "Stop": []
   }
 }
