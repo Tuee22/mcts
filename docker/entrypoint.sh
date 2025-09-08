@@ -3,6 +3,15 @@ set -e
 
 echo "🚀 Starting MCTS container setup..."
 
+# Install Playwright browsers if not already installed
+if [ ! -d "/home/mcts/.cache/ms-playwright" ] || [ -z "$(ls -A /home/mcts/.cache/ms-playwright 2>/dev/null)" ]; then
+    echo "📥 Installing Playwright browsers for $(arch) architecture..."
+    playwright install
+    echo "✅ Playwright browsers installed"
+else
+    echo "✅ Playwright browsers already installed"
+fi
+
 # Check and build frontend if needed
 if [ ! -d "/app/frontend/build" ] || [ -z "$(ls -A /app/frontend/build 2>/dev/null)" ]; then
     echo "📦 Building frontend (not found or empty)..."

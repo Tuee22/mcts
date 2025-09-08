@@ -31,7 +31,7 @@ config: Dict[
     # Global test configuration
     "use": {
         # Base URL for navigation - single server on port 8000
-        "base_url": os.environ.get("E2E_FRONTEND_URL", "http://localhost:8000"),
+        "base_url": os.environ.get("E2E_FRONTEND_URL", "http://127.0.0.1:8000"),
         # Viewport size
         "viewport": {"width": 1280, "height": 720},
         # Ignore HTTPS errors

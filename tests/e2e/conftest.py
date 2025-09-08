@@ -44,9 +44,9 @@ class E2EConfig(TypedDict):
 def e2e_config() -> E2EConfig:
     """E2E test configuration - uses Docker container server on port 8000."""
     return E2EConfig(
-        backend_url=os.environ.get("E2E_BACKEND_URL", "http://localhost:8000"),
-        frontend_url=os.environ.get("E2E_FRONTEND_URL", "http://localhost:8000"),
-        ws_url=os.environ.get("E2E_WS_URL", "ws://localhost:8000/ws"),
+        backend_url=os.environ.get("E2E_BACKEND_URL", "http://127.0.0.1:8000"),
+        frontend_url=os.environ.get("E2E_FRONTEND_URL", "http://127.0.0.1:8000"),
+        ws_url=os.environ.get("E2E_WS_URL", "ws://127.0.0.1:8000/ws"),
         headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true",
         slow_mo=int(os.environ.get("E2E_SLOW_MO", "0")),
         timeout=int(os.environ.get("E2E_TIMEOUT", "30000")),

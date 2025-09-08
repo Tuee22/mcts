@@ -94,13 +94,14 @@ RUN poetry install --with dev
 # Build frontend during image creation
 RUN cd frontend && npm install && npm run build
 
-# Install Playwright browsers and dependencies
+# Install Playwright system dependencies only (not browsers yet)
 # Must be done as root for system-wide installation
-RUN playwright install --with-deps chromium firefox webkit
+RUN playwright install-deps
 
 # Build C++ during image creation (changed from skipping to building)
 WORKDIR /app/backend/core
-RUN scons -Q
+# Skip C++ build on AMD64 due to emulation limitations causing segfaults
+RUN if [ "$(arch)" = "aarch64" ]; then scons -c && scons -Q; else echo "Skipping C++ build on $(arch) due to emulation"; fi
 
 # Copy entrypoint script and make executable (before switching to user)
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
