@@ -2,6 +2,7 @@
 Playwright configuration for E2E tests.
 This configures Playwright to work with pytest-playwright.
 """
+
 import os
 from typing import Dict, Union
 

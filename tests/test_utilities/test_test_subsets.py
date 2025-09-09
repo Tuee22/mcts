@@ -120,8 +120,10 @@ class TestRunPytestSubset:
         mock_exit = MagicMock()
         mock_print = MagicMock()
 
-        with patch("subprocess.run", mock_run), patch("sys.exit", mock_exit), patch(
-            "builtins.print", mock_print
+        with (
+            patch("subprocess.run", mock_run),
+            patch("sys.exit", mock_exit),
+            patch("builtins.print", mock_print),
         ):
             run_pytest_subset("marker", ["path/"], "Test Description")
 
@@ -214,8 +216,10 @@ class TestFrontendTestRunner:
         mock_exit = MagicMock()
         mock_print = MagicMock()
 
-        with patch("subprocess.run", mock_run), patch("sys.exit", mock_exit), patch(
-            "builtins.print", mock_print
+        with (
+            patch("subprocess.run", mock_run),
+            patch("sys.exit", mock_exit),
+            patch("builtins.print", mock_print),
         ):
             run_frontend_tests()
 
@@ -234,8 +238,10 @@ class TestFrontendTestRunner:
         mock_exit = MagicMock()
         mock_print = MagicMock()
 
-        with patch("subprocess.run", mock_run), patch("sys.exit", mock_exit), patch(
-            "builtins.print", mock_print
+        with (
+            patch("subprocess.run", mock_run),
+            patch("sys.exit", mock_exit),
+            patch("builtins.print", mock_print),
         ):
             run_frontend_tests()
 
@@ -250,8 +256,10 @@ class TestFrontendTestRunner:
         mock_exit = MagicMock()
         mock_print = MagicMock()
 
-        with patch("subprocess.run", mock_run), patch("sys.exit", mock_exit), patch(
-            "builtins.print", mock_print
+        with (
+            patch("subprocess.run", mock_run),
+            patch("sys.exit", mock_exit),
+            patch("builtins.print", mock_print),
         ):
             run_frontend_tests()
 

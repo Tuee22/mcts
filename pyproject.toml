@@ -51,6 +51,9 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
+# Main entrypoint for JIT builds and server startup
+entrypoint = "backend.utils.entrypoint:main"
+
 # Test runner commands
 test-runner = "tests.utils.test_runner:main"
 
@@ -87,22 +90,15 @@ server-dev = "backend.api.server:dev"
 [tool.black]
 line-length = 88
 target-version = ['py312']
-exclude = '''
+include = '\.pyi?$'  # Explicitly include both .py and .pyi files
+extend-exclude = '''
 /(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | __pycache__
-  | frontend/node_modules
-  | frontend/build
+    frontend/node_modules
+  | frontend/build  
   | backend/core/build
+  | \.git
+  | \.venv
+  | __pycache__
 )/
 '''
 

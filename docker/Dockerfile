@@ -89,31 +89,16 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev
 
-# Build frontend during image creation (deferred to runtime if it fails)
-RUN cd frontend \
-    && npm cache clean --force \
-    && (npm ci || npm install) \
-    && npm run build \
-    && echo "✅ Frontend build complete" \
-    || echo "⚠️ Frontend build failed - will retry at runtime"
+# Frontend build moved to runtime via Python entrypoint
 
 # Install Playwright system dependencies only (not browsers yet)
 # Must be done as root for system-wide installation
 RUN playwright install-deps
 
-# Build C++ during image creation with architecture-aware naming
-WORKDIR /app/backend/core
-RUN ARCH=$(dpkg --print-architecture) && \
-    echo "Building C++ for architecture: $ARCH" && \
-    scons -c && scons -Q && \
-    if [ -f "/app/backend/python/corridors/_corridors_mcts.so" ]; then \
-        mv "/app/backend/python/corridors/_corridors_mcts.so" "/app/backend/python/corridors/_corridors_mcts_${ARCH}.so" && \
-        echo "Created architecture-specific .so file: _corridors_mcts_${ARCH}.so"; \
-    fi
+# C++ build moved to runtime via Python entrypoint
+WORKDIR /app
 
-# Copy entrypoint script and make executable (before switching to user)
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Entrypoint handled by Poetry script
 
 # Fix ownership of all built files
 RUN chown -R ${USER_ID}:${GROUP_ID} /app
@@ -130,5 +115,5 @@ WORKDIR /app
 # Expose only the single server port
 EXPOSE 8000
 
-# Use tini for proper signal handling with our entrypoint script
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+# Use tini for proper signal handling with Python entrypoint
+ENTRYPOINT ["/usr/bin/tini", "--", "poetry", "run", "entrypoint"]

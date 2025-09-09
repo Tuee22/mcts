@@ -1,4 +1,5 @@
 """Type stubs for click library."""
+
 from typing import Callable, Optional, TypeVar, Union, overload
 
 F = TypeVar("F")

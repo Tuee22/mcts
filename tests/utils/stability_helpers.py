@@ -111,7 +111,7 @@ def retry_on_failure(
     """Decorator to retry flaky test functions with exponential backoff."""
 
     def decorator(
-        func: Callable[P, Union[T, Awaitable[T]]]
+        func: Callable[P, Union[T, Awaitable[T]]],
     ) -> Callable[P, Union[T, Awaitable[T]]]:
         if asyncio.iscoroutinefunction(func):
             async_func = func  # This is guaranteed to be async by the check above

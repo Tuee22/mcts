@@ -1,4 +1,5 @@
 """Type stubs for websockets.client module."""
+
 from typing import Optional, Union
 
 class PingResponse:

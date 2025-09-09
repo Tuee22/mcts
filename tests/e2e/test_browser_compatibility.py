@@ -1,4 +1,5 @@
 """E2E tests that work reliably across all browsers."""
+
 import asyncio
 from typing import Dict
 

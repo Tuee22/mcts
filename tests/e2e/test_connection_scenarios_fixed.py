@@ -105,7 +105,7 @@ async def test_game_creation_flow(e2e_urls: Dict[str, str]) -> None:
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_backend_unreachable_shows_disconnection(
-    e2e_urls: Dict[str, str]
+    e2e_urls: Dict[str, str],
 ) -> None:
     """Test that app shows disconnection when backend is unreachable."""
     async with async_playwright() as p:
@@ -185,7 +185,7 @@ async def test_wrong_api_url_configuration(e2e_urls: Dict[str, str]) -> None:
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_connection_recovery_after_backend_restart(
-    e2e_urls: Dict[str, str]
+    e2e_urls: Dict[str, str],
 ) -> None:
     """Test connection recovery after backend restart simulation."""
     async with async_playwright() as p:

@@ -105,7 +105,7 @@ docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fas
 # Start Docker services first
 cd docker && docker compose up -d
 
-# Format code (inside container)
+# Format code (inside container) - includes .py and .pyi files in stubs/
 docker compose exec mcts black .
 docker compose exec mcts isort .
 

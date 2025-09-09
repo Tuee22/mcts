@@ -1,4 +1,5 @@
 """Working E2E connection tests using external servers."""
+
 import os
 from typing import Dict
 

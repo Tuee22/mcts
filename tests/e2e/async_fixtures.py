@@ -1,4 +1,5 @@
 """Async fixtures for E2E tests using Playwright."""
+
 import os
 from typing import AsyncGenerator, Dict
 

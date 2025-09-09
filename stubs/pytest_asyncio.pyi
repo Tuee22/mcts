@@ -1,4 +1,5 @@
 """Type stubs for pytest_asyncio library."""
+
 from typing import Callable, TypeVar
 
 F = TypeVar("F")

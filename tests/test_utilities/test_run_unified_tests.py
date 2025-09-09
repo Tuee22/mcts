@@ -310,9 +310,10 @@ class TestMainFunction:
 
     def test_main_help_argument(self) -> None:
         """Test that --help argument works."""
-        with patch("sys.argv", ["run_unified_tests.py", "--help"]), patch(
-            "argparse.ArgumentParser.parse_args"
-        ) as mock_parse:
+        with (
+            patch("sys.argv", ["run_unified_tests.py", "--help"]),
+            patch("argparse.ArgumentParser.parse_args") as mock_parse,
+        ):
             assert isinstance(mock_parse, MagicMock)
             mock_parse.side_effect = [SystemExit(0)]
 
@@ -324,18 +325,18 @@ class TestMainFunction:
 
     def test_main_default_arguments(self) -> None:
         """Test main function with default arguments."""
-        with patch("sys.argv", ["run_unified_tests.py"]), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir"), patch(
-            "tests.utils.run_unified_tests.run_command", return_value=True
-        ), patch(
-            "tests.utils.run_unified_tests.check_docker_container_health",
-            return_value=True,
-        ), patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
-        ) as mock_exit:
+        with (
+            patch("sys.argv", ["run_unified_tests.py"]),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir"),
+            patch("tests.utils.run_unified_tests.run_command", return_value=True),
+            patch(
+                "tests.utils.run_unified_tests.check_docker_container_health",
+                return_value=True,
+            ),
+            patch("builtins.print"),
+            patch("sys.exit") as mock_exit,
+        ):
             main()
 
             # Should exit with success code
@@ -352,15 +353,14 @@ class TestMainFunction:
             "--skip-e2e",
         ]
 
-        with patch("sys.argv", test_args), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir"), patch(
-            "tests.utils.run_unified_tests.run_command", return_value=True
-        ), patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
-        ) as mock_exit:
+        with (
+            patch("sys.argv", test_args),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir"),
+            patch("tests.utils.run_unified_tests.run_command", return_value=True),
+            patch("builtins.print"),
+            patch("sys.exit") as mock_exit,
+        ):
             main()
 
             assert isinstance(mock_exit, MagicMock)
@@ -368,28 +368,26 @@ class TestMainFunction:
 
     def test_main_with_coverage(self) -> None:
         """Test main function with coverage enabled."""
-        with patch("sys.argv", ["run_unified_tests.py", "--coverage"]), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir"), patch(
-            "tests.utils.run_unified_tests.run_command", return_value=True
-        ), patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
+        with (
+            patch("sys.argv", ["run_unified_tests.py", "--coverage"]),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir"),
+            patch("tests.utils.run_unified_tests.run_command", return_value=True),
+            patch("builtins.print"),
+            patch("sys.exit"),
         ):
             main()
 
     def test_main_test_failure_exit_code(self) -> None:
         """Test that test failures result in non-zero exit code."""
-        with patch("sys.argv", ["run_unified_tests.py"]), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir"), patch(
-            "tests.utils.run_unified_tests.run_command", return_value=False
-        ), patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
-        ) as mock_exit:
+        with (
+            patch("sys.argv", ["run_unified_tests.py"]),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir"),
+            patch("tests.utils.run_unified_tests.run_command", return_value=False),
+            patch("builtins.print"),
+            patch("sys.exit") as mock_exit,
+        ):
             main()
 
             assert isinstance(mock_exit, MagicMock)
@@ -397,14 +395,13 @@ class TestMainFunction:
 
     def test_main_fail_fast_behavior(self) -> None:
         """Test that --fail-fast stops on first failure."""
-        with patch("sys.argv", ["run_unified_tests.py", "--fail-fast"]), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir"), patch(
-            "tests.utils.run_unified_tests.run_command"
-        ) as mock_run, patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
+        with (
+            patch("sys.argv", ["run_unified_tests.py", "--fail-fast"]),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir"),
+            patch("tests.utils.run_unified_tests.run_command") as mock_run,
+            patch("builtins.print"),
+            patch("sys.exit"),
         ):
             # First test suite fails
             assert isinstance(mock_run, MagicMock)
@@ -417,14 +414,13 @@ class TestMainFunction:
 
     def test_main_directory_change(self) -> None:
         """Test that main function changes to project root directory."""
-        with patch("sys.argv", ["run_unified_tests.py"]), patch(
-            "pathlib.Path.exists", return_value=False
-        ), patch("os.chdir") as mock_chdir, patch(
-            "tests.utils.run_unified_tests.run_command", return_value=True
-        ), patch(
-            "builtins.print"
-        ), patch(
-            "sys.exit"
+        with (
+            patch("sys.argv", ["run_unified_tests.py"]),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("os.chdir") as mock_chdir,
+            patch("tests.utils.run_unified_tests.run_command", return_value=True),
+            patch("builtins.print"),
+            patch("sys.exit"),
         ):
             main()
 

@@ -1,4 +1,5 @@
 """Type stubs for playwright.async_api module."""
+
 from typing import AsyncIterator, Awaitable, Callable, Dict, Optional, Union
 
 from typing_extensions import Literal
