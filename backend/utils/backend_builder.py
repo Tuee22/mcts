@@ -139,14 +139,25 @@ def create_architecture_link(
 
 
 def validate_backend_module(config: BuildConfig) -> Result[str, str]:
-    """Validate that the built .so file is loadable."""
-    try:
-        sys.path.insert(0, str(config.corridors_dir.parent))
-        from corridors import corridors_mcts  # noqa: F401
+    """Validate that the built .so file exists and has correct architecture."""
+    so_path = config.corridors_dir / "_corridors_mcts.so"
 
-        return Result.success("C++ module loads successfully")
-    except ImportError as e:
-        return Result.failure(f"Failed to import C++ module: {e}")
+    if not so_path.exists():
+        return Result.failure("C++ module file not found: _corridors_mcts.so")
+
+    # Check file is readable and has reasonable size
+    if not so_path.is_file() or so_path.stat().st_size < 1000:
+        return Result.failure("C++ module file appears invalid or corrupted")
+
+    # Verify architecture compatibility
+    arch = detect_architecture()
+    so_arch = get_so_architecture(so_path)
+    if so_arch and so_arch != arch:
+        return Result.failure(
+            f"Architecture mismatch: module is {so_arch}, system is {arch}"
+        )
+
+    return Result.success("C++ module file validated successfully")
 
 
 class BackendBuilder:

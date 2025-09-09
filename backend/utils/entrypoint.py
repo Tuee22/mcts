@@ -72,6 +72,19 @@ def execute_build_component(
         return False
 
 
+def validate_corridors_import(config: BuildConfig) -> bool:
+    """Validate that corridors module can be imported after JIT build."""
+    try:
+        sys.path.insert(0, str(config.corridors_dir.parent))
+        from corridors import corridors_mcts  # noqa: F401
+
+        logger.info("✅ Corridors module imports successfully")
+        return True
+    except ImportError as e:
+        logger.error(f"❌ Failed to import corridors module: {e}")
+        return False
+
+
 def run_build_pipeline(config: BuildConfig) -> BuildStatus:
     """Run build pipeline functionally."""
     logger.info("🚀 Starting MCTS container setup...")
@@ -141,6 +154,11 @@ class EntryPoint:
         try:
             # Run functional build pipeline
             build_status = run_build_pipeline(self.config)
+
+            # Post-build validation: Test corridors module import
+            if build_status.backend and not validate_corridors_import(self.config):
+                logger.error("❌ Backend build completed but module cannot be imported")
+                sys.exit(1)
 
             # Start server
             start_server(self.config, build_status)
