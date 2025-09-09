@@ -43,56 +43,15 @@ class MCTSProtocol(Protocol):
 
 
 # Import the C++ extension class
-_corridors_mcts: Optional[Type[MCTSProtocol]] = None
+def _load_extension() -> Type[MCTSProtocol]:
+    """Load the C++ extension module."""
+    from corridors import _corridors_mcts as _ext_module
 
-def _load_extension():
-    """Load the C++ extension with multiple fallback strategies."""
-    global _corridors_mcts
-    
-    if _corridors_mcts is not None:
-        return _corridors_mcts
-    
-    # Strategy 1: Direct import (works when .so is in Python path)
-    try:
-        import _corridors_mcts as _ext_module
-        _corridors_mcts = _ext_module._corridors_mcts
-        return _corridors_mcts
-    except ImportError:
-        pass
-    
-    # Strategy 2: Check if already loaded in sys.modules
-    _module = sys.modules.get("corridors._corridors_mcts") or sys.modules.get("_corridors_mcts")
-    if _module is not None:
-        try:
-            _corridors_mcts = getattr(_module, "_corridors_mcts")
-            return _corridors_mcts
-        except AttributeError:
-            pass
-    
-    # Strategy 3: Import using importlib to avoid circular imports
-    try:
-        import importlib.util
-        import os
-        
-        # Find the .so file in our package directory
-        package_dir = os.path.dirname(__file__)
-        so_files = [f for f in os.listdir(package_dir) if f.startswith('_corridors_mcts') and f.endswith('.so')]
-        
-        if so_files:
-            so_path = os.path.join(package_dir, so_files[0])  # Use first available .so file
-            spec = importlib.util.spec_from_file_location("_corridors_mcts", so_path)
-            if spec and spec.loader:
-                _ext_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(_ext_module)
-                _corridors_mcts = _ext_module._corridors_mcts
-                return _corridors_mcts
-    except Exception:
-        pass
-    
-    raise ImportError("Could not load _corridors_mcts extension")
+    return _ext_module._corridors_mcts
+
 
 # Load the extension at module level
-_corridors_mcts = _load_extension()
+_corridors_mcts: Type[MCTSProtocol] = _load_extension()
 
 
 class Corridors_MCTS:
