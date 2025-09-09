@@ -39,6 +39,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git wget gpg gpg-agent xz-utils \
       software-properties-common build-essential pkg-config cmake scons \
+      file \
       tini \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y --no-install-recommends \
