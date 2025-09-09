@@ -16,10 +16,10 @@ def debug_log(message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     debug_file = "/Users/matthewnowak/mcts/.claude/logs/git-guard-debug.log"
     os.makedirs(os.path.dirname(debug_file), exist_ok=True)
-    
+
     with open(debug_file, "a") as f:
         f.write(f"[{timestamp}] {message}\n")
-    
+
     # Also print to stderr for immediate visibility
     print(f"DEBUG: {message}", file=sys.stderr)
 
@@ -61,7 +61,7 @@ def read_tool_call_from_env():
 def main():
     """Debug version of git commit guard."""
     debug_log("=== GIT COMMIT GUARD DEBUG START ===")
-    
+
     try:
         # Try stdin first (preferred for Claude CLI hooks)
         tool_call = read_tool_call_from_stdin()
@@ -74,7 +74,7 @@ def main():
         # Extract command from tool call
         command = tool_call.get("parameters", {}).get("command", "")
         debug_log(f"Extracted command: '{command}'")
-        
+
         if not command:
             debug_log("No command found in tool call")
             return 0
@@ -89,22 +89,28 @@ def main():
         # Check for git commit patterns
         git_commit_pattern = r"\bgit\s+commit\b"
         git_push_pattern = r"\bgit\s+push\b"
-        
+
         debug_log(f"Testing against commit pattern: {git_commit_pattern}")
         commit_match = re.search(git_commit_pattern, command, re.IGNORECASE)
         debug_log(f"Commit pattern match: {commit_match is not None}")
         if commit_match:
-            debug_log(f"Match found at: {commit_match.span()}, text: '{commit_match.group()}'")
+            debug_log(
+                f"Match found at: {commit_match.span()}, text: '{commit_match.group()}'"
+            )
 
         debug_log(f"Testing against push pattern: {git_push_pattern}")
         push_match = re.search(git_push_pattern, command, re.IGNORECASE)
         debug_log(f"Push pattern match: {push_match is not None}")
         if push_match:
-            debug_log(f"Match found at: {push_match.span()}, text: '{push_match.group()}'")
+            debug_log(
+                f"Match found at: {push_match.span()}, text: '{push_match.group()}'"
+            )
 
         if commit_match:
             debug_log("BLOCKING: Git commit detected")
-            print("❌ Git commits are blocked by @no-git-commits policy", file=sys.stderr)
+            print(
+                "❌ Git commits are blocked by @no-git-commits policy", file=sys.stderr
+            )
             print("🔧 Quality checks run automatically on Stop hook", file=sys.stderr)
             print("💡 User must explicitly request commits", file=sys.stderr)
             print("🔄 To override: export MCTS_ALLOW_COMMIT=1", file=sys.stderr)
@@ -112,8 +118,14 @@ def main():
 
         if push_match:
             debug_log("BLOCKING: Git push detected")
-            print("⚠️  Git push blocked - commits must be made with user confirmation", file=sys.stderr)
-            print("💡 Ensure quality checks pass and get user approval first", file=sys.stderr)
+            print(
+                "⚠️  Git push blocked - commits must be made with user confirmation",
+                file=sys.stderr,
+            )
+            print(
+                "💡 Ensure quality checks pass and get user approval first",
+                file=sys.stderr,
+            )
             print("🔄 To override: export MCTS_ALLOW_COMMIT=1", file=sys.stderr)
             return 1
 

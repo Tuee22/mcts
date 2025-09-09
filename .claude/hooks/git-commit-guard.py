@@ -29,7 +29,7 @@ def debug_log(message: str) -> None:
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         debug_file = "/Users/matthewnowak/mcts/.claude/logs/git-guard-debug.log"
         os.makedirs(os.path.dirname(debug_file), exist_ok=True)
-        
+
         with open(debug_file, "a") as f:
             f.write(f"[{timestamp}] {message}\n")
 
@@ -70,53 +70,47 @@ def read_tool_call_from_env() -> dict:
 
 def get_git_patterns() -> Tuple[List[str], List[str]]:
     """Get comprehensive patterns for git commit and push detection."""
-    
+
     # Enhanced git commit patterns to catch various syntaxes
     git_commit_patterns = [
         # Basic patterns - only match when commit is the actual subcommand
-        r"^git\s+commit\b",                     # git commit (at start of command)
-        r"\bgit\s+commit\s+",                   # git commit with args
-        
-        # Message flag variations  
-        r"git\s+commit\s+.*-m",                 # git commit -m
-        r"git\s+commit\s+.*--message",          # git commit --message
-        r"git\s+commit\s+.*-am",                # git commit -am
-        
+        r"^git\s+commit\b",  # git commit (at start of command)
+        r"\bgit\s+commit\s+",  # git commit with args
+        # Message flag variations
+        r"git\s+commit\s+.*-m",  # git commit -m
+        r"git\s+commit\s+.*--message",  # git commit --message
+        r"git\s+commit\s+.*-am",  # git commit -am
         # Complex command patterns that can bypass simple regex
-        r"git\s+commit\s+.*\$\(",               # Command substitution: git commit -m "$(..."
-        r"git\s+commit\s+.*<<",                 # Heredoc: git commit -m "$(cat <<"
-        r"git\s+commit\s+.*cat\s+<<",           # Specific heredoc with cat
-        r"git\s+commit\s+.*`",                  # Backtick command substitution
-        r"git\s+commit\s+.*printf",             # Printf command substitution
-        r"git\s+commit\s+.*echo",               # Echo command substitution
-        
+        r"git\s+commit\s+.*\$\(",  # Command substitution: git commit -m "$(..."
+        r"git\s+commit\s+.*<<",  # Heredoc: git commit -m "$(cat <<"
+        r"git\s+commit\s+.*cat\s+<<",  # Specific heredoc with cat
+        r"git\s+commit\s+.*`",  # Backtick command substitution
+        r"git\s+commit\s+.*printf",  # Printf command substitution
+        r"git\s+commit\s+.*echo",  # Echo command substitution
         # Multi-line and complex quoting
-        r"git\s+commit\s+.*\$'",                # $'...' quoting
-        r"git\s+commit\s+.*\\n",                # Newline escapes in messages
-        
+        r"git\s+commit\s+.*\$'",  # $'...' quoting
+        r"git\s+commit\s+.*\\n",  # Newline escapes in messages
         # Different git commit forms
-        r"git-commit\b",                        # git-commit (hyphenated form)
-        
+        r"git-commit\b",  # git-commit (hyphenated form)
         # Command chains with git commit (but not in quoted strings)
-        r"[;&|]\s*git\s+commit\b",              # git commit after command separator
-        r"&&\s*git\s+commit\b",                 # git commit after &&
-        
+        r"[;&|]\s*git\s+commit\b",  # git commit after command separator
+        r"&&\s*git\s+commit\b",  # git commit after &&
         # Catch git commit but avoid false positives with git show commit-hash
         # This pattern is more restrictive - only matches when commit is followed by typical commit flags
-        r"git\s+commit\s+(-[a-zA-Z]|--[a-zA-Z])", # git commit followed by flags
+        r"git\s+commit\s+(-[a-zA-Z]|--[a-zA-Z])",  # git commit followed by flags
     ]
-    
+
     # Enhanced git push patterns
     git_push_patterns = [
-        r"\bgit\s+push\b",                      # Basic git push
-        r"\bgit\s+push\s+",                     # git push with args
-        r"git\s+push\s+.*origin",               # git push origin
-        r"git\s+push\s+.*--force",              # git push --force
-        r"git\s+push\s+.*-f\b",                 # git push -f
-        r"git\s+push\s+.*-u\b",                 # git push -u
-        r"git-push\b",                          # git-push (hyphenated form)
+        r"\bgit\s+push\b",  # Basic git push
+        r"\bgit\s+push\s+",  # git push with args
+        r"git\s+push\s+.*origin",  # git push origin
+        r"git\s+push\s+.*--force",  # git push --force
+        r"git\s+push\s+.*-f\b",  # git push -f
+        r"git\s+push\s+.*-u\b",  # git push -u
+        r"git-push\b",  # git-push (hyphenated form)
     ]
-    
+
     return git_commit_patterns, git_push_patterns
 
 
@@ -128,15 +122,15 @@ def is_command_in_quotes(command: str, match_start: int) -> bool:
     try:
         # Get the text before the match to count quotes
         before_match = command[:match_start]
-        
+
         # Count unescaped quotes of different types
         double_quotes = before_match.count('"') - before_match.count('\\"')
         single_quotes = before_match.count("'") - before_match.count("\\'")
-        
+
         # If odd number of quotes, we're inside a quoted string
         inside_double_quotes = (double_quotes % 2) == 1
         inside_single_quotes = (single_quotes % 2) == 1
-        
+
         return inside_double_quotes or inside_single_quotes
     except:
         # If we can't determine, err on the side of caution (don't block)
@@ -146,18 +140,20 @@ def is_command_in_quotes(command: str, match_start: int) -> bool:
 def check_git_patterns(command: str) -> Tuple[bool, str, str]:
     """
     Check if command matches any git commit or push patterns.
-    
+
     Returns:
         (is_blocked, block_reason, matched_pattern)
     """
     if not command:
         debug_log("No command to check")
         return False, "", ""
-    
-    debug_log(f"Checking command: '{command[:100]}{'...' if len(command) > 100 else ''}'")
-    
+
+    debug_log(
+        f"Checking command: '{command[:100]}{'...' if len(command) > 100 else ''}'"
+    )
+
     commit_patterns, push_patterns = get_git_patterns()
-    
+
     # Check git commit patterns
     for pattern in commit_patterns:
         try:
@@ -165,29 +161,33 @@ def check_git_patterns(command: str) -> Tuple[bool, str, str]:
             if match:
                 # Check if the match is inside quoted strings (false positive)
                 if is_command_in_quotes(command, match.start()):
-                    debug_log(f"Pattern '{pattern}' matched but inside quotes - ignoring")
+                    debug_log(
+                        f"Pattern '{pattern}' matched but inside quotes - ignoring"
+                    )
                     continue
-                
+
                 debug_log(f"MATCH: Commit pattern '{pattern}' matched")
                 return True, "git commit", pattern
         except Exception as e:
             debug_log(f"Error checking pattern '{pattern}': {e}")
-    
-    # Check git push patterns  
+
+    # Check git push patterns
     for pattern in push_patterns:
         try:
             match = re.search(pattern, command, re.IGNORECASE | re.MULTILINE)
             if match:
                 # Check if the match is inside quoted strings (false positive)
                 if is_command_in_quotes(command, match.start()):
-                    debug_log(f"Pattern '{pattern}' matched but inside quotes - ignoring")
+                    debug_log(
+                        f"Pattern '{pattern}' matched but inside quotes - ignoring"
+                    )
                     continue
-                    
+
                 debug_log(f"MATCH: Push pattern '{pattern}' matched")
                 return True, "git push", pattern
         except Exception as e:
             debug_log(f"Error checking pattern '{pattern}': {e}")
-    
+
     debug_log("No git patterns matched")
     return False, "", ""
 
@@ -195,7 +195,7 @@ def check_git_patterns(command: str) -> Tuple[bool, str, str]:
 def main() -> int:
     """Check if command is a git commit/push and block if so."""
     debug_log("=== ENHANCED GIT COMMIT GUARD START ===")
-    
+
     try:
         # Try stdin first (preferred for Claude CLI hooks)
         tool_call = read_tool_call_from_stdin()
@@ -208,7 +208,7 @@ def main() -> int:
         # Extract command from tool call
         command = tool_call.get("parameters", {}).get("command", "")
         debug_log(f"Extracted command length: {len(command)}")
-        
+
         if not command:
             debug_log("No command found in tool call - allowing")
             return 0
@@ -222,22 +222,33 @@ def main() -> int:
 
         # Check for git commit/push patterns
         is_blocked, block_reason, matched_pattern = check_git_patterns(command)
-        
+
         if is_blocked:
             debug_log(f"BLOCKING: {block_reason} detected (pattern: {matched_pattern})")
-            
+
             if "commit" in block_reason:
-                print("❌ Git commits are blocked by @no-git-commits policy", file=sys.stderr)
-                print("🔧 Quality checks run automatically on Stop hook", file=sys.stderr)
+                print(
+                    "❌ Git commits are blocked by @no-git-commits policy",
+                    file=sys.stderr,
+                )
+                print(
+                    "🔧 Quality checks run automatically on Stop hook", file=sys.stderr
+                )
                 print("💡 User must explicitly request commits", file=sys.stderr)
                 print("🔄 To override: export MCTS_ALLOW_COMMIT=1", file=sys.stderr)
                 print(f"🔍 Matched pattern: {matched_pattern}", file=sys.stderr)
             else:
-                print("⚠️  Git push blocked - commits must be made with user confirmation", file=sys.stderr)
-                print("💡 Ensure quality checks pass and get user approval first", file=sys.stderr)
+                print(
+                    "⚠️  Git push blocked - commits must be made with user confirmation",
+                    file=sys.stderr,
+                )
+                print(
+                    "💡 Ensure quality checks pass and get user approval first",
+                    file=sys.stderr,
+                )
                 print("🔄 To override: export MCTS_ALLOW_COMMIT=1", file=sys.stderr)
                 print(f"🔍 Matched pattern: {matched_pattern}", file=sys.stderr)
-            
+
             return 1
 
         debug_log("ALLOWING: No blocking patterns matched")
