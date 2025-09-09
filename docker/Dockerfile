@@ -100,10 +100,15 @@ RUN cd frontend \
 # Must be done as root for system-wide installation
 RUN playwright install-deps
 
-# Build C++ during image creation (changed from skipping to building)
+# Build C++ during image creation with architecture-aware naming
 WORKDIR /app/backend/core
-# Skip C++ build on AMD64 due to emulation limitations causing segfaults
-RUN if [ "$(arch)" = "aarch64" ]; then scons -c && scons -Q; else echo "Skipping C++ build on $(arch) due to emulation"; fi
+RUN ARCH=$(dpkg --print-architecture) && \
+    echo "Building C++ for architecture: $ARCH" && \
+    scons -c && scons -Q && \
+    if [ -f "/app/backend/python/corridors/_corridors_mcts.so" ]; then \
+        mv "/app/backend/python/corridors/_corridors_mcts.so" "/app/backend/python/corridors/_corridors_mcts_${ARCH}.so" && \
+        echo "Created architecture-specific .so file: _corridors_mcts_${ARCH}.so"; \
+    fi
 
 # Copy entrypoint script and make executable (before switching to user)
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
