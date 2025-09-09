@@ -2,6 +2,7 @@ volumes:
   frontend_build:
   backend_build:
   playwright_browsers:
+  frontend_node_modules:
 
 services:
   mcts:
@@ -33,6 +34,10 @@ services:
         source: ..
         target: /app
         read_only: false
+      # Preserve frontend node_modules dependencies
+      - type: volume
+        source: frontend_node_modules
+        target: /app/frontend/node_modules
       # Preserve frontend build artifacts
       - type: volume
         source: frontend_build

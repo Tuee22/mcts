@@ -94,7 +94,7 @@ RUN poetry run playwright install-deps
 
 # Build frontend during image construction
 WORKDIR /app/frontend
-RUN npm ci && npm run build
+RUN npm install && npm run build
 
 # Build C++ backend during image construction
 WORKDIR /app/backend/core
