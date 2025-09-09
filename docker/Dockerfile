@@ -39,7 +39,7 @@ WORKDIR /app
 # Install system dependencies - same for both CPU and CUDA since both use Ubuntu 22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git wget gpg gpg-agent xz-utils \
-      software-properties-common build-essential pkg-config cmake scons \
+      software-properties-common build-essential pkg-config cmake \
       file \
       tini \
     && add-apt-repository ppa:deadsnakes/ppa \
