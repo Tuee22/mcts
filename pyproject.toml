@@ -51,13 +51,10 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-# Main entrypoint for JIT builds and server startup
-entrypoint = "backend.utils.entrypoint:main"
-
 # Test runner commands
 test-runner = "tests.utils.test_runner:main"
 
-# API servers
+# API servers - now primary entrypoints
 api-server = "backend.api.server:main"
 api-dev = "backend.api.server:dev"
 
@@ -82,7 +79,7 @@ check-type-safety = "tools.check_type_safety:main"
 # Setup tools
 setup-playwright = "tools.setup_playwright:main"
 
-# Server aliases for convenience
+# Server aliases for convenience - now primary entrypoints  
 server = "backend.api.server:main"
 server-dev = "backend.api.server:dev"
 

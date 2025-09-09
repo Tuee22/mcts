@@ -1,3 +1,8 @@
+volumes:
+  frontend_build:
+  backend_build:
+  playwright_browsers:
+
 services:
   mcts:
     container_name: mcts
@@ -28,3 +33,17 @@ services:
         source: ..
         target: /app
         read_only: false
+      # Preserve frontend build artifacts
+      - type: volume
+        source: frontend_build
+        target: /app/frontend/build
+      # Preserve backend build artifacts (.so files)
+      - type: volume
+        source: backend_build
+        target: /app/backend/python/corridors
+        volume:
+          nocopy: false
+      # Preserve Playwright browser installations
+      - type: volume
+        source: playwright_browsers
+        target: /home/mcts/.cache/ms-playwright

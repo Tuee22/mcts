@@ -75,23 +75,17 @@ FRONTEND_BUILD_DIR = Path("/app/frontend/build")
 
 
 def setup_static_files() -> None:
-    """Setup static file serving if frontend build exists."""
-    if FRONTEND_BUILD_DIR.exists():
-        # Mount static assets first (CSS, JS, images, etc.)
-        app.mount(
-            "/static",
-            StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
-            name="static",
-        )
+    """Setup static file serving for pre-built frontend."""
+    # Mount static assets first (CSS, JS, images, etc.)
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
+        name="static",
+    )
 
-        # Serve other static files (favicon, manifest, etc.)
-        app.mount(
-            "/assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="assets"
-        )
-        logger.info(f"Static files configured from {FRONTEND_BUILD_DIR}")
-    else:
-        logger.warning(f"Frontend build directory not found: {FRONTEND_BUILD_DIR}")
-        logger.warning("Run 'npm run build' in the frontend directory")
+    # Serve other static files (favicon, manifest, etc.)
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_BUILD_DIR)), name="assets")
+    logger.info(f"Static files configured from {FRONTEND_BUILD_DIR}")
 
 
 # Setup static files
@@ -649,9 +643,7 @@ async def robots() -> FileResponse:
 
 
 @app.get("/{full_path:path}", response_model=None)
-async def serve_spa(
-    request: Request, full_path: str
-) -> Union[FileResponse, Dict[str, str]]:
+async def serve_spa(request: Request, full_path: str) -> FileResponse:
     """Serve the React SPA for any non-API routes."""
     # Don't serve SPA for API routes
     if full_path.startswith(
@@ -670,13 +662,7 @@ async def serve_spa(
 
     # Serve index.html for all other routes (React Router will handle routing)
     index_path = FRONTEND_BUILD_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(str(index_path), media_type="text/html")
-
-    # Fallback if frontend build doesn't exist
-    return {
-        "message": "Frontend not built. Run 'npm run build' in the frontend directory."
-    }
+    return FileResponse(str(index_path), media_type="text/html")
 
 
 def main() -> None:

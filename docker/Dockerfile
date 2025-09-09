@@ -31,7 +31,8 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_NO_INTERACTION=1 \
     POETRY_HOME=/usr/local \
     CI=1 \
-    PATH="/usr/local/bin:${PATH}"
+    PATH="/usr/local/bin:${PATH}" \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
 
 WORKDIR /app
 
@@ -51,8 +52,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && node --version && npm --version
 
-# Install Playwright system dependencies for browser support
-# Using playwright install-deps ensures all required libraries for all browsers
+# Install Playwright system dependencies as root first
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnspr4 libnss3 libatk1.0-0 libatspi2.0-0 libx11-6 libxcomposite1 \
     libxdamage1 libxext6 libxfixes3 libxrandr2 libgbm1 libxcb1 \
@@ -89,16 +89,21 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev
 
-# Frontend build moved to runtime via Python entrypoint
+# Install Playwright system dependencies as root using official command
+RUN poetry run playwright install-deps
 
-# Install Playwright system dependencies only (not browsers yet)
-# Must be done as root for system-wide installation
-RUN playwright install-deps
+# Build frontend during image construction
+WORKDIR /app/frontend
+RUN npm ci && npm run build
 
-# C++ build moved to runtime via Python entrypoint
+# Build C++ backend during image construction
+WORKDIR /app/backend/core
+RUN scons
+
+# Verify builds completed successfully
 WORKDIR /app
-
-# Entrypoint handled by Poetry script
+RUN ls -la /app/frontend/build/index.html && echo "✅ Frontend build completed"
+RUN ls -la /app/backend/python/corridors/_corridors_mcts.so && echo "✅ Backend build completed"
 
 # Fix ownership of all built files
 RUN chown -R ${USER_ID}:${GROUP_ID} /app
@@ -106,14 +111,14 @@ RUN chown -R ${USER_ID}:${GROUP_ID} /app
 # Switch to user for runtime
 USER ${USER_ID}:${GROUP_ID}
 
-# Verify scons is available for runtime build
-RUN which scons && echo "✅ SCons available for runtime build"
+# Install Playwright browsers as the user (dependencies already installed as root)
+RUN poetry run playwright install
 
-# Create symlink for static assets (optional, soft fail)
-WORKDIR /app
+# Verify Playwright browsers are installed correctly
+RUN ls -la ~/.cache/ms-playwright && echo "✅ Playwright browsers installed for user"
 
 # Expose only the single server port
 EXPOSE 8000
 
-# Use tini for proper signal handling with Python entrypoint
-ENTRYPOINT ["/usr/bin/tini", "--", "poetry", "run", "entrypoint"]
+# Use tini for simple server startup (no JIT building)
+ENTRYPOINT ["/usr/bin/tini", "--", "poetry", "run", "server"]
