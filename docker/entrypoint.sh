@@ -16,14 +16,25 @@ fi
 if [ ! -d "/app/frontend/build" ] || [ -z "$(ls -A /app/frontend/build 2>/dev/null)" ]; then
     echo "📦 Building frontend (not found or empty)..."
     cd /app/frontend
-    # Use npm ci if package-lock.json exists, otherwise use npm install
-    if [ -f "package-lock.json" ]; then
-        npm ci
-    else
-        npm install
+    
+    # Remove potentially corrupted package-lock.json on ARM64
+    if [ "$(dpkg --print-architecture)" = "arm64" ]; then
+        echo "🔧 ARM64 detected: Using fresh npm install"
+        rm -f package-lock.json
     fi
-    npm run build
-    echo "✅ Frontend build complete"
+    
+    # Try npm install
+    if npm install; then
+        echo "✅ npm install succeeded"
+        # Build the frontend
+        if npm run build; then
+            echo "✅ Frontend build complete"
+        else
+            echo "❌ Frontend build failed - backend will still work"
+        fi
+    else
+        echo "❌ npm install failed - backend will still work"
+    fi
 else
     echo "✅ Frontend build already exists"
 fi

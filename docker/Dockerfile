@@ -37,7 +37,7 @@ WORKDIR /app
 
 # Install system dependencies - same for both CPU and CUDA since both use Ubuntu 22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl git wget gpg gpg-agent \
+      ca-certificates curl git wget gpg gpg-agent xz-utils \
       software-properties-common build-essential pkg-config cmake scons \
       tini \
     && add-apt-repository ppa:deadsnakes/ppa \
@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-dev python3.12-venv \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js for frontend E2E tests
+# Install Node.js 20 LTS for frontend E2E tests (works on both ARM64 and AMD64)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && node --version && npm --version
@@ -88,8 +88,13 @@ COPY . /app
 # Install the root package (for scripts) as root
 RUN poetry install --with dev
 
-# Build frontend during image creation
-RUN cd frontend && npm install && npm run build
+# Build frontend during image creation (deferred to runtime if it fails)
+RUN cd frontend \
+    && npm cache clean --force \
+    && (npm ci || npm install) \
+    && npm run build \
+    && echo "✅ Frontend build complete" \
+    || echo "⚠️ Frontend build failed - will retry at runtime"
 
 # Install Playwright system dependencies only (not browsers yet)
 # Must be done as root for system-wide installation
