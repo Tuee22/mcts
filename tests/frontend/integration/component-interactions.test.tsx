@@ -1,6 +1,7 @@
 import React from 'react';
 import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { GameBoard } from '../../../frontend/src/components/GameBoard';
 import { MoveHistory } from '../../../frontend/src/components/MoveHistory';
 import { GameSettings } from '../../../frontend/src/components/GameSettings';
@@ -15,18 +16,18 @@ import {
 } from '../utils/test-utils';
 
 // Mock dependencies
-jest.mock('../../../frontend/src/store/gameStore');
-jest.mock('../../../frontend/src/services/websocket');
+vi.mock('../../../frontend/src/store/gameStore');
+vi.mock('../../../frontend/src/services/websocket');
 
-const mockUseGameStore = useGameStore as jest.MockedFunction<typeof useGameStore>;
-const mockWsService = wsService as jest.Mocked<typeof wsService>;
+const mockUseGameStore = useGameStore as ReturnType<typeof vi.mocked<typeof useGameStore>>;
+const mockWsService = wsService as ReturnType<typeof vi.mocked<typeof wsService>>;
 
 describe('Component Interactions Integration Tests', () => {
   const user = createUser();
   let mockStore: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockStore = {
       gameId: 'test-game-123',
@@ -36,20 +37,20 @@ describe('Component Interactions Integration Tests', () => {
       isLoading: false,
       error: null,
       selectedHistoryIndex: null,
-      setGameId: jest.fn(),
-      setGameState: jest.fn(),
-      setGameSettings: jest.fn(),
-      setIsConnected: jest.fn(),
-      setIsLoading: jest.fn(),
-      setError: jest.fn(),
-      setSelectedHistoryIndex: jest.fn(),
-      addMoveToHistory: jest.fn(),
-      reset: jest.fn()
+      setGameId: vi.fn(),
+      setGameState: vi.fn(),
+      setGameSettings: vi.fn(),
+      setIsConnected: vi.fn(),
+      setIsLoading: vi.fn(),
+      setError: vi.fn(),
+      setSelectedHistoryIndex: vi.fn(),
+      addMoveToHistory: vi.fn(),
+      reset: vi.fn()
     };
 
     mockUseGameStore.mockReturnValue(mockStore);
-    mockWsService.makeMove = jest.fn();
-    mockWsService.createGame = jest.fn();
+    mockWsService.makeMove = vi.fn();
+    mockWsService.createGame = vi.fn();
   });
 
   describe('GameBoard and MoveHistory Interaction', () => {

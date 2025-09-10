@@ -48,8 +48,21 @@ def main() -> None:
 
     print("⚛️  Running Frontend tests...")
 
-    # Build vitest command using npx to use local installation (non-interactive)
-    vitest_cmd = ["npx", "--yes", "vitest"]
+    # Check if node_modules exists and vitest is installed
+    node_modules_path = frontend_test_dir / "node_modules"
+    if not node_modules_path.exists():
+        print(f"❌ ERROR: node_modules not found in {frontend_test_dir}")
+        print(f"   Please run: cd {frontend_test_dir} && npm install")
+        sys.exit(1)
+
+    vitest_bin = node_modules_path / ".bin" / "vitest"
+    if not vitest_bin.exists():
+        print(f"❌ ERROR: vitest not installed in {frontend_test_dir}")
+        print(f"   Please run: cd {frontend_test_dir} && npm install")
+        sys.exit(1)
+
+    # Use the locally installed vitest directly (no fallback)
+    vitest_cmd = [str(vitest_bin)]
 
     if args.watch:
         # Run in watch mode

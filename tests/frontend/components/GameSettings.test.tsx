@@ -21,10 +21,16 @@ const mockWsService = vi.mocked(wsService);
 describe('GameSettings Component', () => {
   const user = createUser();
   const mockSetGameSettings = vi.fn();
+  
+  const openSettings = async () => {
+    const toggleButton = screen.getByText('⚙️ Game Settings');
+    await user.click(toggleButton);
+  };
 
   const defaultMockStore = {
     gameSettings: mockGameSettings,
     isLoading: false,
+    isConnected: true,
     setGameSettings: mockSetGameSettings
   };
 
@@ -35,29 +41,39 @@ describe('GameSettings Component', () => {
   });
 
   describe('Rendering', () => {
-    it('renders game settings title', () => {
+    it('renders game settings title', async () => {
       render(<GameSettings />);
+      
+      // Click toggle button to show settings
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      await user.click(toggleButton);
       
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
 
-    it('renders game mode options', () => {
+    it('renders game mode options', async () => {
       render(<GameSettings />);
+      
+      // Click toggle button to show settings
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      await user.click(toggleButton);
       
       expect(screen.getByText('Human vs Human')).toBeInTheDocument();
       expect(screen.getByText('Human vs AI')).toBeInTheDocument();
       expect(screen.getByText('AI vs AI')).toBeInTheDocument();
     });
 
-    it('shows human vs ai as active by default', () => {
+    it('shows human vs ai as active by default', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const humanVsAiButton = screen.getByText('Human vs AI').closest('.mode-btn');
       expect(humanVsAiButton).toHaveClass('active');
     });
 
-    it('renders AI difficulty options when AI is involved', () => {
+    it('renders AI difficulty options when AI is involved', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.getByText('Easy')).toBeInTheDocument();
       expect(screen.getByText('Medium')).toBeInTheDocument();
@@ -65,8 +81,9 @@ describe('GameSettings Component', () => {
       expect(screen.getByText('Expert')).toBeInTheDocument();
     });
 
-    it('renders AI time limit options when AI is involved', () => {
+    it('renders AI time limit options when AI is involved', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.getByText('1s')).toBeInTheDocument();
       expect(screen.getByText('3s')).toBeInTheDocument();
@@ -74,22 +91,24 @@ describe('GameSettings Component', () => {
       expect(screen.getByText('10s')).toBeInTheDocument();
     });
 
-    it('renders board size options', () => {
+    it('renders board size options', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.getByText('5x5')).toBeInTheDocument();
       expect(screen.getByText('7x7')).toBeInTheDocument();
       expect(screen.getByText('9x9')).toBeInTheDocument();
     });
 
-    it('renders action buttons', () => {
+    it('renders action buttons', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.getByText('Start Game')).toBeInTheDocument();
       expect(screen.getByText('Cancel')).toBeInTheDocument();
     });
 
-    it('hides AI settings for human vs human mode', () => {
+    it('hides AI settings for human vs human mode', async () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameSettings: {
@@ -99,6 +118,7 @@ describe('GameSettings Component', () => {
       } as any);
 
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.queryByText('AI Difficulty')).not.toBeInTheDocument();
       expect(screen.queryByText('AI Time Limit')).not.toBeInTheDocument();
@@ -108,6 +128,7 @@ describe('GameSettings Component', () => {
   describe('Game Mode Selection', () => {
     it('selects human vs human mode', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const humanVsHumanButton = screen.getByText('Human vs Human');
       await user.click(humanVsHumanButton);
@@ -117,6 +138,7 @@ describe('GameSettings Component', () => {
 
     it('selects human vs AI mode', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const humanVsAiButton = screen.getByText('Human vs AI');
       await user.click(humanVsAiButton);
@@ -126,6 +148,7 @@ describe('GameSettings Component', () => {
 
     it('selects AI vs AI mode', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const aiVsAiButton = screen.getByText('AI vs AI');
       await user.click(aiVsAiButton);
@@ -135,6 +158,7 @@ describe('GameSettings Component', () => {
 
     it('highlights selected mode', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const aiVsAiButton = screen.getByText('AI vs AI').closest('.mode-btn');
       await user.click(aiVsAiButton!);
@@ -148,6 +172,7 @@ describe('GameSettings Component', () => {
   describe('AI Difficulty Selection', () => {
     it('selects easy difficulty', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const easyButton = screen.getByText('Easy');
       await user.click(easyButton);
@@ -157,6 +182,7 @@ describe('GameSettings Component', () => {
 
     it('selects medium difficulty', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const mediumButton = screen.getByText('Medium');
       await user.click(mediumButton);
@@ -166,6 +192,7 @@ describe('GameSettings Component', () => {
 
     it('selects hard difficulty', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const hardButton = screen.getByText('Hard');
       await user.click(hardButton);
@@ -175,6 +202,7 @@ describe('GameSettings Component', () => {
 
     it('selects expert difficulty', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const expertButton = screen.getByText('Expert');
       await user.click(expertButton);
@@ -184,6 +212,7 @@ describe('GameSettings Component', () => {
 
     it('highlights selected difficulty', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const hardButton = screen.getByText('Hard').closest('.difficulty-btn');
       await user.click(hardButton!);
@@ -197,6 +226,7 @@ describe('GameSettings Component', () => {
   describe('AI Time Limit Selection', () => {
     it('selects 1 second time limit', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const oneSecButton = screen.getByText('1s');
       await user.click(oneSecButton);
@@ -206,6 +236,7 @@ describe('GameSettings Component', () => {
 
     it('selects 3 second time limit', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const threeSec = screen.getByText('3s');
       await user.click(threeSec);
@@ -215,6 +246,7 @@ describe('GameSettings Component', () => {
 
     it('selects 5 second time limit', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const fiveSec = screen.getByText('5s');
       await user.click(fiveSec);
@@ -224,6 +256,7 @@ describe('GameSettings Component', () => {
 
     it('selects 10 second time limit', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const tenSec = screen.getByText('10s');
       await user.click(tenSec);
@@ -233,6 +266,7 @@ describe('GameSettings Component', () => {
 
     it('highlights selected time limit', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const tenSecButton = screen.getByText('10s').closest('.time-btn');
       await user.click(tenSecButton!);
@@ -246,6 +280,7 @@ describe('GameSettings Component', () => {
   describe('Board Size Selection', () => {
     it('selects 5x5 board size', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const fiveByFive = screen.getByText('5x5');
       await user.click(fiveByFive);
@@ -255,6 +290,7 @@ describe('GameSettings Component', () => {
 
     it('selects 7x7 board size', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const sevenBySeven = screen.getByText('7x7');
       await user.click(sevenBySeven);
@@ -264,6 +300,7 @@ describe('GameSettings Component', () => {
 
     it('selects 9x9 board size', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const nineByNine = screen.getByText('9x9');
       await user.click(nineByNine);
@@ -273,6 +310,7 @@ describe('GameSettings Component', () => {
 
     it('highlights selected board size', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const sevenBySevenButton = screen.getByText('7x7').closest('.size-btn');
       await user.click(sevenBySevenButton!);
@@ -295,6 +333,7 @@ describe('GameSettings Component', () => {
       } as any);
 
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -308,6 +347,7 @@ describe('GameSettings Component', () => {
 
     it('creates game with AI settings', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -335,6 +375,7 @@ describe('GameSettings Component', () => {
       } as any);
 
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -361,6 +402,7 @@ describe('GameSettings Component', () => {
       } as any);
 
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -379,6 +421,7 @@ describe('GameSettings Component', () => {
 
     it('hides settings panel after starting game', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -391,13 +434,14 @@ describe('GameSettings Component', () => {
   });
 
   describe('Loading State', () => {
-    it('shows loading state when starting game', () => {
+    it('shows loading state when starting game', async () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         isLoading: true
       } as any);
 
       render(<GameSettings />);
+      await openSettings();
       
       expect(screen.getByText('Starting...')).toBeInTheDocument();
       
@@ -405,8 +449,9 @@ describe('GameSettings Component', () => {
       expect(startButton).toBeDisabled();
     });
 
-    it('enables start button when not loading', () => {
+    it('enables start button when not loading', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       expect(startButton).not.toBeDisabled();
@@ -416,6 +461,7 @@ describe('GameSettings Component', () => {
   describe('Toggle Functionality', () => {
     it('shows toggle button when settings are hidden', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -430,21 +476,19 @@ describe('GameSettings Component', () => {
     it('shows settings panel when toggle button is clicked', async () => {
       render(<GameSettings />);
       
-      // Hide settings first
-      const startButton = screen.getByText('Start Game');
-      await user.click(startButton);
+      // Toggle button should be visible initially
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      await user.click(toggleButton);
       
-      // Then show them again
-      await waitFor(async () => {
-        const toggleButton = screen.getByText('Game Settings');
-        await user.click(toggleButton);
-        
+      // Settings panel should now be visible
+      await waitFor(() => {
         expect(screen.getByText('Game Mode')).toBeInTheDocument();
       });
     });
 
     it('hides settings panel when cancel is clicked', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const cancelButton = screen.getByText('Cancel');
       await user.click(cancelButton);
@@ -456,8 +500,9 @@ describe('GameSettings Component', () => {
   });
 
   describe('Accessibility', () => {
-    it('provides proper ARIA labels for mode buttons', () => {
+    it('provides proper ARIA labels for mode buttons', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const humanVsHuman = screen.getByText('Human vs Human');
       const humanVsAi = screen.getByText('Human vs AI');
@@ -470,6 +515,7 @@ describe('GameSettings Component', () => {
 
     it('supports keyboard navigation', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const humanVsHuman = screen.getByText('Human vs Human');
       humanVsHuman.focus();
@@ -481,6 +527,7 @@ describe('GameSettings Component', () => {
 
     it('provides proper focus management', async () => {
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       startButton.focus();
@@ -494,6 +541,7 @@ describe('GameSettings Component', () => {
       mockWsService.createGame.mockRejectedValue(new Error('Connection failed'));
       
       render(<GameSettings />);
+      await openSettings();
       
       const startButton = screen.getByText('Start Game');
       
@@ -542,10 +590,11 @@ describe('GameSettings Component', () => {
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
 
-    it('renders quickly with all options', () => {
+    it('renders quickly with all options', async () => {
       const start = performance.now();
       
       render(<GameSettings />);
+      await openSettings();
       
       const end = performance.now();
       const renderTime = end - start;

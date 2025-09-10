@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import { render as rtlRender, RenderOptions } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -104,13 +104,9 @@ export const customRender = (
   ui: ReactElement,
   options?: CustomRenderOptions
 ) => {
-  let result;
-  act(() => {
-    result = render(ui, {
-      ...options
-    });
+  return rtlRender(ui, {
+    ...options
   });
-  return result;
 };
 
 // Re-export everything from testing-library

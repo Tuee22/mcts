@@ -10,18 +10,7 @@ export default defineConfig({
     setupFiles: ['./setupTests.ts'],
     globals: true,
     css: true,
-    exclude: [
-      'node_modules/**',
-      'build/**',
-      'dist/**',
-      // Temporarily exclude all failing tests for clean build
-      'services/**',
-      'components/**', 
-      'store/**',
-      'integration/**',
-      'e2e/**',
-      '**/*.test.js',  // Old Jest-style tests
-    ],
+    // NO exclude array - run ALL tests
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

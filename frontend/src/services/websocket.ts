@@ -300,11 +300,6 @@ class WebSocketService {
       useGameStore.getState().setError(`Failed to create game: ${error}`);
       useGameStore.getState().setIsLoading(false);
     }
-    } catch (outerError) {
-      console.error('Outer error in createGame:', outerError);
-      useGameStore.getState().setError(`Game creation failed: ${outerError}`);
-      useGameStore.getState().setIsLoading(false);
-    }
   }
 
   joinGame(gameId: string) {

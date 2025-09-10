@@ -3,20 +3,18 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 
-// Jest compatibility for existing tests
-global.jest = {
-  mock: vi.mock,
-  unmock: vi.unmock,
-  fn: vi.fn,
-  spyOn: vi.spyOn,
-  clearAllMocks: vi.clearAllMocks,
-  resetAllMocks: vi.resetAllMocks,
-  restoreAllMocks: vi.restoreAllMocks,
-  setTimeout: (fn, timeout) => {
-    // Vitest doesn't have jest.setTimeout, but tests can set timeout per test
-    return fn;
-  }
-};
+// Mock react-hot-toast globally
+vi.mock('react-hot-toast', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn()
+  },
+  Toaster: () => null // Return null to avoid rendering anything
+}));
+
+// No Jest compatibility layer - use Vitest APIs directly
 
 // Cleanup after each test
 afterEach(() => {

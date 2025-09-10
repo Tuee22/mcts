@@ -66,10 +66,10 @@ export const GameBoard: React.FC = () => {
   };
 
   const renderCell = (x: number, y: number) => {
-    const player0 = displayState.players[0];
-    const player1 = displayState.players[1];
-    const isPlayer0 = player0.x === x && player0.y === y;
-    const isPlayer1 = player1.x === x && player1.y === y;
+    const player0 = displayState.players?.[0];
+    const player1 = displayState.players?.[1];
+    const isPlayer0 = player0?.x === x && player0?.y === y;
+    const isPlayer1 = player1?.x === x && player1?.y === y;
     const isHovered = hoveredCell?.x === x && hoveredCell?.y === y;
     const isLegal = isLegalMove(x, y);
 
@@ -157,6 +157,7 @@ export const GameBoard: React.FC = () => {
         <button 
           className={`retro-btn ${wallPlacementMode ? 'active' : ''}`}
           onClick={toggleWallMode}
+          aria-label={wallPlacementMode ? 'Switch to pawn placement mode' : 'Switch to wall placement mode'}
         >
           {wallPlacementMode ? 'Place Pawn' : 'Place Wall'}
         </button>
@@ -179,6 +180,7 @@ export const GameBoard: React.FC = () => {
 
       <div 
         className="game-board"
+        data-testid="game-board"
         style={{
           width: boardSize * cellSize,
           height: boardSize * cellSize,

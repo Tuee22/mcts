@@ -7,42 +7,42 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 
 import App from '../../frontend/src/App';
 import { useGameStore } from '../../frontend/src/store/gameStore';
 
 // Mock WebSocket service
 const mockWsService = {
-  connect: jest.fn(),
-  disconnect: jest.fn(), 
-  createGame: jest.fn(),
-  makeMove: jest.fn(),
-  getAIMove: jest.fn(),
-  isConnected: jest.fn(() => true)
+  connect: vi.fn(),
+  disconnect: vi.fn(), 
+  createGame: vi.fn(),
+  makeMove: vi.fn(),
+  getAIMove: vi.fn(),
+  isConnected: vi.fn(() => true)
 };
 
-jest.mock('../../frontend/src/services/websocket', () => ({
+vi.mock('../../frontend/src/services/websocket', () => ({
   wsService: mockWsService
 }));
 
 // Mock socket.io-client
-jest.mock('socket.io-client', () => {
-  return jest.fn(() => ({
+vi.mock('socket.io-client', () => {
+  return vi.fn(() => ({
     connected: true,
-    connect: jest.fn(),
-    disconnect: jest.fn(),
-    on: jest.fn(),
-    emit: jest.fn(),
-    off: jest.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    on: vi.fn(),
+    emit: vi.fn(),
+    off: vi.fn(),
   }));
 });
 
 // Mock clipboard API for copy moves functionality
 Object.assign(navigator, {
   clipboard: {
-    writeText: jest.fn(() => Promise.resolve()),
+    writeText: vi.fn(() => Promise.resolve()),
   },
 });
 
@@ -51,7 +51,7 @@ describe('End-to-End Integration Tests', () => {
 
   beforeEach(() => {
     useGameStore.getState().reset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('🚀 Complete User Journey: Human vs AI Game', () => {

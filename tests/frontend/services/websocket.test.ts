@@ -67,28 +67,26 @@ describe('WebSocket Service', () => {
       expect(firstConnection).toBe(secondConnection);
     });
 
-    it('handles connection events', (done) => {
+    it('handles connection events', async () => {
       wsService.connect();
       
       // Wait for connection event
-      setTimeout(() => {
-        expect(mockStore.setIsConnected).toHaveBeenCalledWith(true);
-        expect(mockStore.setError).toHaveBeenCalledWith(null);
-        done();
-      }, 20);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      
+      expect(mockStore.setIsConnected).toHaveBeenCalledWith(true);
+      expect(mockStore.setError).toHaveBeenCalledWith(null);
     });
 
-    it('handles disconnect events', (done) => {
+    it('handles disconnect events', async () => {
       wsService.connect();
       
-      setTimeout(() => {
-        wsService.disconnect();
-        expect(mockStore.setIsConnected).toHaveBeenCalledWith(false);
-        done();
-      }, 20);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      
+      wsService.disconnect();
+      expect(mockStore.setIsConnected).toHaveBeenCalledWith(false);
     });
 
-    it('handles connection errors', (done) => {
+    it('handles connection errors', async () => {
       wsService.connect();
       
       setTimeout(() => {
@@ -100,11 +98,12 @@ describe('WebSocket Service', () => {
         expect(mockStore.setError).toHaveBeenCalledWith(
           'Failed to connect to server. Please check if the server is running.'
         );
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
 
-    it('resets reconnection attempts on successful connection', (done) => {
+    it('resets reconnection attempts on successful connection', async () => {
       wsService.connect();
       
       setTimeout(() => {
@@ -117,13 +116,14 @@ describe('WebSocket Service', () => {
         
         // Should reset attempts counter
         expect(mockStore.setError).toHaveBeenCalledWith(null);
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
   });
 
   describe('Game Events', () => {
-    beforeEach((done) => {
+    beforeEach(async () => {
       wsService.connect();
       setTimeout(done, 20); // Wait for connection
     });
@@ -182,7 +182,7 @@ describe('WebSocket Service', () => {
           board_size: 9
         };
         
-        const emitSpy = jest.spyOn(mockSocket, 'emit');
+        const emitSpy = vi.spyOn(mockSocket, 'emit');
         wsService.createGame(settings);
         
         expect(mockStore.setIsLoading).toHaveBeenCalledWith(true);
@@ -203,7 +203,7 @@ describe('WebSocket Service', () => {
       it('joins existing game', () => {
         const gameId = 'test-game-123';
         
-        const emitSpy = jest.spyOn(mockSocket, 'emit');
+        const emitSpy = vi.spyOn(mockSocket, 'emit');
         wsService.joinGame(gameId);
         
         expect(mockStore.setIsLoading).toHaveBeenCalledWith(true);
@@ -224,7 +224,7 @@ describe('WebSocket Service', () => {
         const gameId = 'test-game-123';
         const move = 'e2';
         
-        const emitSpy = jest.spyOn(mockSocket, 'emit');
+        const emitSpy = vi.spyOn(mockSocket, 'emit');
         wsService.makeMove(gameId, move);
         
         expect(emitSpy).toHaveBeenCalledWith('make_move', {
@@ -246,7 +246,7 @@ describe('WebSocket Service', () => {
       it('requests AI move', () => {
         const gameId = 'test-game-123';
         
-        const emitSpy = jest.spyOn(mockSocket, 'emit');
+        const emitSpy = vi.spyOn(mockSocket, 'emit');
         wsService.getAIMove(gameId);
         
         expect(emitSpy).toHaveBeenCalledWith('get_ai_move', { game_id: gameId });
@@ -270,8 +270,9 @@ describe('WebSocket Service', () => {
       
       setTimeout(() => {
         expect(wsService.isConnected()).toBe(true);
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
 
     it('reports disconnected state correctly', () => {
@@ -295,8 +296,9 @@ describe('WebSocket Service', () => {
         expect(mockStore.setError).not.toHaveBeenCalledWith(
           expect.stringContaining('Failed to connect')
         );
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
 
     it('handles malformed server events', (done) => {
@@ -312,21 +314,21 @@ describe('WebSocket Service', () => {
         expect(mockStore.setError).not.toHaveBeenCalledWith(
           expect.stringContaining('crash')
         );
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
 
-    it('handles rapid connect/disconnect cycles', (done) => {
+    it('handles rapid connect/disconnect cycles', async () => {
       for (let i = 0; i < 5; i++) {
         wsService.connect();
         wsService.disconnect();
       }
       
-      setTimeout(() => {
-        // Should handle gracefully without crashes
-        expect(mockStore.setIsConnected).toHaveBeenCalled();
-        done();
-      }, 50);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Should handle gracefully without crashes
+      expect(mockStore.setIsConnected).toHaveBeenCalled();
     });
   });
 
@@ -371,8 +373,9 @@ describe('WebSocket Service', () => {
           'Failed to connect to server. Please check if the server is running.'
         );
         
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
 
     it('stops reconnection after max attempts', (done) => {
@@ -388,8 +391,9 @@ describe('WebSocket Service', () => {
           'Failed to connect to server. Please check if the server is running.'
         );
         
-        done();
       }, 20);
+      
+      await new Promise(resolve => setTimeout(resolve, 25));
     });
   });
 
