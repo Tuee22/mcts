@@ -7,30 +7,51 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: ['./setupTests.ts'],
+    setupFiles: ['./setup/setupTests.ts'],
     globals: true,
     css: true,
-    // NO exclude array - run ALL tests
+    // Frontend tests should be fast and isolated
+    include: ['**/*.test.{ts,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/build/**',
+      '**/dist/**',
+      // Exclude integration and E2E tests - they belong elsewhere
+      '**/*integration*.test.*',
+      '**/*e2e*.test.*'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
+      include: ['../../frontend/src/**/*.{ts,tsx}'],
       exclude: [
         'node_modules/',
-        'setupTests.ts',
+        'setup/',
+        'fixtures/',
         '**/*.d.ts',
-        'mocks/',
         'coverage/',
         'build/',
         'dist/'
-      ]
-    }
+      ],
+      thresholds: {
+        global: {
+          branches: 90,
+          functions: 90,
+          lines: 90,
+          statements: 90
+        }
+      }
+    },
+    // Performance and memory monitoring
+    logHeapUsage: true,
+    testTimeout: 5000, // Fast tests only
+    hookTimeout: 2000
   },
   resolve: {
     alias: {
       // Frontend source alias  
-      '@frontend': path.resolve('../../frontend/src'),
-      // CSS modules
-      '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
+      '@': path.resolve('../../frontend/src'),
+      '@frontend': path.resolve('../../frontend/src')
     }
   }
 })

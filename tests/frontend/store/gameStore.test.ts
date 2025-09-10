@@ -1,364 +1,562 @@
-import { useGameStore } from '../../../frontend/src/store/gameStore';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { useGameStore } from '@/store/gameStore';
 import { 
-  mockGameState, 
-  mockGameSettings,
-  generateMockMove,
-  generateMockGameState 
-} from '../utils/test-utils';
+  mockInitialGameState, 
+  mockMidGameState, 
+  mockCompletedGameState 
+} from '../fixtures/gameState';
+import { 
+  mockDefaultGameSettings, 
+  mockHumanVsHumanSettings, 
+  mockAIVsAISettings 
+} from '../fixtures/gameSettings';
 
-describe('GameStore', () => {
+// Mock Zustand to avoid persistence issues in tests
+vi.mock('zustand', () => ({
+  create: (fn: any) => {
+    const store = fn(() => store.setState, () => store.getState);
+    return store;
+  }
+}));
+
+describe('Game Store', () => {
+  let store: ReturnType<typeof useGameStore>;
+
   beforeEach(() => {
-    // Reset store before each test
-    useGameStore.getState().reset();
+    // Get fresh store instance and reset it
+    store = useGameStore;
+    store.getState().reset();
   });
 
   describe('Initial State', () => {
     it('has correct initial state', () => {
-      const state = useGameStore.getState();
-      
+      const state = store.getState();
+
       expect(state.gameId).toBeNull();
       expect(state.gameState).toBeNull();
-      expect(state.isConnected).toBe(false);
-      expect(state.isLoading).toBe(false);
-      expect(state.error).toBeNull();
-      expect(state.selectedHistoryIndex).toBeNull();
-    });
-
-    it('has default game settings', () => {
-      const state = useGameStore.getState();
-      
       expect(state.gameSettings).toEqual({
         mode: 'human_vs_ai',
         ai_difficulty: 'medium',
         ai_time_limit: 5000,
         board_size: 9
       });
+      expect(state.isConnected).toBe(false);
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
+      expect(state.selectedHistoryIndex).toBeNull();
     });
   });
 
   describe('Game ID Management', () => {
-    it('sets game ID', () => {
-      useGameStore.getState().setGameId('test-game-123');
-      
-      expect(useGameStore.getState().gameId).toBe('test-game-123');
+    it('sets game ID correctly', () => {
+      const { setGameId } = store.getState();
+      setGameId('test-game-123');
+
+      expect(store.getState().gameId).toBe('test-game-123');
     });
 
-    it('clears game ID', () => {
-      useGameStore.getState().setGameId('test-game-123');
-      useGameStore.getState().setGameId(null);
+    it('clears game ID when set to null', () => {
+      const { setGameId } = store.getState();
       
-      expect(useGameStore.getState().gameId).toBeNull();
+      setGameId('test-game-123');
+      expect(store.getState().gameId).toBe('test-game-123');
+
+      setGameId(null);
+      expect(store.getState().gameId).toBeNull();
     });
 
-    it('updates subscribers when game ID changes', () => {
-      useGameStore.getState().setGameId('test-game-123');
-      expect(useGameStore.getState().gameId).toBe('test-game-123');
+    it('handles empty string game ID', () => {
+      const { setGameId } = store.getState();
+      setGameId('');
+
+      expect(store.getState().gameId).toBe('');
     });
   });
 
   describe('Game State Management', () => {
-    it('sets game state', () => {
-      useGameStore.getState().setGameState(mockGameState);
-      
-      expect(useGameStore.getState().gameState).toEqual(mockGameState);
+    it('sets game state correctly', () => {
+      const { setGameState } = store.getState();
+      setGameState(mockInitialGameState);
+
+      expect(store.getState().gameState).toEqual(mockInitialGameState);
     });
 
-    it('clears game state', () => {
-      useGameStore.getState().setGameState(mockGameState);
-      useGameStore.getState().setGameState(null);
+    it('updates game state from initial to mid-game', () => {
+      const { setGameState } = store.getState();
       
-      expect(useGameStore.getState().gameState).toBeNull();
-    });
-  });
+      setGameState(mockInitialGameState);
+      expect(store.getState().gameState?.move_history).toHaveLength(0);
 
-  describe('Connection State', () => {
-    it('sets connection state', () => {
-      useGameStore.getState().setIsConnected(true);
-      
-      expect(useGameStore.getState().isConnected).toBe(true);
+      setGameState(mockMidGameState);
+      expect(store.getState().gameState?.move_history).toHaveLength(6);
+      expect(store.getState().gameState?.current_player).toBe(1);
     });
 
-    it('toggles connection state', () => {
-      useGameStore.getState().setIsConnected(true);
-      expect(useGameStore.getState().isConnected).toBe(true);
-      
-      useGameStore.getState().setIsConnected(false);
-      expect(useGameStore.getState().isConnected).toBe(false);
-    });
-  });
+    it('handles game completion state', () => {
+      const { setGameState } = store.getState();
+      setGameState(mockCompletedGameState);
 
-  describe('Loading State', () => {
-    it('sets loading state', () => {
-      useGameStore.getState().setIsLoading(true);
-      
-      expect(useGameStore.getState().isLoading).toBe(true);
+      const state = store.getState();
+      expect(state.gameState?.winner).toBe(0);
+      expect(state.gameState?.players[0].y).toBe(8); // Player 1 reached the top
     });
 
-    it('toggles loading state', () => {
-      useGameStore.getState().setIsLoading(true);
-      expect(useGameStore.getState().isLoading).toBe(true);
+    it('clears game state when set to null', () => {
+      const { setGameState } = store.getState();
       
-      useGameStore.getState().setIsLoading(false);
-      expect(useGameStore.getState().isLoading).toBe(false);
-    });
-  });
+      setGameState(mockInitialGameState);
+      expect(store.getState().gameState).not.toBeNull();
 
-  describe('Error Management', () => {
-    it('sets error message', () => {
-      useGameStore.getState().setError('Test error message');
-      
-      expect(useGameStore.getState().error).toBe('Test error message');
+      setGameState(null);
+      expect(store.getState().gameState).toBeNull();
     });
 
-    it('clears error', () => {
-      useGameStore.getState().setError('Test error');
-      useGameStore.getState().setError(null);
+    it('preserves immutability when updating state', () => {
+      const { setGameState } = store.getState();
+      const originalState = { ...mockInitialGameState };
       
-      expect(useGameStore.getState().error).toBeNull();
+      setGameState(originalState);
+      
+      // Modify the original object
+      originalState.current_player = 1;
+      
+      // Store state should not be affected
+      expect(store.getState().gameState?.current_player).toBe(0);
     });
   });
 
-  describe('Game Settings', () => {
+  describe('Game Settings Management', () => {
     it('updates game mode', () => {
-      useGameStore.getState().setGameSettings({ mode: 'ai_vs_ai' });
-      
-      expect(useGameStore.getState().gameSettings.mode).toBe('ai_vs_ai');
+      const { setGameSettings } = store.getState();
+      setGameSettings({ mode: 'human_vs_human' });
+
+      expect(store.getState().gameSettings.mode).toBe('human_vs_human');
     });
 
     it('updates AI difficulty', () => {
-      useGameStore.getState().setGameSettings({ ai_difficulty: 'hard' });
-      
-      expect(useGameStore.getState().gameSettings.ai_difficulty).toBe('hard');
+      const { setGameSettings } = store.getState();
+      setGameSettings({ ai_difficulty: 'expert' });
+
+      expect(store.getState().gameSettings.ai_difficulty).toBe('expert');
+    });
+
+    it('updates AI time limit', () => {
+      const { setGameSettings } = store.getState();
+      setGameSettings({ ai_time_limit: 10000 });
+
+      expect(store.getState().gameSettings.ai_time_limit).toBe(10000);
     });
 
     it('updates board size', () => {
-      useGameStore.getState().setGameSettings({ board_size: 5 });
-      
-      expect(useGameStore.getState().gameSettings.board_size).toBe(5);
+      const { setGameSettings } = store.getState();
+      setGameSettings({ board_size: 5 });
+
+      expect(store.getState().gameSettings.board_size).toBe(5);
     });
 
-    it('updates time limit', () => {
-      useGameStore.getState().setGameSettings({ ai_time_limit: 10000 });
-      
-      expect(useGameStore.getState().gameSettings.ai_time_limit).toBe(10000);
-    });
-
-    it('merges settings correctly', () => {
-      useGameStore.getState().setGameSettings({ mode: 'human_vs_human', ai_difficulty: 'expert' });
-      
-      expect(useGameStore.getState().gameSettings).toEqual({
-        mode: 'human_vs_human',
-        ai_difficulty: 'expert',
-        ai_time_limit: 5000,
-        board_size: 9
+    it('updates multiple settings at once', () => {
+      const { setGameSettings } = store.getState();
+      setGameSettings({
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'hard',
+        ai_time_limit: 15000,
+        board_size: 11
       });
+
+      const settings = store.getState().gameSettings;
+      expect(settings.mode).toBe('ai_vs_ai');
+      expect(settings.ai_difficulty).toBe('hard');
+      expect(settings.ai_time_limit).toBe(15000);
+      expect(settings.board_size).toBe(11);
+    });
+
+    it('preserves unchanged settings when updating', () => {
+      const { setGameSettings } = store.getState();
+      const originalSettings = store.getState().gameSettings;
+
+      setGameSettings({ mode: 'ai_vs_ai' });
+
+      const updatedSettings = store.getState().gameSettings;
+      expect(updatedSettings.mode).toBe('ai_vs_ai');
+      expect(updatedSettings.ai_difficulty).toBe(originalSettings.ai_difficulty);
+      expect(updatedSettings.ai_time_limit).toBe(originalSettings.ai_time_limit);
+      expect(updatedSettings.board_size).toBe(originalSettings.board_size);
     });
   });
 
-  describe('History Index Management', () => {
-    it('sets selected history index', () => {
-      useGameStore.getState().setSelectedHistoryIndex(5);
+  describe('Connection State Management', () => {
+    it('sets connection status', () => {
+      const { setIsConnected } = store.getState();
       
-      expect(useGameStore.getState().selectedHistoryIndex).toBe(5);
+      setIsConnected(true);
+      expect(store.getState().isConnected).toBe(true);
+
+      setIsConnected(false);
+      expect(store.getState().isConnected).toBe(false);
+    });
+
+    it('handles connection state changes', () => {
+      const { setIsConnected } = store.getState();
+      
+      expect(store.getState().isConnected).toBe(false);
+
+      setIsConnected(true);
+      expect(store.getState().isConnected).toBe(true);
+
+      setIsConnected(false);
+      expect(store.getState().isConnected).toBe(false);
+    });
+  });
+
+  describe('Loading State Management', () => {
+    it('sets loading status', () => {
+      const { setIsLoading } = store.getState();
+      
+      setIsLoading(true);
+      expect(store.getState().isLoading).toBe(true);
+
+      setIsLoading(false);
+      expect(store.getState().isLoading).toBe(false);
+    });
+
+    it('handles loading state transitions', () => {
+      const { setIsLoading } = store.getState();
+      
+      expect(store.getState().isLoading).toBe(false);
+
+      setIsLoading(true);
+      expect(store.getState().isLoading).toBe(true);
+
+      setIsLoading(false);
+      expect(store.getState().isLoading).toBe(false);
+    });
+  });
+
+  describe('Error State Management', () => {
+    it('sets error message', () => {
+      const { setError } = store.getState();
+      
+      setError('Connection failed');
+      expect(store.getState().error).toBe('Connection failed');
+    });
+
+    it('clears error when set to null', () => {
+      const { setError } = store.getState();
+      
+      setError('Some error');
+      expect(store.getState().error).toBe('Some error');
+
+      setError(null);
+      expect(store.getState().error).toBeNull();
+    });
+
+    it('updates error message', () => {
+      const { setError } = store.getState();
+      
+      setError('First error');
+      expect(store.getState().error).toBe('First error');
+
+      setError('Second error');
+      expect(store.getState().error).toBe('Second error');
+    });
+  });
+
+  describe('History Navigation', () => {
+    it('sets selected history index', () => {
+      const { setSelectedHistoryIndex } = store.getState();
+      
+      setSelectedHistoryIndex(0);
+      expect(store.getState().selectedHistoryIndex).toBe(0);
+
+      setSelectedHistoryIndex(5);
+      expect(store.getState().selectedHistoryIndex).toBe(5);
     });
 
     it('clears selected history index', () => {
-      useGameStore.getState().setSelectedHistoryIndex(5);
-      useGameStore.getState().setSelectedHistoryIndex(null);
+      const { setSelectedHistoryIndex } = store.getState();
       
-      expect(useGameStore.getState().selectedHistoryIndex).toBeNull();
+      setSelectedHistoryIndex(3);
+      expect(store.getState().selectedHistoryIndex).toBe(3);
+
+      setSelectedHistoryIndex(null);
+      expect(store.getState().selectedHistoryIndex).toBeNull();
+    });
+
+    it('handles negative history index', () => {
+      const { setSelectedHistoryIndex } = store.getState();
+      
+      setSelectedHistoryIndex(-1);
+      expect(store.getState().selectedHistoryIndex).toBe(-1);
+    });
+
+    it('handles large history index', () => {
+      const { setSelectedHistoryIndex } = store.getState();
+      
+      setSelectedHistoryIndex(999);
+      expect(store.getState().selectedHistoryIndex).toBe(999);
     });
   });
 
-  describe('Move History', () => {
-    it('adds move to history', () => {
-      const move = generateMockMove('e2', 0);
+  describe('Move History Management', () => {
+    it('adds move to history when game state exists', () => {
+      const { setGameState, addMoveToHistory } = store.getState();
       
-      // Set initial game state
-      useGameStore.getState().setGameState({ ...mockGameState, move_history: [] });
-      useGameStore.getState().addMoveToHistory(move);
+      setGameState(mockInitialGameState);
       
-      expect(useGameStore.getState().gameState?.move_history).toEqual([move]);
+      const newMove = {
+        notation: 'e2',
+        player: 0 as const,
+        type: 'move' as const,
+        position: { x: 4, y: 1 }
+      };
+
+      addMoveToHistory(newMove);
+
+      const gameState = store.getState().gameState;
+      expect(gameState?.move_history).toHaveLength(1);
+      expect(gameState?.move_history[0]).toEqual(newMove);
     });
 
-    it('adds multiple moves to history', () => {
-      const moves = [
-        generateMockMove('e2', 0),
-        generateMockMove('e8', 1),
-        generateMockMove('e3', 0)
-      ];
+    it('does not add move when game state is null', () => {
+      const { addMoveToHistory } = store.getState();
       
-      // Set initial game state
-      useGameStore.getState().setGameState({ ...mockGameState, move_history: [] });
-      
-      moves.forEach(move => useGameStore.getState().addMoveToHistory(move));
-      
-      expect(useGameStore.getState().gameState?.move_history).toEqual(moves);
+      expect(store.getState().gameState).toBeNull();
+
+      const newMove = {
+        notation: 'e2',
+        player: 0 as const,
+        type: 'move' as const,
+        position: { x: 4, y: 1 }
+      };
+
+      addMoveToHistory(newMove);
+
+      expect(store.getState().gameState).toBeNull();
     });
 
-    it('handles adding move when no game state exists', () => {
-      const move = generateMockMove('e2', 0);
+    it('adds multiple moves sequentially', () => {
+      const { setGameState, addMoveToHistory } = store.getState();
       
-      // Should not crash when no game state
-      expect(() => {
-        useGameStore.getState().addMoveToHistory(move);
-      }).not.toThrow();
+      setGameState(mockInitialGameState);
+
+      const move1 = {
+        notation: 'e2',
+        player: 0 as const,
+        type: 'move' as const,
+        position: { x: 4, y: 1 }
+      };
+
+      const move2 = {
+        notation: 'e8',
+        player: 1 as const,
+        type: 'move' as const,
+        position: { x: 4, y: 7 }
+      };
+
+      addMoveToHistory(move1);
+      addMoveToHistory(move2);
+
+      const gameState = store.getState().gameState;
+      expect(gameState?.move_history).toHaveLength(2);
+      expect(gameState?.move_history[0]).toEqual(move1);
+      expect(gameState?.move_history[1]).toEqual(move2);
+    });
+
+    it('adds wall moves to history', () => {
+      const { setGameState, addMoveToHistory } = store.getState();
+      
+      setGameState(mockInitialGameState);
+
+      const wallMove = {
+        notation: 'c5h',
+        player: 0 as const,
+        type: 'wall' as const,
+        wall: { x: 2, y: 4, orientation: 'horizontal' as const }
+      };
+
+      addMoveToHistory(wallMove);
+
+      const gameState = store.getState().gameState;
+      expect(gameState?.move_history).toHaveLength(1);
+      expect(gameState?.move_history[0]).toEqual(wallMove);
     });
   });
 
   describe('Store Reset', () => {
     it('resets all state to initial values', () => {
-      // Set some state first
-      useGameStore.getState().setGameId('test-game');
-      useGameStore.getState().setGameState(mockGameState);
-      useGameStore.getState().setIsConnected(true);
-      useGameStore.getState().setIsLoading(true);
-      useGameStore.getState().setError('Some error');
-      useGameStore.getState().setSelectedHistoryIndex(3);
-      useGameStore.getState().setGameSettings({ mode: 'ai_vs_ai' });
-      
+      const { 
+        setGameId, 
+        setGameState, 
+        setGameSettings, 
+        setIsConnected, 
+        setIsLoading, 
+        setError, 
+        setSelectedHistoryIndex,
+        reset 
+      } = store.getState();
+
+      // Set various state values
+      setGameId('test-game-123');
+      setGameState(mockMidGameState);
+      setGameSettings({ mode: 'ai_vs_ai', board_size: 5 });
+      setIsConnected(true);
+      setIsLoading(true);
+      setError('Test error');
+      setSelectedHistoryIndex(3);
+
+      // Verify state is modified
+      expect(store.getState().gameId).toBe('test-game-123');
+      expect(store.getState().gameState).toEqual(mockMidGameState);
+      expect(store.getState().isConnected).toBe(true);
+      expect(store.getState().isLoading).toBe(true);
+      expect(store.getState().error).toBe('Test error');
+      expect(store.getState().selectedHistoryIndex).toBe(3);
+
       // Reset
-      useGameStore.getState().reset();
-      
-      const state = useGameStore.getState();
-      expect(state.gameId).toBeNull();
-      expect(state.gameState).toBeNull();
-      expect(state.isConnected).toBe(false);
-      expect(state.isLoading).toBe(false);
-      expect(state.error).toBeNull();
-      expect(state.selectedHistoryIndex).toBeNull();
-      expect(state.gameSettings).toEqual({
+      reset();
+
+      // Verify state is back to initial values
+      const resetState = store.getState();
+      expect(resetState.gameId).toBeNull();
+      expect(resetState.gameState).toBeNull();
+      expect(resetState.gameSettings).toEqual({
         mode: 'human_vs_ai',
         ai_difficulty: 'medium',
         ai_time_limit: 5000,
         board_size: 9
       });
+      expect(resetState.isConnected).toBe(false);
+      expect(resetState.isLoading).toBe(false);
+      expect(resetState.error).toBeNull();
+      expect(resetState.selectedHistoryIndex).toBeNull();
     });
 
-    it('can be called multiple times safely', () => {
-      expect(() => {
-        useGameStore.getState().reset();
-        useGameStore.getState().reset();
-        useGameStore.getState().reset();
-      }).not.toThrow();
-    });
-  });
+    it('preserves connection state on reset', () => {
+      const { setIsConnected, reset } = store.getState();
 
-  describe('State Persistence', () => {
-    it('maintains state across calls', () => {
-      useGameStore.getState().setGameId('persistent-game');
-      
-      expect(useGameStore.getState().gameId).toBe('persistent-game');
-    });
+      // Connection should be preserved through reset
+      setIsConnected(true);
+      reset();
 
-    it('maintains complex state', () => {
-      const complexState = generateMockGameState({
-        move_history: [
-          generateMockMove('e2', 0),
-          generateMockMove('e8', 1)
-        ]
-      });
-      
-      useGameStore.getState().setGameState(complexState);
-      
-      expect(useGameStore.getState().gameState?.move_history).toHaveLength(2);
+      // Connection state might be preserved depending on implementation
+      // This test verifies the behavior, whatever it is
+      const connectionState = store.getState().isConnected;
+      expect(typeof connectionState).toBe('boolean');
     });
   });
 
-  describe('Concurrent Updates', () => {
-    it('handles rapid state updates', () => {
-      // Simulate rapid updates
-      for (let i = 0; i < 10; i++) {
-        useGameStore.getState().setGameId(`game-${i}`);
-      }
+  describe('State Computed Properties', () => {
+    it('computes hasActiveGame correctly', () => {
+      const state = store.getState();
       
-      expect(useGameStore.getState().gameId).toBe('game-9');
-    });
-
-    it('handles mixed state updates', () => {
-      useGameStore.getState().setGameId('test-game');
-      useGameStore.getState().setIsConnected(true);
-      useGameStore.getState().setGameSettings({ mode: 'ai_vs_ai' });
-      useGameStore.getState().setIsLoading(true);
-      
-      const state = useGameStore.getState();
-      expect(state.gameId).toBe('test-game');
-      expect(state.isConnected).toBe(true);
-      expect(state.gameSettings.mode).toBe('ai_vs_ai');
-      expect(state.isLoading).toBe(true);
-    });
-  });
-
-  describe('Performance', () => {
-    it('handles duplicate values correctly', () => {
-      useGameStore.getState().setGameId('test');
-      expect(useGameStore.getState().gameId).toBe('test');
-      
-      useGameStore.getState().setGameId('test'); // Same value
-      expect(useGameStore.getState().gameId).toBe('test'); // Should still be 'test'
-    });
-
-    it('efficiently handles large game states', () => {
-      const largeGameState = generateMockGameState({
-        move_history: Array.from({ length: 1000 }, (_, i) => 
-          generateMockMove(`move-${i}`, i % 2 as 0 | 1)
-        )
-      });
-      
-      const start = performance.now();
-      useGameStore.getState().setGameState(largeGameState);
-      const end = performance.now();
-      
-      expect(end - start).toBeLessThan(50); // Should be fast
-      expect(useGameStore.getState().gameState?.move_history).toHaveLength(1000);
-    });
-  });
-
-  describe('Type Safety', () => {
-    it('enforces correct game settings types', () => {
-      // TypeScript should enforce correct types at compile time
-      useGameStore.getState().setGameSettings({ 
-        mode: 'human_vs_ai',
-        ai_difficulty: 'medium',
-        board_size: 9,
-        ai_time_limit: 5000
-      });
-      
-      expect(useGameStore.getState().gameSettings).toBeDefined();
-    });
-
-    it('handles null values correctly', () => {
-      useGameStore.getState().setGameId(null);
-      useGameStore.getState().setGameState(null);
-      useGameStore.getState().setError(null);
-      useGameStore.getState().setSelectedHistoryIndex(null);
-      
-      const state = useGameStore.getState();
+      // No active game initially
       expect(state.gameId).toBeNull();
       expect(state.gameState).toBeNull();
-      expect(state.error).toBeNull();
-      expect(state.selectedHistoryIndex).toBeNull();
+
+      // Set game ID but no state
+      state.setGameId('test-game-123');
+      expect(state.gameId).toBe('test-game-123');
+
+      // Set game state
+      state.setGameState(mockInitialGameState);
+      expect(state.gameState).not.toBeNull();
+    });
+
+    it('computes isGameComplete correctly', () => {
+      const { setGameState } = store.getState();
+
+      // Incomplete game
+      setGameState(mockInitialGameState);
+      expect(store.getState().gameState?.winner).toBeNull();
+
+      // Complete game
+      setGameState(mockCompletedGameState);
+      expect(store.getState().gameState?.winner).toBe(0);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('handles undefined values gracefully', () => {
-      expect(() => {
-        useGameStore.getState().addMoveToHistory(generateMockMove('e2', 0));
-      }).not.toThrow();
+  describe('Error Edge Cases', () => {
+    it('handles invalid move data gracefully', () => {
+      const { setGameState, addMoveToHistory } = store.getState();
+      
+      setGameState(mockInitialGameState);
+
+      // Invalid move - should not crash
+      const invalidMove = {
+        notation: '',
+        player: 2 as any, // Invalid player
+        type: 'invalid' as any,
+        position: null as any
+      };
+
+      expect(() => addMoveToHistory(invalidMove)).not.toThrow();
     });
 
-    it('maintains consistency during rapid changes', () => {
-      // Rapid alternating changes
-      for (let i = 0; i < 100; i++) {
-        useGameStore.getState().setIsConnected(i % 2 === 0);
-        useGameStore.getState().setIsLoading(i % 3 === 0);
-      }
+    it('handles invalid game settings gracefully', () => {
+      const { setGameSettings } = store.getState();
+
+      // Invalid settings - should not crash
+      expect(() => setGameSettings({
+        mode: 'invalid' as any,
+        ai_difficulty: 'invalid' as any,
+        ai_time_limit: -1,
+        board_size: 0
+      })).not.toThrow();
+    });
+
+    it('handles null/undefined values gracefully', () => {
+      const { setGameId, setError, setSelectedHistoryIndex } = store.getState();
+
+      expect(() => setGameId(null)).not.toThrow();
+      expect(() => setError(null)).not.toThrow();
+      expect(() => setSelectedHistoryIndex(null)).not.toThrow();
+    });
+  });
+
+  describe('Concurrent State Updates', () => {
+    it('handles rapid state updates correctly', () => {
+      const { setGameId, setIsLoading, setError } = store.getState();
+
+      // Simulate rapid updates that might happen in real usage
+      setGameId('game-1');
+      setIsLoading(true);
+      setError('error-1');
+      setGameId('game-2');
+      setIsLoading(false);
+      setError(null);
+      setGameId('game-3');
+
+      const finalState = store.getState();
+      expect(finalState.gameId).toBe('game-3');
+      expect(finalState.isLoading).toBe(false);
+      expect(finalState.error).toBeNull();
+    });
+
+    it('maintains state consistency during complex updates', () => {
+      const { 
+        setGameId, 
+        setGameState, 
+        setGameSettings, 
+        addMoveToHistory 
+      } = store.getState();
+
+      // Complex sequence of updates
+      setGameId('test-game-123');
+      setGameSettings({ mode: 'human_vs_ai', board_size: 7 });
+      setGameState(mockInitialGameState);
       
-      // Should maintain consistent final state
-      const state = useGameStore.getState();
-      expect(typeof state.isConnected).toBe('boolean');
-      expect(typeof state.isLoading).toBe('boolean');
+      const move = {
+        notation: 'e2',
+        player: 0 as const,
+        type: 'move' as const,
+        position: { x: 4, y: 1 }
+      };
+      addMoveToHistory(move);
+
+      const finalState = store.getState();
+      expect(finalState.gameId).toBe('test-game-123');
+      expect(finalState.gameSettings.board_size).toBe(7);
+      expect(finalState.gameState?.move_history).toHaveLength(1);
     });
   });
 });

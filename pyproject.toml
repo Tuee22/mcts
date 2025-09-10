@@ -66,7 +66,7 @@ test-unit = "tests.utils.test_subsets:run_unit_tests"
 test-integration = "tests.utils.test_subsets:run_integration_tests"
 test-benchmarks = "tests.utils.test_subsets:run_benchmark_tests"
 test-python = "tests.utils.test_subsets:run_python_tests"
-test-frontend = "tests.utils.test_subsets:run_frontend_tests"
+test-frontend = "tests.utils.run_frontend_tests:main"
 test-e2e = "tests.utils.test_subsets:run_e2e_tests"
 
 # Convenience runners for speed

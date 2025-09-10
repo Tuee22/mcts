@@ -3,6 +3,7 @@ volumes:
   backend_build:
   playwright_browsers:
   frontend_node_modules:
+  frontend_test_node_modules:
 
 services:
   mcts:
@@ -52,3 +53,7 @@ services:
       - type: volume
         source: playwright_browsers
         target: /home/mcts/.cache/ms-playwright
+      # Preserve frontend test node_modules dependencies
+      - type: volume
+        source: frontend_test_node_modules
+        target: /app/tests/frontend/node_modules

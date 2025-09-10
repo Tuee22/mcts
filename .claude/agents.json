@@ -85,7 +85,7 @@
       "triggers": ["python_files", "frontend_files", "test_failures"],
       "environment_vars": ["MCTS_TEST_CMD", "MCTS_PYTEST_TIMEOUT", "PYTEST_ARGS"],
       "description": "Complete unified test suite (Python, Frontend, E2E) execution and validation",
-      "dependencies": ["pytest", "jest", "playwright"],
+      "dependencies": ["pytest", "vitest", "playwright"],
       "test_types": [
         "unit_core",
         "unit_api",

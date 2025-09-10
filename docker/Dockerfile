@@ -52,6 +52,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && node --version && npm --version
 
+# Install vitest globally for frontend testing without npx dependency
+RUN npm install -g vitest @vitest/ui @testing-library/react @testing-library/jest-dom jsdom \
+    && vitest --version
+
 # Install Playwright system dependencies as root first
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnspr4 libnss3 libatk1.0-0 libatspi2.0-0 libx11-6 libxcomposite1 \

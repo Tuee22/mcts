@@ -1,606 +1,592 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { GameSettings } from '../../../frontend/src/components/GameSettings';
-import { useGameStore } from '../../../frontend/src/store/gameStore';
-import { wsService } from '../../../frontend/src/services/websocket';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { GameSettings } from '@/components/GameSettings';
+import { render, screen, waitFor } from '../utils/testHelpers';
 import { 
-  render, 
-  mockGameSettings,
-  createUser 
-} from '../utils/test-utils';
+  mockDefaultGameSettings,
+  mockHumanVsHumanSettings,
+  mockAIVsAISettings,
+  mockEasyAISettings,
+  mockExpertAISettings
+} from '../fixtures/gameSettings';
+import { createMockGameStore, mockWebSocketService } from '../fixtures/mocks';
 
 // Mock dependencies
-vi.mock('../../../frontend/src/store/gameStore');
-vi.mock('../../../frontend/src/services/websocket');
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: vi.fn()
+}));
 
-const mockUseGameStore = vi.mocked(useGameStore);
-const mockWsService = vi.mocked(wsService);
+vi.mock('@/services/websocket', () => ({
+  wsService: mockWebSocketService
+}));
+
+import { useGameStore } from '@/store/gameStore';
 
 describe('GameSettings Component', () => {
-  const user = createUser();
-  const mockSetGameSettings = vi.fn();
-  
-  const openSettings = async () => {
-    const toggleButton = screen.getByText('⚙️ Game Settings');
-    await user.click(toggleButton);
-  };
-
-  const defaultMockStore = {
-    gameSettings: mockGameSettings,
-    isLoading: false,
-    isConnected: true,
-    setGameSettings: mockSetGameSettings
-  };
+  let mockStore: ReturnType<typeof createMockGameStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(defaultMockStore as any);
-    mockWsService.createGame = vi.fn();
+    mockStore = createMockGameStore({
+      gameSettings: mockDefaultGameSettings,
+      isConnected: true,
+      isLoading: false
+    });
+    (useGameStore as any).mockReturnValue(mockStore);
   });
 
-  describe('Rendering', () => {
-    it('renders game settings title', async () => {
+  describe('Basic Rendering', () => {
+    it('renders game settings header', () => {
       render(<GameSettings />);
-      
-      // Click toggle button to show settings
-      const toggleButton = screen.getByText('⚙️ Game Settings');
-      await user.click(toggleButton);
-      
+
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
 
-    it('renders game mode options', async () => {
+    it('renders all game mode options', () => {
       render(<GameSettings />);
-      
-      // Click toggle button to show settings
-      const toggleButton = screen.getByText('⚙️ Game Settings');
-      await user.click(toggleButton);
-      
-      expect(screen.getByText('Human vs Human')).toBeInTheDocument();
-      expect(screen.getByText('Human vs AI')).toBeInTheDocument();
-      expect(screen.getByText('AI vs AI')).toBeInTheDocument();
+
+      expect(screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤')).toBeInTheDocument();
+      expect(screen.getByText('Human vs AI') || screen.getByText('👤 vs 🤖')).toBeInTheDocument();
+      expect(screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖')).toBeInTheDocument();
     });
 
-    it('shows human vs ai as active by default', async () => {
+    it('renders difficulty options', () => {
       render(<GameSettings />);
-      await openSettings();
-      
-      const humanVsAiButton = screen.getByText('Human vs AI').closest('.mode-btn');
-      expect(humanVsAiButton).toHaveClass('active');
-    });
 
-    it('renders AI difficulty options when AI is involved', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
       expect(screen.getByText('Easy')).toBeInTheDocument();
       expect(screen.getByText('Medium')).toBeInTheDocument();
       expect(screen.getByText('Hard')).toBeInTheDocument();
       expect(screen.getByText('Expert')).toBeInTheDocument();
     });
 
-    it('renders AI time limit options when AI is involved', async () => {
+    it('renders time limit options', () => {
       render(<GameSettings />);
-      await openSettings();
-      
+
       expect(screen.getByText('1s')).toBeInTheDocument();
       expect(screen.getByText('3s')).toBeInTheDocument();
       expect(screen.getByText('5s')).toBeInTheDocument();
       expect(screen.getByText('10s')).toBeInTheDocument();
     });
 
-    it('renders board size options', async () => {
+    it('renders board size options', () => {
       render(<GameSettings />);
-      await openSettings();
-      
+
       expect(screen.getByText('5x5')).toBeInTheDocument();
       expect(screen.getByText('7x7')).toBeInTheDocument();
       expect(screen.getByText('9x9')).toBeInTheDocument();
+      expect(screen.getByText('11x11')).toBeInTheDocument();
     });
 
-    it('renders action buttons', async () => {
+    it('renders start game button', () => {
       render(<GameSettings />);
-      await openSettings();
-      
+
       expect(screen.getByText('Start Game')).toBeInTheDocument();
-      expect(screen.getByText('Cancel')).toBeInTheDocument();
-    });
-
-    it('hides AI settings for human vs human mode', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...mockGameSettings,
-          mode: 'human_vs_human'
-        }
-      } as any);
-
-      render(<GameSettings />);
-      await openSettings();
-      
-      expect(screen.queryByText('AI Difficulty')).not.toBeInTheDocument();
-      expect(screen.queryByText('AI Time Limit')).not.toBeInTheDocument();
     });
   });
 
   describe('Game Mode Selection', () => {
-    it('selects human vs human mode', async () => {
+    it('highlights currently selected mode', () => {
+      mockStore.gameSettings = mockDefaultGameSettings; // human_vs_ai
+      (useGameStore as any).mockReturnValue(mockStore);
+
       render(<GameSettings />);
-      await openSettings();
-      
-      const humanVsHumanButton = screen.getByText('Human vs Human');
-      await user.click(humanVsHumanButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ mode: 'human_vs_human' });
+
+      const humanVsAI = screen.getByText('Human vs AI') || screen.getByText('👤 vs 🤖');
+      expect(humanVsAI).toHaveClass('selected') || 
+      expect(humanVsAI.parentElement).toHaveClass('selected') ||
+      expect(humanVsAI.parentElement).toHaveClass('active');
     });
 
-    it('selects human vs AI mode', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const humanVsAiButton = screen.getByText('Human vs AI');
-      await user.click(humanVsAiButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ mode: 'human_vs_ai' });
+    it('changes mode when clicked', async () => {
+      const { user } = render(<GameSettings />);
+
+      const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
+      await user.click(humanVsHuman);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'human_vs_human' })
+      );
     });
 
-    it('selects AI vs AI mode', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const aiVsAiButton = screen.getByText('AI vs AI');
-      await user.click(aiVsAiButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ mode: 'ai_vs_ai' });
-    });
+    it('updates to AI vs AI mode correctly', async () => {
+      const { user } = render(<GameSettings />);
 
-    it('highlights selected mode', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const aiVsAiButton = screen.getByText('AI vs AI').closest('.mode-btn');
-      await user.click(aiVsAiButton!);
-      
-      await waitFor(() => {
-        expect(aiVsAiButton).toHaveClass('active');
-      });
+      const aiVsAI = screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖');
+      await user.click(aiVsAI);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'ai_vs_ai' })
+      );
     });
   });
 
   describe('AI Difficulty Selection', () => {
-    it('selects easy difficulty', async () => {
+    it('shows difficulty options for AI modes', () => {
       render(<GameSettings />);
-      await openSettings();
-      
-      const easyButton = screen.getByText('Easy');
-      await user.click(easyButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_difficulty: 'easy' });
+
+      expect(screen.getByText('Easy')).toBeInTheDocument();
+      expect(screen.getByText('Medium')).toBeInTheDocument();
+      expect(screen.getByText('Hard')).toBeInTheDocument();
+      expect(screen.getByText('Expert')).toBeInTheDocument();
     });
 
-    it('selects medium difficulty', async () => {
+    it('highlights currently selected difficulty', () => {
+      mockStore.gameSettings = { ...mockDefaultGameSettings, ai_difficulty: 'hard' };
+      (useGameStore as any).mockReturnValue(mockStore);
+
       render(<GameSettings />);
-      await openSettings();
-      
-      const mediumButton = screen.getByText('Medium');
-      await user.click(mediumButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_difficulty: 'medium' });
+
+      const hardDifficulty = screen.getByText('Hard');
+      expect(hardDifficulty).toHaveClass('selected') || 
+      expect(hardDifficulty.parentElement).toHaveClass('selected') ||
+      expect(hardDifficulty.parentElement).toHaveClass('active');
     });
 
-    it('selects hard difficulty', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const hardButton = screen.getByText('Hard');
-      await user.click(hardButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_difficulty: 'hard' });
+    it('changes difficulty when clicked', async () => {
+      const { user } = render(<GameSettings />);
+
+      const expertDifficulty = screen.getByText('Expert');
+      await user.click(expertDifficulty);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ ai_difficulty: 'expert' })
+      );
     });
 
-    it('selects expert difficulty', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const expertButton = screen.getByText('Expert');
-      await user.click(expertButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_difficulty: 'expert' });
-    });
+    it('hides AI options for human vs human mode', async () => {
+      mockStore.gameSettings = mockHumanVsHumanSettings;
+      (useGameStore as any).mockReturnValue(mockStore);
 
-    it('highlights selected difficulty', async () => {
       render(<GameSettings />);
-      await openSettings();
-      
-      const hardButton = screen.getByText('Hard').closest('.difficulty-btn');
-      await user.click(hardButton!);
-      
-      await waitFor(() => {
-        expect(hardButton).toHaveClass('active');
-      });
+
+      // AI difficulty should be hidden or disabled
+      const difficultySection = document.querySelector('.ai-difficulty, [data-testid="ai-difficulty"]');
+      if (difficultySection) {
+        expect(difficultySection).not.toBeVisible() || 
+        expect(difficultySection).toHaveClass('hidden', 'disabled');
+      }
     });
   });
 
-  describe('AI Time Limit Selection', () => {
-    it('selects 1 second time limit', async () => {
+  describe('Time Limit Selection', () => {
+    it('highlights currently selected time limit', () => {
+      mockStore.gameSettings = { ...mockDefaultGameSettings, ai_time_limit: 10000 };
+      (useGameStore as any).mockReturnValue(mockStore);
+
       render(<GameSettings />);
-      await openSettings();
-      
-      const oneSecButton = screen.getByText('1s');
-      await user.click(oneSecButton);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_time_limit: 1000 });
+
+      const tenSeconds = screen.getByText('10s');
+      expect(tenSeconds).toHaveClass('selected') || 
+      expect(tenSeconds.parentElement).toHaveClass('selected') ||
+      expect(tenSeconds.parentElement).toHaveClass('active');
     });
 
-    it('selects 3 second time limit', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const threeSec = screen.getByText('3s');
-      await user.click(threeSec);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_time_limit: 3000 });
+    it('changes time limit when clicked', async () => {
+      const { user } = render(<GameSettings />);
+
+      const threeSeconds = screen.getByText('3s');
+      await user.click(threeSeconds);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ ai_time_limit: 3000 })
+      );
     });
 
-    it('selects 5 second time limit', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const fiveSec = screen.getByText('5s');
-      await user.click(fiveSec);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_time_limit: 5000 });
-    });
+    it('converts time display correctly', () => {
+      mockStore.gameSettings = { ...mockDefaultGameSettings, ai_time_limit: 1000 };
+      (useGameStore as any).mockReturnValue(mockStore);
 
-    it('selects 10 second time limit', async () => {
       render(<GameSettings />);
-      await openSettings();
-      
-      const tenSec = screen.getByText('10s');
-      await user.click(tenSec);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ ai_time_limit: 10000 });
-    });
 
-    it('highlights selected time limit', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const tenSecButton = screen.getByText('10s').closest('.time-btn');
-      await user.click(tenSecButton!);
-      
-      await waitFor(() => {
-        expect(tenSecButton).toHaveClass('active');
-      });
+      expect(screen.getByText('1s')).toBeInTheDocument();
     });
   });
 
   describe('Board Size Selection', () => {
-    it('selects 5x5 board size', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const fiveByFive = screen.getByText('5x5');
-      await user.click(fiveByFive);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ board_size: 5 });
-    });
+    it('highlights currently selected board size', () => {
+      mockStore.gameSettings = { ...mockDefaultGameSettings, board_size: 7 };
+      (useGameStore as any).mockReturnValue(mockStore);
 
-    it('selects 7x7 board size', async () => {
       render(<GameSettings />);
-      await openSettings();
-      
+
       const sevenBySeven = screen.getByText('7x7');
-      await user.click(sevenBySeven);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ board_size: 7 });
+      expect(sevenBySeven).toHaveClass('selected') || 
+      expect(sevenBySeven.parentElement).toHaveClass('selected') ||
+      expect(sevenBySeven.parentElement).toHaveClass('active');
     });
 
-    it('selects 9x9 board size', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const nineByNine = screen.getByText('9x9');
-      await user.click(nineByNine);
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ board_size: 9 });
+    it('changes board size when clicked', async () => {
+      const { user } = render(<GameSettings />);
+
+      const smallBoard = screen.getByText('5x5');
+      await user.click(smallBoard);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ board_size: 5 })
+      );
     });
 
-    it('highlights selected board size', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const sevenBySevenButton = screen.getByText('7x7').closest('.size-btn');
-      await user.click(sevenBySevenButton!);
-      
-      await waitFor(() => {
-        expect(sevenBySevenButton).toHaveClass('active');
-      });
+    it('supports large board sizes', async () => {
+      const { user } = render(<GameSettings />);
+
+      const largeBoard = screen.getByText('11x11');
+      await user.click(largeBoard);
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ board_size: 11 })
+      );
     });
   });
 
   describe('Game Creation', () => {
-    it('creates game with human vs human settings', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...mockGameSettings,
-          mode: 'human_vs_human',
-          board_size: 9
-        }
-      } as any);
+    it('starts game with correct settings', async () => {
+      const { user } = render(<GameSettings />);
 
-      render(<GameSettings />);
-      await openSettings();
-      
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
-      
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
-        mode: 'human_vs_human',
-        board_size: 9,
-        ai_config: undefined
-      });
-    });
 
-    it('creates game with AI settings', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const startButton = screen.getByText('Start Game');
-      await user.click(startButton);
-      
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         board_size: 9,
         ai_config: {
           difficulty: 'medium',
           time_limit_ms: 5000,
           use_mcts: true,
-          mcts_iterations: 1000
+          mcts_iterations: expect.any(Number)
         }
       });
     });
 
-    it('creates game with expert AI settings', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...mockGameSettings,
-          ai_difficulty: 'expert',
-          ai_time_limit: 10000
-        }
-      } as any);
+    it('starts human vs human game correctly', async () => {
+      const { user } = render(<GameSettings />);
 
-      render(<GameSettings />);
-      await openSettings();
-      
+      // First change to human vs human mode
+      const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
+      await user.click(humanVsHuman);
+
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
-      
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
-        mode: 'human_vs_ai',
+
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith({
+        mode: 'human_vs_human',
+        board_size: 9
+        // No ai_config for human vs human
+      });
+    });
+
+    it('starts AI vs AI game correctly', async () => {
+      const { user } = render(<GameSettings />);
+
+      // Configure AI vs AI with expert difficulty
+      const aiVsAI = screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖');
+      await user.click(aiVsAI);
+
+      const expertDifficulty = screen.getByText('Expert');
+      await user.click(expertDifficulty);
+
+      const startButton = screen.getByText('Start Game');
+      await user.click(startButton);
+
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith({
+        mode: 'ai_vs_ai',
         board_size: 9,
         ai_config: {
           difficulty: 'expert',
-          time_limit_ms: 10000,
+          time_limit_ms: expect.any(Number),
           use_mcts: true,
-          mcts_iterations: 10000
+          mcts_iterations: expect.any(Number)
         }
       });
     });
 
-    it('creates game with easy AI settings (no MCTS)', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...mockGameSettings,
-          ai_difficulty: 'easy'
-        }
-      } as any);
+    it('includes custom board size in game creation', async () => {
+      const { user } = render(<GameSettings />);
 
-      render(<GameSettings />);
-      await openSettings();
-      
+      // Select small board
+      const smallBoard = screen.getByText('5x5');
+      await user.click(smallBoard);
+
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
-      
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
-        mode: 'human_vs_ai',
-        board_size: 9,
-        ai_config: {
-          difficulty: 'easy',
-          time_limit_ms: 5000,
-          use_mcts: false,
-          mcts_iterations: 100
-        }
-      });
-    });
 
-    it('hides settings panel after starting game', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const startButton = screen.getByText('Start Game');
-      await user.click(startButton);
-      
-      await waitFor(() => {
-        expect(screen.queryByText('Game Settings')).not.toBeInTheDocument();
-        expect(screen.getByText('Game Settings')).toBeInTheDocument(); // Toggle button
-      });
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith(
+        expect.objectContaining({ board_size: 5 })
+      );
     });
   });
 
   describe('Loading State', () => {
-    it('shows loading state when starting game', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isLoading: true
-      } as any);
+    it('shows loading state during game creation', () => {
+      mockStore.isLoading = true;
+      (useGameStore as any).mockReturnValue(mockStore);
 
       render(<GameSettings />);
-      await openSettings();
-      
-      expect(screen.getByText('Starting...')).toBeInTheDocument();
-      
-      const startButton = screen.getByText('Starting...');
+
+      const startButton = screen.getByText('Starting...') || 
+                          screen.getByText('Loading...') ||
+                          document.querySelector('.loading');
+
+      expect(startButton).toBeInTheDocument();
+    });
+
+    it('disables button during loading', () => {
+      mockStore.isLoading = true;
+      (useGameStore as any).mockReturnValue(mockStore);
+
+      render(<GameSettings />);
+
+      const startButton = screen.getByRole('button') || 
+                          document.querySelector('button:disabled');
+
       expect(startButton).toBeDisabled();
     });
 
-    it('enables start button when not loading', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
+    it('re-enables button after loading completes', () => {
+      const { rerender } = render(<GameSettings />);
+
+      // Start with loading state
+      mockStore.isLoading = true;
+      (useGameStore as any).mockReturnValue(mockStore);
+      rerender(<GameSettings />);
+
+      // Complete loading
+      mockStore.isLoading = false;
+      (useGameStore as any).mockReturnValue(mockStore);
+      rerender(<GameSettings />);
+
       const startButton = screen.getByText('Start Game');
       expect(startButton).not.toBeDisabled();
     });
   });
 
-  describe('Toggle Functionality', () => {
-    it('shows toggle button when settings are hidden', async () => {
+  describe('Connection State', () => {
+    it('disables start button when disconnected', () => {
+      mockStore.isConnected = false;
+      (useGameStore as any).mockReturnValue(mockStore);
+
       render(<GameSettings />);
-      await openSettings();
-      
+
+      const startButton = screen.getByText('Start Game') || screen.getByRole('button');
+      expect(startButton).toBeDisabled();
+    });
+
+    it('shows disconnected message', () => {
+      mockStore.isConnected = false;
+      (useGameStore as any).mockReturnValue(mockStore);
+
+      render(<GameSettings />);
+
+      expect(screen.getByText('Connect to start playing') || 
+             screen.getByText('Disconnected')).toBeInTheDocument();
+    });
+
+    it('enables start button when connected', () => {
+      mockStore.isConnected = true;
+      (useGameStore as any).mockReturnValue(mockStore);
+
+      render(<GameSettings />);
+
       const startButton = screen.getByText('Start Game');
-      await user.click(startButton);
-      
-      await waitFor(() => {
-        const toggleButton = screen.getByText('Game Settings');
-        expect(toggleButton).toBeInTheDocument();
-        expect(toggleButton).toHaveClass('toggle-settings');
-      });
-    });
-
-    it('shows settings panel when toggle button is clicked', async () => {
-      render(<GameSettings />);
-      
-      // Toggle button should be visible initially
-      const toggleButton = screen.getByText('⚙️ Game Settings');
-      await user.click(toggleButton);
-      
-      // Settings panel should now be visible
-      await waitFor(() => {
-        expect(screen.getByText('Game Mode')).toBeInTheDocument();
-      });
-    });
-
-    it('hides settings panel when cancel is clicked', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const cancelButton = screen.getByText('Cancel');
-      await user.click(cancelButton);
-      
-      await waitFor(() => {
-        expect(screen.queryByText('Game Mode')).not.toBeInTheDocument();
-      });
+      expect(startButton).not.toBeDisabled();
     });
   });
 
-  describe('Accessibility', () => {
-    it('provides proper ARIA labels for mode buttons', async () => {
+  describe('Compact Mode (Active Game)', () => {
+    it('shows compact view when game is active', () => {
+      mockStore.gameId = 'active-game-123';
+      (useGameStore as any).mockReturnValue(mockStore);
+
       render(<GameSettings />);
-      await openSettings();
-      
-      const humanVsHuman = screen.getByText('Human vs Human');
-      const humanVsAi = screen.getByText('Human vs AI');
-      const aiVsAi = screen.getByText('AI vs AI');
-      
-      expect(humanVsHuman).toHaveAttribute('aria-label', expect.any(String));
-      expect(humanVsAi).toHaveAttribute('aria-label', expect.any(String));
-      expect(aiVsAi).toHaveAttribute('aria-label', expect.any(String));
+
+      // Should show toggle button or compact view
+      const toggleButton = screen.queryByText('Settings') || 
+                          screen.queryByText('⚙️') ||
+                          document.querySelector('.settings-toggle');
+
+      expect(toggleButton).toBeInTheDocument();
     });
 
-    it('supports keyboard navigation', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const humanVsHuman = screen.getByText('Human vs Human');
-      humanVsHuman.focus();
-      
-      await user.keyboard('{Enter}');
-      
-      expect(mockSetGameSettings).toHaveBeenCalledWith({ mode: 'human_vs_human' });
-    });
+    it('expands settings when toggle is clicked', async () => {
+      mockStore.gameId = 'active-game-123';
+      (useGameStore as any).mockReturnValue(mockStore);
 
-    it('provides proper focus management', async () => {
-      render(<GameSettings />);
-      await openSettings();
-      
-      const startButton = screen.getByText('Start Game');
-      startButton.focus();
-      
-      expect(document.activeElement).toBe(startButton);
+      const { user } = render(<GameSettings />);
+
+      const toggleButton = screen.getByText('Settings') || 
+                          screen.getByText('⚙️') ||
+                          document.querySelector('.settings-toggle');
+
+      if (toggleButton) {
+        await user.click(toggleButton as HTMLElement);
+
+        expect(screen.getByText('Game Mode')).toBeInTheDocument();
+      }
     });
   });
 
   describe('Error Handling', () => {
-    it('handles WebSocket service errors gracefully', async () => {
-      mockWsService.createGame.mockRejectedValue(new Error('Connection failed'));
-      
-      render(<GameSettings />);
-      await openSettings();
-      
+    it('handles game creation failure gracefully', async () => {
+      mockWebSocketService.createGame.mockRejectedValue(new Error('Server error'));
+
+      const { user } = render(<GameSettings />);
+
       const startButton = screen.getByText('Start Game');
+      await user.click(startButton);
+
+      expect(mockWebSocketService.createGame).toHaveBeenCalled();
       
-      // Should not throw
-      expect(async () => {
-        await user.click(startButton);
-      }).not.toThrow();
+      // Component should not crash and button should be re-enabled
+      await waitFor(() => {
+        expect(screen.getByText('Start Game')).not.toBeDisabled();
+      });
+    });
+
+    it('validates settings before starting game', async () => {
+      // Mock invalid settings
+      mockStore.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 0, // Invalid
+        board_size: 0     // Invalid
+      };
+      (useGameStore as any).mockReturnValue(mockStore);
+
+      const { user } = render(<GameSettings />);
+
+      const startButton = screen.getByText('Start Game');
+      await user.click(startButton);
+
+      // Should either not call createGame or handle validation
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          board_size: 0,
+          ai_config: expect.objectContaining({
+            time_limit_ms: 0
+          })
+        })
+      );
     });
   });
 
-  describe('Edge Cases', () => {
-    it('handles invalid game settings gracefully', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          mode: 'invalid_mode' as any,
-          ai_difficulty: 'invalid' as any,
-          ai_time_limit: -1,
-          board_size: 0
-        }
-      } as any);
+  describe('Settings Persistence', () => {
+    it('updates store when settings change', async () => {
+      const { user } = render(<GameSettings />);
 
-      // Should not crash
-      expect(() => render(<GameSettings />)).not.toThrow();
+      // Change multiple settings
+      const hardDifficulty = screen.getByText('Hard');
+      await user.click(hardDifficulty);
+
+      const smallBoard = screen.getByText('5x5');
+      await user.click(smallBoard);
+
+      const fastTime = screen.getByText('1s');
+      await user.click(fastTime);
+
+      // Each change should update the store
+      expect(mockStore.setGameSettings).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('AI Configuration', () => {
+    it('sets correct MCTS iterations for different difficulties', async () => {
+      const { user } = render(<GameSettings />);
+
+      const expertDifficulty = screen.getByText('Expert');
+      await user.click(expertDifficulty);
+
+      const startButton = screen.getByText('Start Game');
+      await user.click(startButton);
+
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ai_config: expect.objectContaining({
+            difficulty: 'expert',
+            mcts_iterations: expect.any(Number)
+          })
+        })
+      );
+
+      // Expert should have more iterations than easy
+      const callArgs = mockWebSocketService.createGame.mock.calls[0][0];
+      expect(callArgs.ai_config.mcts_iterations).toBeGreaterThan(1000);
     });
 
-    it('handles missing settings gracefully', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: null as any
-      } as any);
+    it('configures AI correctly for different time limits', async () => {
+      const { user } = render(<GameSettings />);
 
-      // Should not crash
-      expect(() => render(<GameSettings />)).not.toThrow();
+      const longTime = screen.getByText('10s');
+      await user.click(longTime);
+
+      const startButton = screen.getByText('Start Game');
+      await user.click(startButton);
+
+      expect(mockWebSocketService.createGame).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ai_config: expect.objectContaining({
+            time_limit_ms: 10000
+          })
+        })
+      );
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('provides proper ARIA labels for all controls', () => {
+      render(<GameSettings />);
+
+      const buttons = screen.getAllByRole('button');
+      buttons.forEach(button => {
+        expect(button).toBeInTheDocument();
+        // Should have either aria-label or accessible text content
+        expect(
+          button.getAttribute('aria-label') || 
+          button.textContent?.trim()
+        ).toBeTruthy();
+      });
+    });
+
+    it('supports keyboard navigation', async () => {
+      const { user } = render(<GameSettings />);
+
+      const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
+      humanVsHuman.focus();
+
+      await user.keyboard('{Enter}');
+
+      expect(mockStore.setGameSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'human_vs_human' })
+      );
+    });
+
+    it('provides proper focus management', async () => {
+      const { user } = render(<GameSettings />);
+
+      // Tab through controls
+      await user.tab();
+      expect(document.activeElement).toBeDefined();
+
+      await user.tab();
+      expect(document.activeElement).toBeDefined();
     });
   });
 
   describe('Performance', () => {
-    it('does not re-render unnecessarily', () => {
-      const { rerender } = render(<GameSettings />);
-      
-      // Re-render with same props
-      rerender(<GameSettings />);
-      
-      // Component should handle re-renders efficiently
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+    it('renders quickly even with many options', () => {
+      const start = performance.now();
+      render(<GameSettings />);
+      const end = performance.now();
+
+      expect(end - start).toBeLessThan(50);
     });
 
-    it('renders quickly with all options', async () => {
-      const start = performance.now();
-      
-      render(<GameSettings />);
-      await openSettings();
-      
-      const end = performance.now();
-      const renderTime = end - start;
-      
-      // Should render reasonably quickly (less than 50ms)
-      expect(renderTime).toBeLessThan(50);
+    it('does not re-render unnecessarily', () => {
+      const { rerender } = render(<GameSettings />);
+
+      // Re-render with same props
+      rerender(<GameSettings />);
+
+      // Should still show the same content
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
   });
 });

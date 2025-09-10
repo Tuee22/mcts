@@ -1,42 +1,29 @@
 {
-  "name": "frontend",
+  "name": "frontend-tests",
   "version": "1.0.0",
-  "description": "This directory contains comprehensive tests for the React frontend of the Corridors MCTS game. The test suite covers unit tests, integration tests, and end-to-end tests to ensure the frontend works correctly in isolation and when integrated with the backend API.",
-  "main": "vitest.config.ts",
+  "description": "Frontend unit tests using Vitest",
+  "private": true,
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@testing-library/dom": "^10.4.1",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^13.4.0",
-    "@types/node": "^20.19.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "axios": "^1.11.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hot-toast": "^2.5.2",
-    "react-scripts": "5.0.1",
-    "socket.io-client": "^4.8.1",
-    "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4",
-    "zustand": "^5.0.7"
-  },
-  "devDependencies": {
-    "@testing-library/user-event": "^14.6.1",
-    "@types/socket.io-client": "^1.4.36",
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "^2.1.8",
-    "identity-obj-proxy": "^3.0.0",
+    "@vitest/ui": "^2.1.8",
     "jsdom": "^25.0.1",
-    "msw": "^2.10.4",
-    "socket.io-mock": "^1.3.2",
-    "typescript": "^4.9.5",
     "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }

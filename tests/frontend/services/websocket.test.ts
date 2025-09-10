@@ -1,334 +1,478 @@
-import { wsService } from '../../../frontend/src/services/websocket';
-import { useGameStore } from '../../../frontend/src/store/gameStore';
-import { MockWebSocket, mockWebSocketEvents } from '../mocks/websocket.mock';
-import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { wsService } from '@/services/websocket';
+import { createMockWebSocket } from '../utils/testHelpers';
+import { mockDefaultGameSettings } from '../fixtures/gameSettings';
+import { mockInitialGameState } from '../fixtures/gameState';
 
-// Mock dependencies
-vi.mock('../../../frontend/src/store/gameStore');
+// Mock socket.io-client
+const mockSocket = {
+  connected: false,
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  emit: vi.fn(),
+  removeAllListeners: vi.fn()
+};
+
 vi.mock('socket.io-client', () => ({
-  __esModule: true,
-  default: vi.fn(() => new MockWebSocket('http://localhost:8000')),
-  Socket: MockWebSocket
+  default: vi.fn(() => mockSocket),
+  io: vi.fn(() => mockSocket)
 }));
 
-const mockUseGameStore = useGameStore as ReturnType<typeof vi.mocked<typeof useGameStore>>;
+// Mock the game store
+const mockUseGameStore = {
+  getState: vi.fn(() => ({
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
+    setError: vi.fn(),
+    setGameId: vi.fn(),
+    setGameState: vi.fn(),
+    addMoveToHistory: vi.fn()
+  })),
+  setState: vi.fn()
+};
+
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: mockUseGameStore
+}));
 
 describe('WebSocket Service', () => {
-  let mockSocket: MockWebSocket;
-  let mockStore: any;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    mockStore = {
-      setIsConnected: vi.fn(),
-      setError: vi.fn(),
-      setGameId: vi.fn(),
-      setGameState: vi.fn(),
-      setIsLoading: vi.fn(),
-      addMoveToHistory: vi.fn(),
-      getState: () => mockStore
-    };
-    
-    vi.mocked(mockUseGameStore).mockReturnValue(mockStore);
-    
-    // Reset the service
+    mockSocket.connected = false;
+    mockSocket.on.mockClear();
+    mockSocket.off.mockClear();
+    mockSocket.emit.mockClear();
+    mockSocket.connect.mockClear();
+    mockSocket.disconnect.mockClear();
+  });
+
+  afterEach(() => {
+    // Clean up any lingering connections
     wsService.disconnect();
   });
 
   describe('Connection Management', () => {
-    it('connects to default URL', () => {
+    it('initializes connection', () => {
       wsService.connect();
-      
-      expect(wsService.isConnected()).toBe(false); // Initially connecting
-      
-      // Simulate connection
-      setTimeout(() => {
-        expect(mockStore.setIsConnected).toHaveBeenCalledWith(true);
-        expect(mockStore.setError).toHaveBeenCalledWith(null);
-      }, 20);
+
+      expect(mockSocket.connect).toHaveBeenCalled();
     });
 
-    it('connects to custom URL', () => {
-      const customUrl = 'http://localhost:3001';
-      wsService.connect(customUrl);
-      
-      // The mock socket should be created with custom URL
-      expect(wsService.isConnected()).toBe(false);
+    it('sets up event listeners on connection', () => {
+      wsService.connect();
+
+      expect(mockSocket.on).toHaveBeenCalledWith('connect', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('disconnect', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('error', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('game_created', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('game_updated', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('move_made', expect.any(Function));
+      expect(mockSocket.on).toHaveBeenCalledWith('ai_move', expect.any(Function));
     });
 
-    it('does not reconnect if already connected', () => {
+    it('handles successful connection', () => {
+      const mockSetIsConnected = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setIsConnected: mockSetIsConnected,
+        setError: vi.fn()
+      });
+
       wsService.connect();
-      const firstConnection = wsService.isConnected();
-      
-      wsService.connect();
-      const secondConnection = wsService.isConnected();
-      
-      expect(firstConnection).toBe(secondConnection);
+
+      // Simulate connection event
+      const connectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'connect')[1];
+      connectHandler();
+
+      expect(mockSetIsConnected).toHaveBeenCalledWith(true);
     });
 
-    it('handles connection events', async () => {
+    it('handles disconnection', () => {
+      const mockSetIsConnected = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setIsConnected: mockSetIsConnected,
+        setError: vi.fn()
+      });
+
       wsService.connect();
-      
-      // Wait for connection event
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
-      expect(mockStore.setIsConnected).toHaveBeenCalledWith(true);
-      expect(mockStore.setError).toHaveBeenCalledWith(null);
+
+      // Simulate disconnect event
+      const disconnectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'disconnect')[1];
+      disconnectHandler('transport close');
+
+      expect(mockSetIsConnected).toHaveBeenCalledWith(false);
     });
 
-    it('handles disconnect events', async () => {
+    it('handles connection errors', () => {
+      const mockSetError = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setIsConnected: vi.fn(),
+        setError: mockSetError
+      });
+
       wsService.connect();
-      
-      await new Promise(resolve => setTimeout(resolve, 20));
-      
+
+      // Simulate error event
+      const errorHandler = mockSocket.on.mock.calls.find(call => call[0] === 'error')[1];
+      errorHandler(new Error('Connection failed'));
+
+      expect(mockSetError).toHaveBeenCalledWith('Connection failed: Connection failed');
+    });
+
+    it('disconnects cleanly', () => {
+      wsService.connect();
       wsService.disconnect();
-      expect(mockStore.setIsConnected).toHaveBeenCalledWith(false);
+
+      expect(mockSocket.removeAllListeners).toHaveBeenCalled();
+      expect(mockSocket.disconnect).toHaveBeenCalled();
     });
 
-    it('handles connection errors', async () => {
-      wsService.connect();
-      
-      setTimeout(() => {
-        // Simulate connection error multiple times to trigger max attempts
-        for (let i = 0; i < 6; i++) {
-          mockSocket.emit('connect_error', new Error('Connection failed'));
-        }
-        
-        expect(mockStore.setError).toHaveBeenCalledWith(
-          'Failed to connect to server. Please check if the server is running.'
-        );
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
-    });
+    it('returns correct connection status', () => {
+      mockSocket.connected = true;
+      expect(wsService.isConnected()).toBe(true);
 
-    it('resets reconnection attempts on successful connection', async () => {
-      wsService.connect();
-      
-      setTimeout(() => {
-        // Simulate some failed attempts
-        mockSocket.emit('connect_error', new Error('Connection failed'));
-        mockSocket.emit('connect_error', new Error('Connection failed'));
-        
-        // Then successful connection
-        mockSocket.emit('connect');
-        
-        // Should reset attempts counter
-        expect(mockStore.setError).toHaveBeenCalledWith(null);
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
+      mockSocket.connected = false;
+      expect(wsService.isConnected()).toBe(false);
     });
   });
 
-  describe('Game Events', () => {
-    beforeEach(async () => {
-      wsService.connect();
-      setTimeout(done, 20); // Wait for connection
-    });
-
-    it('handles game_created event', () => {
-      mockSocket.emit('game_created', mockWebSocketEvents.gameCreated);
+  describe('Game Creation', () => {
+    it('creates game with Human vs AI settings', async () => {
+      mockSocket.connected = true;
       
-      expect(mockStore.setGameId).toHaveBeenCalledWith('test-game-123');
-      expect(mockStore.setGameState).toHaveBeenCalledWith(mockWebSocketEvents.gameCreated.state);
-      expect(mockStore.setIsLoading).toHaveBeenCalledWith(false);
-    });
-
-    it('handles game_state event', () => {
-      mockSocket.emit('game_state', mockWebSocketEvents.gameState);
-      
-      expect(mockStore.setGameState).toHaveBeenCalledWith(mockWebSocketEvents.gameState.state);
-    });
-
-    it('handles move_made event', () => {
-      mockSocket.emit('move_made', mockWebSocketEvents.moveMade);
-      
-      expect(mockStore.setGameState).toHaveBeenCalledWith(mockWebSocketEvents.moveMade.state);
-      expect(mockStore.addMoveToHistory).toHaveBeenCalledWith(mockWebSocketEvents.moveMade.move);
-    });
-
-    it('handles game_over event', () => {
-      mockSocket.emit('game_over', mockWebSocketEvents.gameOver);
-      
-      const expectedState = {
-        ...mockWebSocketEvents.gameOver.state,
-        winner: 0
+      const gameSettings = {
+        mode: 'human_vs_ai' as const,
+        board_size: 9,
+        ai_config: {
+          difficulty: 'medium' as const,
+          time_limit_ms: 5000,
+          use_mcts: true,
+          mcts_iterations: 1000
+        }
       };
+
+      await wsService.createGame(gameSettings);
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('create_game', gameSettings);
+    });
+
+    it('creates game with Human vs Human settings', async () => {
+      mockSocket.connected = true;
       
-      expect(mockStore.setGameState).toHaveBeenCalledWith(expectedState);
+      const gameSettings = {
+        mode: 'human_vs_human' as const,
+        board_size: 9
+      };
+
+      await wsService.createGame(gameSettings);
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('create_game', gameSettings);
     });
 
-    it('handles error event', () => {
-      mockSocket.emit('error', mockWebSocketEvents.error);
+    it('creates game with AI vs AI settings', async () => {
+      mockSocket.connected = true;
       
-      expect(mockStore.setError).toHaveBeenCalledWith('Invalid move');
-      expect(mockStore.setIsLoading).toHaveBeenCalledWith(false);
-    });
-  });
-
-  describe('Game Actions', () => {
-    beforeEach((done) => {
-      wsService.connect();
-      setTimeout(done, 20); // Wait for connection
-    });
-
-    describe('createGame', () => {
-      it('creates game with settings', () => {
-        const settings = {
-          mode: 'human_vs_ai',
-          ai_difficulty: 'medium',
-          board_size: 9
-        };
-        
-        const emitSpy = vi.spyOn(mockSocket, 'emit');
-        wsService.createGame(settings);
-        
-        expect(mockStore.setIsLoading).toHaveBeenCalledWith(true);
-        expect(emitSpy).toHaveBeenCalledWith('create_game', settings);
-      });
-
-      it('handles disconnected state', () => {
-        wsService.disconnect();
-        
-        const settings = { mode: 'human_vs_ai' };
-        wsService.createGame(settings);
-        
-        expect(mockStore.setError).toHaveBeenCalledWith('Not connected to server');
-      });
-    });
-
-    describe('joinGame', () => {
-      it('joins existing game', () => {
-        const gameId = 'test-game-123';
-        
-        const emitSpy = vi.spyOn(mockSocket, 'emit');
-        wsService.joinGame(gameId);
-        
-        expect(mockStore.setIsLoading).toHaveBeenCalledWith(true);
-        expect(emitSpy).toHaveBeenCalledWith('join_game', { game_id: gameId });
-      });
-
-      it('handles disconnected state', () => {
-        wsService.disconnect();
-        
-        wsService.joinGame('test-game');
-        
-        expect(mockStore.setError).toHaveBeenCalledWith('Not connected to server');
-      });
-    });
-
-    describe('makeMove', () => {
-      it('makes a move', () => {
-        const gameId = 'test-game-123';
-        const move = 'e2';
-        
-        const emitSpy = vi.spyOn(mockSocket, 'emit');
-        wsService.makeMove(gameId, move);
-        
-        expect(emitSpy).toHaveBeenCalledWith('make_move', {
-          game_id: gameId,
-          move: move
-        });
-      });
-
-      it('handles disconnected state', () => {
-        wsService.disconnect();
-        
-        wsService.makeMove('test-game', 'e2');
-        
-        expect(mockStore.setError).toHaveBeenCalledWith('Not connected to server');
-      });
-    });
-
-    describe('getAIMove', () => {
-      it('requests AI move', () => {
-        const gameId = 'test-game-123';
-        
-        const emitSpy = vi.spyOn(mockSocket, 'emit');
-        wsService.getAIMove(gameId);
-        
-        expect(emitSpy).toHaveBeenCalledWith('get_ai_move', { game_id: gameId });
-      });
-
-      it('handles disconnected state', () => {
-        wsService.disconnect();
-        
-        wsService.getAIMove('test-game');
-        
-        expect(mockStore.setError).toHaveBeenCalledWith('Not connected to server');
-      });
-    });
-  });
-
-  describe('Connection State', () => {
-    it('reports connected state correctly', (done) => {
-      expect(wsService.isConnected()).toBe(false);
-      
-      wsService.connect();
-      
-      setTimeout(() => {
-        expect(wsService.isConnected()).toBe(true);
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
-    });
-
-    it('reports disconnected state correctly', () => {
-      wsService.disconnect();
-      
-      expect(wsService.isConnected()).toBe(false);
-    });
-  });
-
-  describe('Error Scenarios', () => {
-    it('handles multiple connection errors gracefully', (done) => {
-      wsService.connect();
-      
-      setTimeout(() => {
-        // Simulate multiple errors
-        for (let i = 0; i < 3; i++) {
-          mockSocket.emit('connect_error', new Error(`Error ${i}`));
+      const gameSettings = {
+        mode: 'ai_vs_ai' as const,
+        board_size: 7,
+        ai_config: {
+          difficulty: 'expert' as const,
+          time_limit_ms: 10000,
+          use_mcts: true,
+          mcts_iterations: 5000
         }
-        
-        // Should not crash
-        expect(mockStore.setError).not.toHaveBeenCalledWith(
-          expect.stringContaining('Failed to connect')
-        );
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
+      };
+
+      await wsService.createGame(gameSettings);
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('create_game', gameSettings);
     });
 
-    it('handles malformed server events', (done) => {
+    it('handles game creation success', () => {
+      const mockSetGameId = vi.fn();
+      const mockSetIsLoading = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setGameId: mockSetGameId,
+        setIsLoading: mockSetIsLoading,
+        setError: vi.fn()
+      });
+
       wsService.connect();
-      
-      setTimeout(() => {
-        // Send malformed events
-        mockSocket.emit('game_created', { invalid: 'data' });
-        mockSocket.emit('game_state', null);
-        mockSocket.emit('move_made', undefined);
-        
-        // Should not crash
-        expect(mockStore.setError).not.toHaveBeenCalledWith(
-          expect.stringContaining('crash')
-        );
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
+
+      // Simulate game_created event
+      const gameCreatedHandler = mockSocket.on.mock.calls.find(call => call[0] === 'game_created')[1];
+      gameCreatedHandler({
+        game_id: 'test-game-123',
+        initial_state: mockInitialGameState
+      });
+
+      expect(mockSetGameId).toHaveBeenCalledWith('test-game-123');
+      expect(mockSetIsLoading).toHaveBeenCalledWith(false);
     });
 
-    it('handles rapid connect/disconnect cycles', async () => {
-      for (let i = 0; i < 5; i++) {
-        wsService.connect();
-        wsService.disconnect();
-      }
+    it('rejects when not connected', async () => {
+      mockSocket.connected = false;
+
+      await expect(wsService.createGame(mockDefaultGameSettings)).rejects.toThrow('Not connected to server');
+    });
+
+    it('handles game creation failure', () => {
+      const mockSetError = vi.fn();
+      const mockSetIsLoading = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setError: mockSetError,
+        setIsLoading: mockSetIsLoading,
+        setGameId: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate error event
+      const errorHandler = mockSocket.on.mock.calls.find(call => call[0] === 'error')[1];
+      errorHandler(new Error('Failed to create game'));
+
+      expect(mockSetError).toHaveBeenCalledWith('Connection failed: Failed to create game');
+    });
+  });
+
+  describe('Move Handling', () => {
+    it('makes move when connected', async () => {
+      mockSocket.connected = true;
+
+      await wsService.makeMove('test-game-123', 'e2');
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('make_move', {
+        game_id: 'test-game-123',
+        move: 'e2'
+      });
+    });
+
+    it('makes wall move', async () => {
+      mockSocket.connected = true;
+
+      await wsService.makeMove('test-game-123', 'c5h');
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('make_move', {
+        game_id: 'test-game-123',
+        move: 'c5h'
+      });
+    });
+
+    it('rejects move when not connected', async () => {
+      mockSocket.connected = false;
+
+      await expect(wsService.makeMove('test-game-123', 'e2')).rejects.toThrow('Not connected to server');
+    });
+
+    it('handles move confirmation', () => {
+      const mockAddMoveToHistory = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        addMoveToHistory: mockAddMoveToHistory,
+        setError: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate move_made event
+      const moveMadeHandler = mockSocket.on.mock.calls.find(call => call[0] === 'move_made')[1];
+      moveMadeHandler({
+        game_id: 'test-game-123',
+        move: {
+          notation: 'e2',
+          player: 0,
+          type: 'move',
+          position: { x: 4, y: 1 }
+        },
+        new_state: mockInitialGameState
+      });
+
+      expect(mockAddMoveToHistory).toHaveBeenCalledWith({
+        notation: 'e2',
+        player: 0,
+        type: 'move',
+        position: { x: 4, y: 1 }
+      });
+    });
+  });
+
+  describe('AI Move Requests', () => {
+    it('requests AI move when connected', async () => {
+      mockSocket.connected = true;
+
+      await wsService.getAIMove('test-game-123');
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('get_ai_move', {
+        game_id: 'test-game-123'
+      });
+    });
+
+    it('rejects AI move request when not connected', async () => {
+      mockSocket.connected = false;
+
+      await expect(wsService.getAIMove('test-game-123')).rejects.toThrow('Not connected to server');
+    });
+
+    it('handles AI move response', () => {
+      const mockSetGameState = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setGameState: mockSetGameState,
+        setError: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate ai_move event
+      const aiMoveHandler = mockSocket.on.mock.calls.find(call => call[0] === 'ai_move')[1];
+      aiMoveHandler({
+        game_id: 'test-game-123',
+        move: {
+          notation: 'e8',
+          player: 1,
+          type: 'move',
+          position: { x: 4, y: 7 }
+        },
+        new_state: mockInitialGameState
+      });
+
+      expect(mockSetGameState).toHaveBeenCalledWith(mockInitialGameState);
+    });
+  });
+
+  describe('Game State Updates', () => {
+    it('handles game state updates', () => {
+      const mockSetGameState = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setGameState: mockSetGameState,
+        setError: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate game_updated event
+      const gameUpdatedHandler = mockSocket.on.mock.calls.find(call => call[0] === 'game_updated')[1];
+      gameUpdatedHandler({
+        game_id: 'test-game-123',
+        state: mockInitialGameState
+      });
+
+      expect(mockSetGameState).toHaveBeenCalledWith(mockInitialGameState);
+    });
+
+    it('ignores updates for different games', () => {
+      const mockSetGameState = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setGameState: mockSetGameState,
+        setError: vi.fn(),
+        gameId: 'current-game-456' // Different game ID
+      });
+
+      wsService.connect();
+
+      // Simulate game_updated event for different game
+      const gameUpdatedHandler = mockSocket.on.mock.calls.find(call => call[0] === 'game_updated')[1];
+      gameUpdatedHandler({
+        game_id: 'other-game-123', // Different game
+        state: mockInitialGameState
+      });
+
+      expect(mockSetGameState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('handles malformed server responses', () => {
+      const mockSetError = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setError: mockSetError,
+        setGameState: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate malformed game_updated event
+      const gameUpdatedHandler = mockSocket.on.mock.calls.find(call => call[0] === 'game_updated')[1];
+      gameUpdatedHandler(null); // Invalid data
+
+      // Should handle gracefully without crashing
+      expect(() => gameUpdatedHandler(null)).not.toThrow();
+    });
+
+    it('handles server errors for specific actions', () => {
+      const mockSetError = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setError: mockSetError
+      });
+
+      wsService.connect();
+
+      // Simulate server error
+      const errorHandler = mockSocket.on.mock.calls.find(call => call[0] === 'error')[1];
+      errorHandler({ 
+        type: 'game_error', 
+        message: 'Invalid move',
+        game_id: 'test-game-123'
+      });
+
+      expect(mockSetError).toHaveBeenCalledWith('Game error: Invalid move');
+    });
+
+    it('handles network timeout gracefully', async () => {
+      mockSocket.connected = true;
       
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      // Should handle gracefully without crashes
-      expect(mockStore.setIsConnected).toHaveBeenCalled();
+      // Mock emit to simulate timeout
+      mockSocket.emit.mockImplementation(() => {
+        setTimeout(() => {
+          const errorHandler = mockSocket.on.mock.calls.find(call => call[0] === 'error')[1];
+          if (errorHandler) {
+            errorHandler(new Error('Request timeout'));
+          }
+        }, 0);
+      });
+
+      await wsService.makeMove('test-game-123', 'e2');
+
+      // Should emit the move despite potential timeout
+      expect(mockSocket.emit).toHaveBeenCalledWith('make_move', {
+        game_id: 'test-game-123',
+        move: 'e2'
+      });
+    });
+  });
+
+  describe('Reconnection Handling', () => {
+    it('attempts reconnection after disconnect', () => {
+      const mockSetIsConnected = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setIsConnected: mockSetIsConnected,
+        setError: vi.fn()
+      });
+
+      wsService.connect();
+
+      // Simulate disconnect
+      const disconnectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'disconnect')[1];
+      disconnectHandler('transport error');
+
+      expect(mockSetIsConnected).toHaveBeenCalledWith(false);
+    });
+
+    it('handles reconnection success', () => {
+      const mockSetIsConnected = vi.fn();
+      const mockSetError = vi.fn();
+      mockUseGameStore.getState.mockReturnValue({
+        setIsConnected: mockSetIsConnected,
+        setError: mockSetError
+      });
+
+      wsService.connect();
+
+      // Simulate reconnection
+      const connectHandler = mockSocket.on.mock.calls.find(call => call[0] === 'connect')[1];
+      connectHandler();
+
+      expect(mockSetIsConnected).toHaveBeenCalledWith(true);
+      expect(mockSetError).toHaveBeenCalledWith(null); // Clear any previous errors
     });
   });
 
@@ -336,98 +480,68 @@ describe('WebSocket Service', () => {
     it('cleans up event listeners on disconnect', () => {
       wsService.connect();
       wsService.disconnect();
-      
-      // After disconnect, events should not trigger store updates
-      mockSocket.emit('game_created', mockWebSocketEvents.gameCreated);
-      
-      // Should not be called after disconnect
-      expect(mockStore.setGameId).not.toHaveBeenCalled();
+
+      expect(mockSocket.removeAllListeners).toHaveBeenCalled();
     });
 
-    it('handles multiple disconnect calls safely', () => {
+    it('prevents memory leaks with multiple connect/disconnect cycles', () => {
+      // Multiple connect/disconnect cycles
+      for (let i = 0; i < 5; i++) {
+        wsService.connect();
+        wsService.disconnect();
+      }
+
+      // Should call removeAllListeners each time
+      expect(mockSocket.removeAllListeners).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not accumulate event listeners on multiple connections', () => {
       wsService.connect();
-      
-      // Multiple disconnects should not cause errors
-      expect(() => {
-        wsService.disconnect();
-        wsService.disconnect();
-        wsService.disconnect();
-      }).not.toThrow();
+      const initialOnCalls = mockSocket.on.mock.calls.length;
+
+      wsService.connect(); // Connect again
+      const secondOnCalls = mockSocket.on.mock.calls.length;
+
+      // Should not double the event listeners
+      expect(secondOnCalls).toBeLessThanOrEqual(initialOnCalls * 2);
     });
   });
 
-  describe('Reconnection Logic', () => {
-    it('attempts reconnection on connection loss', (done) => {
-      wsService.connect();
+  describe('Data Validation', () => {
+    it('validates game ID format', async () => {
+      mockSocket.connected = true;
+
+      // Empty game ID
+      await expect(wsService.makeMove('', 'e2')).rejects.toThrow();
       
-      setTimeout(() => {
-        // Simulate connection loss
-        mockSocket.emit('disconnect');
-        expect(mockStore.setIsConnected).toHaveBeenCalledWith(false);
-        
-        // Simulate reconnection attempt
-        mockSocket.emit('connect_error', new Error('Reconnection attempt'));
-        
-        // Should track reconnection attempts
-        expect(mockStore.setError).not.toHaveBeenCalledWith(
-          'Failed to connect to server. Please check if the server is running.'
-        );
-        
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
+      // Null game ID
+      await expect(wsService.makeMove(null as any, 'e2')).rejects.toThrow();
     });
 
-    it('stops reconnection after max attempts', (done) => {
-      wsService.connect();
-      
-      setTimeout(() => {
-        // Simulate max reconnection attempts
-        for (let i = 0; i <= 5; i++) {
-          mockSocket.emit('connect_error', new Error('Connection failed'));
-        }
-        
-        expect(mockStore.setError).toHaveBeenCalledWith(
-          'Failed to connect to server. Please check if the server is running.'
-        );
-        
-      }, 20);
-      
-      await new Promise(resolve => setTimeout(resolve, 25));
-    });
-  });
+    it('validates move notation format', async () => {
+      mockSocket.connected = true;
 
-  describe('Edge Cases', () => {
-    it('handles undefined gameId in actions', () => {
-      wsService.connect();
+      // Empty move
+      await expect(wsService.makeMove('test-game-123', '')).rejects.toThrow();
       
-      // Should not crash with undefined gameId
-      expect(() => {
-        wsService.makeMove(undefined as any, 'e2');
-        wsService.getAIMove(undefined as any);
-        wsService.joinGame(undefined as any);
-      }).not.toThrow();
+      // Invalid move format
+      await expect(wsService.makeMove('test-game-123', '???')).rejects.toThrow();
     });
 
-    it('handles null moves', () => {
-      wsService.connect();
-      
-      // Should not crash with null move
-      expect(() => {
-        wsService.makeMove('test-game', null as any);
-        wsService.makeMove('test-game', undefined as any);
-      }).not.toThrow();
-    });
+    it('validates game settings before creation', async () => {
+      mockSocket.connected = true;
 
-    it('handles empty settings', () => {
-      wsService.connect();
-      
-      // Should not crash with empty settings
-      expect(() => {
-        wsService.createGame({} as any);
-        wsService.createGame(null as any);
-        wsService.createGame(undefined as any);
-      }).not.toThrow();
+      // Invalid mode
+      await expect(wsService.createGame({
+        mode: 'invalid_mode' as any,
+        board_size: 9
+      })).rejects.toThrow();
+
+      // Invalid board size
+      await expect(wsService.createGame({
+        mode: 'human_vs_ai',
+        board_size: 0
+      })).rejects.toThrow();
     });
   });
 });

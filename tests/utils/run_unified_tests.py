@@ -262,15 +262,21 @@ def main() -> None:
 
     # Run Frontend tests
     if not args.skip_frontend:
-        if (project_root / "frontend").exists():
-            print("\n⚛️  Running Frontend tests...")
+        frontend_test_dir = project_root / "tests" / "frontend"
+        if frontend_test_dir.exists():
+            print("\n⚛️  Running Frontend tests with Vitest...")
 
-            frontend_cmd = ["npm", "test", "--", "--watchAll=false"]
+            # Use Vitest directly for frontend tests
+            frontend_cmd = ["vitest", "run", "--config", "vitest.config.ts"]
             if args.coverage:
                 frontend_cmd.extend(["--coverage"])
+            if args.verbose:
+                frontend_cmd.append("--reporter=verbose")
+            elif not args.debug:
+                frontend_cmd.append("--reporter=basic")
 
             frontend_success = run_command(
-                frontend_cmd, "Frontend Tests", cwd=str(project_root / "frontend")
+                frontend_cmd, "Frontend Tests", cwd=str(frontend_test_dir)
             )
             test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"
             success = success and frontend_success
@@ -278,7 +284,7 @@ def main() -> None:
             if args.fail_fast and not frontend_success:
                 print("❌ Stopping due to --fail-fast flag")
         else:
-            print("\n⚛️  Skipping Frontend tests (no frontend directory found)")
+            print("\n⚛️  Skipping Frontend tests (no frontend test directory found)")
             test_results["Frontend Tests"] = "SKIPPED"
 
     # Run E2E tests
