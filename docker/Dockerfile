@@ -94,7 +94,9 @@ RUN poetry run playwright install-deps
 
 # Build frontend during image construction
 WORKDIR /app/frontend
-RUN npm install && npm run build
+ENV CI=false
+ENV GENERATE_SOURCEMAP=false
+RUN npm ci --no-audit --no-fund && npm run build
 
 # Build C++ backend during image construction
 WORKDIR /app/backend/core

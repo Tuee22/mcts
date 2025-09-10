@@ -179,10 +179,9 @@ class WebSocketService {
       // Create basic move history from move count (simplified)
       const move_history = Array.from({ length: apiResponse.move_count || 0 }, (_, i) => ({
         player: (i % 2) as Player,
-        move: `move-${i}`,
         notation: `m${i}`,
-        type: 'move' as const,
-        board_state: null // Would need full history from API
+        type: 'move' as const
+        // board_state is undefined (omitted) - would need full history from API
       }));
       
       const gameState: GameState = {
