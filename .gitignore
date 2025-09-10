@@ -157,3 +157,8 @@ test_hook_trigger.txt
 # Specific .txt files to ignore
 backend/python/gdb_init.txt
 backend/core/results.txt
+
+# E2E test debug artifacts
+debug-*.png
+test-screenshots/
+*.screenshot.png
