@@ -1,9 +1,9 @@
 {
-  "_comment": "Global NPM packages for Docker installation with version constraints. Strategy: Upper bounds (>=X.Y.Z <X+1.0.0) prevent automatic major version updates that could introduce breaking changes. This matches the strategy used in pyproject.toml and package.json.",
+  "_comment": "Global NPM packages for Docker installation with version constraints. Strategy: Tilde ranges (~X.Y.Z) allow only patch-level updates, preventing breaking changes from minor or major version updates. This provides stricter version control than Poetry-style ranges.",
   "packages": {
-    "vitest": ">=2.1.8 <3.0.0",
-    "@vitest/ui": ">=2.1.8 <3.0.0",
-    "@testing-library/react": ">=13.4.0 <14.0.0",
-    "jsdom": ">=25.0.1 <26.0.0"
+    "vitest": "~2.1.8",
+    "@vitest/ui": "~2.1.8",
+    "@testing-library/react": "~13.4.0",
+    "jsdom": "~25.0.1"
   }
 }

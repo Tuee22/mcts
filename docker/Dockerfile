@@ -54,7 +54,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 # Install global NPM packages for frontend testing using versioned constraints
 COPY frontend/npm-global-packages.json /tmp/npm-global-packages.json
-RUN PACKAGES=$(node -e "const pkg = require('/tmp/npm-global-packages.json'); console.log(Object.entries(pkg.packages).map(([name, version]) => \`\${name}@'\${version}'\`).join(' '))") \
+RUN PACKAGES=$(node -e "const pkg = require('/tmp/npm-global-packages.json'); console.log(Object.entries(pkg.packages).map(([name, version]) => \`\${name}@\${version}\`).join(' '))") \
     && npm install -g $PACKAGES \
     && vitest --version \
     && rm /tmp/npm-global-packages.json
