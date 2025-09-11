@@ -1,5 +1,23 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock dependencies first (hoisted)
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: vi.fn()
+}));
+
+vi.mock('@/services/websocket', () => ({
+  wsService: {
+    connect: vi.fn(() => Promise.resolve()),
+    disconnect: vi.fn(),
+    isConnected: vi.fn(() => true),
+    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+    makeMove: vi.fn(() => Promise.resolve()),
+    getAIMove: vi.fn(() => Promise.resolve()),
+  }
+}));
+
+// Import components and utilities
 import { GameSettings } from '@/components/GameSettings';
 import { render, screen, waitFor } from '../utils/testHelpers';
 import { 
@@ -9,17 +27,7 @@ import {
   mockEasyAISettings,
   mockExpertAISettings
 } from '../fixtures/gameSettings';
-import { createMockGameStore, mockWebSocketService } from '../fixtures/mocks';
-
-// Mock dependencies
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn()
-}));
-
-vi.mock('@/services/websocket', () => ({
-  wsService: mockWebSocketService
-}));
-
+import { createMockGameStore } from '../fixtures/mocks';
 import { useGameStore } from '@/store/gameStore';
 
 describe('GameSettings Component', () => {

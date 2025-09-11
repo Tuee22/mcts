@@ -1,5 +1,33 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock the store and services first (hoisted)
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: vi.fn()
+}));
+
+vi.mock('@/services/websocket', () => ({
+  wsService: {
+    connect: vi.fn(() => Promise.resolve()),
+    disconnect: vi.fn(),
+    isConnected: vi.fn(() => true),
+    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+    makeMove: vi.fn(() => Promise.resolve()),
+    getAIMove: vi.fn(() => Promise.resolve()),
+  }
+}));
+
+vi.mock('react-hot-toast', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn()
+  },
+  Toaster: () => React.createElement('div', { 'data-testid': 'toaster' })
+}));
+
+// Import components and test utilities
 import App from '@/App';
 import { render, screen, waitFor } from '../utils/testHelpers';
 import { 
@@ -8,23 +36,7 @@ import {
   mockCompletedGameState 
 } from '../fixtures/gameState';
 import { mockDefaultGameSettings } from '../fixtures/gameSettings';
-import { createMockGameStore, mockWebSocketService, mockToast } from '../fixtures/mocks';
-
-// Mock the store and services
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn()
-}));
-
-vi.mock('@/services/websocket', () => ({
-  wsService: mockWebSocketService
-}));
-
-vi.mock('react-hot-toast', () => ({
-  toast: mockToast,
-  Toaster: () => <div data-testid="toaster" />
-}));
-
-// Import after mocking
+import { createMockGameStore } from '../fixtures/mocks';
 import { useGameStore } from '@/store/gameStore';
 
 describe('App Component', () => {

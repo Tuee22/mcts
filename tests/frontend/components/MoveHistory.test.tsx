@@ -1,5 +1,12 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock dependencies first (hoisted)
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: vi.fn()
+}));
+
+// Import components and utilities
 import { MoveHistory } from '@/components/MoveHistory';
 import { render, screen, waitFor } from '../utils/testHelpers';
 import { 
@@ -9,18 +16,12 @@ import {
   mockCompletedGameState
 } from '../fixtures/gameState';
 import { createMockGameStore, mockClipboard } from '../fixtures/mocks';
+import { useGameStore } from '@/store/gameStore';
 
-// Mock dependencies
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn()
-}));
-
-// Mock clipboard API
+// Mock clipboard API after imports
 Object.assign(navigator, {
   clipboard: mockClipboard
 });
-
-import { useGameStore } from '@/store/gameStore';
 
 describe('MoveHistory Component', () => {
   let mockStore: ReturnType<typeof createMockGameStore>;

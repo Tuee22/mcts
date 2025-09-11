@@ -5,11 +5,18 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./setup/setupTests.ts'],
     globals: true,
     css: true,
+    // Fix deprecated 'basic' reporter
+    reporters: [
+      ['default', { summary: false }]
+    ],
     // Frontend tests should be fast and isolated
     include: ['**/*.test.{ts,tsx}'],
     exclude: [
@@ -50,8 +57,12 @@ export default defineConfig({
   resolve: {
     alias: {
       // Frontend source alias  
-      '@': path.resolve('../../frontend/src'),
-      '@frontend': path.resolve('../../frontend/src')
+      '@': path.resolve(__dirname, '../../frontend/src'),
+      '@frontend': path.resolve(__dirname, '../../frontend/src')
     }
+  },
+  // Specify node modules resolution for container
+  define: {
+    global: 'globalThis',
   }
 })

@@ -1,5 +1,5 @@
 // Test helper utilities for frontend tests
-import { ReactElement } from 'react';
+import React, { ReactElement } from 'react';
 import { render as rtlRender, RenderOptions, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
@@ -202,10 +202,10 @@ export const createErrorBoundary = () => {
   
   const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
     try {
-      return <>{children}</>;
+      return React.createElement(React.Fragment, null, children);
     } catch (error) {
       caughtError = error as Error;
-      return <div>Error caught</div>;
+      return React.createElement('div', null, 'Error caught');
     }
   };
   

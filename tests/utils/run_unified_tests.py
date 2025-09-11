@@ -272,8 +272,7 @@ def main() -> None:
                 frontend_cmd.extend(["--coverage"])
             if args.verbose:
                 frontend_cmd.append("--reporter=verbose")
-            elif not args.debug:
-                frontend_cmd.append("--reporter=basic")
+            # Note: Basic reporter is deprecated - config now handles default reporter
 
             frontend_success = run_command(
                 frontend_cmd, "Frontend Tests", cwd=str(frontend_test_dir)
