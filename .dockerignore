@@ -75,20 +75,28 @@ core.*
 *.core
 core.[0-9]*
 
-# Node.js dependencies (exclude from Docker context for efficiency)
+# Node.js dependencies and artifacts (comprehensive exclusion)
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.npm/
+.yarn/
+.pnpm-store/
 
 # React build outputs (built inside container)
 frontend/build/
 frontend/dist/
 
 # Package lock files (removed from version control for cross-platform compatibility)
-# These are generated fresh in Docker builds
+# These are generated fresh in Docker builds for deterministic dependency resolution
 package-lock.json
+**/package-lock.json
 yarn.lock
+**/yarn.lock
+pnpm-lock.yaml
+**/pnpm-lock.yaml
 poetry.lock
 
 # Test coverage reports

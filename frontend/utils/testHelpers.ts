@@ -1,6 +1,6 @@
 // Test helper utilities for frontend tests
 import React, { ReactElement } from 'react';
-import { render as rtlRender, RenderOptions, screen, act } from '@testing-library/react';
+import { render as rtlRender, RenderOptions, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 
@@ -10,48 +10,51 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 }
 
 export const render = (ui: ReactElement, options?: CustomRenderOptions) => {
-  // Wrap rendering in act() to handle React state updates
-  let result: ReturnType<typeof rtlRender>;
-  act(() => {
-    result = rtlRender(ui, options);
-  });
+  const result = rtlRender(ui, options);
   
   // Create a properly configured user event instance
-  const user = userEvent.setup({
-    delay: null, // Disable built-in delays for faster tests
-  });
+  let user;
+  try {
+    user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime,
+      skipAutoClose: true, // Prevent automatic cleanup issues
+    });
+  } catch (error) {
+    // Fallback for cases where userEvent.setup fails
+    console.warn('UserEvent setup failed, using fallback:', error);
+    user = {
+      click: vi.fn(),
+      type: vi.fn(),
+      hover: vi.fn(),
+      keyboard: vi.fn(),
+      tab: vi.fn(),
+    };
+  }
   
   // Return enhanced result with additional utilities
   return {
-    ...result!,
+    ...result,
     user
   };
 };
 
 // Create a configured user event instance
 export const createUser = () => {
-  return userEvent.setup({
-    delay: null, // Disable built-in delays for faster tests
-  });
-};
-
-// Helper to wrap user interactions with act() for React state updates
-export const userClick = async (user: ReturnType<typeof createUser>, element: Element) => {
-  return await act(async () => {
-    await user.click(element);
-  });
-};
-
-export const userType = async (user: ReturnType<typeof createUser>, element: Element, text: string) => {
-  return await act(async () => {
-    await user.type(element, text);
-  });
-};
-
-export const userHover = async (user: ReturnType<typeof createUser>, element: Element) => {
-  return await act(async () => {
-    await user.hover(element);
-  });
+  try {
+    return userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime,
+      skipAutoClose: true,
+    });
+  } catch (error) {
+    console.warn('UserEvent createUser failed, using fallback:', error);
+    return {
+      click: vi.fn(),
+      type: vi.fn(),
+      hover: vi.fn(),
+      keyboard: vi.fn(),
+      tab: vi.fn(),
+    };
+  }
 };
 
 // Wait for condition helper

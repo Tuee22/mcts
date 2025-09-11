@@ -4,6 +4,7 @@
   "description": "Frontend unit tests using Vitest",
   "private": true,
   "type": "module",
+  "_comment": "Dependency versioning: Uses upper bounds (>=X.Y.Z <X+1.0.0) consistent with main frontend package.json and pyproject.toml strategy for security and stability.",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -11,19 +12,19 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.4.8",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^2.1.8",
-    "@vitest/ui": "^2.1.8",
-    "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "@testing-library/jest-dom": ">=6.4.8 <7.0.0",
+    "@testing-library/react": ">=13.4.0 <14.0.0",
+    "@testing-library/user-event": ">=14.6.1 <15.0.0",
+    "@types/react": ">=18.2.0 <19.0.0",
+    "@types/react-dom": ">=18.2.0 <19.0.0",
+    "@vitejs/plugin-react": ">=4.3.1 <5.0.0",
+    "@vitest/coverage-v8": ">=2.1.8 <3.0.0",
+    "@vitest/ui": ">=2.1.8 <3.0.0",
+    "jsdom": ">=25.0.1 <26.0.0",
+    "vitest": ">=2.1.8 <3.0.0"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": ">=18.2.0 <19.0.0",
+    "react-dom": ">=18.2.0 <19.0.0"
   }
 }

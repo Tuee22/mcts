@@ -100,6 +100,23 @@ RUN poetry run playwright install-deps
 WORKDIR /app/frontend
 ENV CI=false
 ENV GENERATE_SOURCEMAP=false
+# Comprehensive build environment validation (fail-fast if .dockerignore not working)
+RUN echo "🔍 Validating clean Node.js build environment..." && \
+    find /app -name "node_modules" -type d | head -1 | grep -q . && \
+    { echo "❌ ERROR: node_modules directories found in build context:"; \
+      find /app -name "node_modules" -type d; \
+      echo "Check .dockerignore patterns for **/node_modules/"; exit 1; } || \
+    echo "✅ No node_modules directories found"
+
+RUN echo "🔍 Checking for lock files..." && \
+    find /app -name "package-lock.json" -o -name "yarn.lock" -o -name "pnpm-lock.yaml" | head -1 | grep -q . && \
+    { echo "❌ ERROR: Lock files found in build context:"; \
+      find /app -name "package-lock.json" -o -name "yarn.lock" -o -name "pnpm-lock.yaml"; \
+      echo "Check .dockerignore patterns for **/package-lock.json, **/yarn.lock, **/pnpm-lock.yaml"; exit 1; } || \
+    echo "✅ No lock files found - clean for deterministic builds"
+# Install dependencies with clean, deterministic resolution
+# Note: npm install used instead of npm ci because package-lock.json is intentionally excluded
+# This ensures cross-platform compatibility while validation above ensures clean state
 RUN npm install --no-audit --no-fund && npm run build
 
 # Build C++ backend during image construction

@@ -38,7 +38,16 @@ export const useGameStore = create<GameStore>((set) => ({
   selectedHistoryIndex: null,
   
   setGameId: (id) => set({ gameId: id }),
-  setGameState: (state) => set({ gameState: state }),
+  setGameState: (state) => set({ 
+    gameState: state ? {
+      ...state,
+      players: [...state.players],
+      walls: [...state.walls],
+      legal_moves: [...state.legal_moves],
+      move_history: [...state.move_history],
+      walls_remaining: [...state.walls_remaining] as [number, number]
+    } : null 
+  }),
   setGameSettings: (settings) => set((state) => ({
     gameSettings: { ...state.gameSettings, ...settings }
   })),

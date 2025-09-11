@@ -44,8 +44,10 @@ describe('GameSettings Component', () => {
   });
 
   // Helper function to expand settings panel
-  const expandSettings = async (user: any) => {
+  const expandSettings = async () => {
     const toggleButton = screen.getByRole('button', { name: /game settings/i });
+    // Use the same pattern as the working test
+    const user = require('@testing-library/user-event').default.setup();
     await user.click(toggleButton);
   };
 
@@ -65,64 +67,49 @@ describe('GameSettings Component', () => {
     });
 
     it('renders all game mode options', async () => {
-      vi.useFakeTimers();
       render(<GameSettings />);
-      const user = createUser();
-      await expandSettings(user);
+      await expandSettings();
 
       expect(screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤')).toBeInTheDocument();
       expect(screen.getByText('Human vs AI') || screen.getByText('👤 vs 🤖')).toBeInTheDocument();
       expect(screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖')).toBeInTheDocument();
-      vi.useRealTimers();
     });
 
     it('renders difficulty options', async () => {
-      vi.useFakeTimers();
       render(<GameSettings />);
-      const user = createUser();
-      await expandSettings(user);
+      await expandSettings();
 
       expect(screen.getByText('Easy')).toBeInTheDocument();
       expect(screen.getByText('Medium')).toBeInTheDocument();
       expect(screen.getByText('Hard')).toBeInTheDocument();
       expect(screen.getByText('Expert')).toBeInTheDocument();
-      vi.useRealTimers();
     });
 
     it('renders time limit options', async () => {
-      vi.useFakeTimers();
       render(<GameSettings />);
-      const user = createUser();
-      await expandSettings(user);
+      await expandSettings();
 
       expect(screen.getByText('1s')).toBeInTheDocument();
       expect(screen.getByText('3s')).toBeInTheDocument();
       expect(screen.getByText('5s')).toBeInTheDocument();
       expect(screen.getByText('10s')).toBeInTheDocument();
-      vi.useRealTimers();
     });
 
     it('renders board size options', async () => {
-      vi.useFakeTimers();
-      render(<GameSettings />);
-      const user = createUser();
-      await expandSettings(user);
+            render(<GameSettings />);
+      await expandSettings();
 
       expect(screen.getByText('5x5')).toBeInTheDocument();
       expect(screen.getByText('7x7')).toBeInTheDocument();
       expect(screen.getByText('9x9')).toBeInTheDocument();
-      vi.useRealTimers();
-    });
+          });
 
     it('renders start game button', async () => {
-      vi.useFakeTimers();
-      render(<GameSettings />);
-      const user = createUser();
-      await expandSettings(user);
+            render(<GameSettings />);
+      await expandSettings();
 
       expect(screen.getByText('Start Game')).toBeInTheDocument();
-      vi.useRealTimers();
-    });
+          });
   });
 
   describe('Game Mode Selection', () => {
@@ -130,8 +117,10 @@ describe('GameSettings Component', () => {
       mockStore.gameSettings = mockDefaultGameSettings; // human_vs_ai
       (useGameStore as any).mockReturnValue(mockStore);
 
-      const { user } = render(<GameSettings />);
-      await expandSettings(user);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
+      await expandSettings();
 
       const humanVsAI = screen.getByText('Human vs AI') || screen.getByText('👤 vs 🤖');
       expect(humanVsAI).toHaveClass('selected') || 
@@ -140,7 +129,9 @@ describe('GameSettings Component', () => {
     });
 
     it('changes mode when clicked', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
       await user.click(humanVsHuman);
@@ -151,7 +142,9 @@ describe('GameSettings Component', () => {
     });
 
     it('updates to AI vs AI mode correctly', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const aiVsAI = screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖');
       await user.click(aiVsAI);
@@ -163,8 +156,9 @@ describe('GameSettings Component', () => {
   });
 
   describe('AI Difficulty Selection', () => {
-    it('shows difficulty options for AI modes', () => {
+    it('shows difficulty options for AI modes', async () => {
       render(<GameSettings />);
+      await expandSettings();
 
       expect(screen.getByText('Easy')).toBeInTheDocument();
       expect(screen.getByText('Medium')).toBeInTheDocument();
@@ -172,20 +166,21 @@ describe('GameSettings Component', () => {
       expect(screen.getByText('Expert')).toBeInTheDocument();
     });
 
-    it('highlights currently selected difficulty', () => {
+    it('highlights currently selected difficulty', async () => {
       mockStore.gameSettings = { ...mockDefaultGameSettings, ai_difficulty: 'hard' };
       (useGameStore as any).mockReturnValue(mockStore);
 
       render(<GameSettings />);
+      await expandSettings();
 
       const hardDifficulty = screen.getByText('Hard');
-      expect(hardDifficulty).toHaveClass('selected') || 
-      expect(hardDifficulty.parentElement).toHaveClass('selected') ||
-      expect(hardDifficulty.parentElement).toHaveClass('active');
+      expect(hardDifficulty).toHaveClass('active');
     });
 
     it('changes difficulty when clicked', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const expertDifficulty = screen.getByText('Expert');
       await user.click(expertDifficulty);
@@ -211,7 +206,7 @@ describe('GameSettings Component', () => {
   });
 
   describe('Time Limit Selection', () => {
-    it('highlights currently selected time limit', () => {
+    it('highlights currently selected time limit', async () => {
       mockStore.gameSettings = { ...mockDefaultGameSettings, ai_time_limit: 10000 };
       (useGameStore as any).mockReturnValue(mockStore);
 
@@ -224,7 +219,9 @@ describe('GameSettings Component', () => {
     });
 
     it('changes time limit when clicked', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const threeSeconds = screen.getByText('3s');
       await user.click(threeSeconds);
@@ -234,7 +231,7 @@ describe('GameSettings Component', () => {
       );
     });
 
-    it('converts time display correctly', () => {
+    it('converts time display correctly', async () => {
       mockStore.gameSettings = { ...mockDefaultGameSettings, ai_time_limit: 1000 };
       (useGameStore as any).mockReturnValue(mockStore);
 
@@ -245,7 +242,7 @@ describe('GameSettings Component', () => {
   });
 
   describe('Board Size Selection', () => {
-    it('highlights currently selected board size', () => {
+    it('highlights currently selected board size', async () => {
       mockStore.gameSettings = { ...mockDefaultGameSettings, board_size: 7 };
       (useGameStore as any).mockReturnValue(mockStore);
 
@@ -258,7 +255,9 @@ describe('GameSettings Component', () => {
     });
 
     it('changes board size when clicked', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const smallBoard = screen.getByText('5x5');
       await user.click(smallBoard);
@@ -269,7 +268,9 @@ describe('GameSettings Component', () => {
     });
 
     it('supports large board sizes', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const largeBoard = screen.getByText('11x11');
       await user.click(largeBoard);
@@ -282,7 +283,9 @@ describe('GameSettings Component', () => {
 
   describe('Game Creation', () => {
     it('starts game with correct settings', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -300,7 +303,9 @@ describe('GameSettings Component', () => {
     });
 
     it('starts human vs human game correctly', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       // First change to human vs human mode
       const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
@@ -317,7 +322,9 @@ describe('GameSettings Component', () => {
     });
 
     it('starts AI vs AI game correctly', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       // Configure AI vs AI with expert difficulty
       const aiVsAI = screen.getByText('AI vs AI') || screen.getByText('🤖 vs 🤖');
@@ -342,7 +349,9 @@ describe('GameSettings Component', () => {
     });
 
     it('includes custom board size in game creation', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       // Select small board
       const smallBoard = screen.getByText('5x5');
@@ -452,7 +461,9 @@ describe('GameSettings Component', () => {
       mockStore.gameId = 'active-game-123';
       (useGameStore as any).mockReturnValue(mockStore);
 
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const toggleButton = screen.getByText('Settings') || 
                           screen.getByText('⚙️') ||
@@ -470,7 +481,9 @@ describe('GameSettings Component', () => {
     it('handles game creation failure gracefully', async () => {
       mockWebSocketService.createGame.mockRejectedValue(new Error('Server error'));
 
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -493,7 +506,9 @@ describe('GameSettings Component', () => {
       };
       (useGameStore as any).mockReturnValue(mockStore);
 
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const startButton = screen.getByText('Start Game');
       await user.click(startButton);
@@ -512,7 +527,9 @@ describe('GameSettings Component', () => {
 
   describe('Settings Persistence', () => {
     it('updates store when settings change', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       // Change multiple settings
       const hardDifficulty = screen.getByText('Hard');
@@ -531,7 +548,9 @@ describe('GameSettings Component', () => {
 
   describe('AI Configuration', () => {
     it('sets correct MCTS iterations for different difficulties', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const expertDifficulty = screen.getByText('Expert');
       await user.click(expertDifficulty);
@@ -554,7 +573,9 @@ describe('GameSettings Component', () => {
     });
 
     it('configures AI correctly for different time limits', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const longTime = screen.getByText('10s');
       await user.click(longTime);
@@ -588,7 +609,9 @@ describe('GameSettings Component', () => {
     });
 
     it('supports keyboard navigation', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       const humanVsHuman = screen.getByText('Human vs Human') || screen.getByText('👤 vs 👤');
       humanVsHuman.focus();
@@ -601,7 +624,9 @@ describe('GameSettings Component', () => {
     });
 
     it('provides proper focus management', async () => {
-      const { user } = render(<GameSettings />);
+      render(<GameSettings />);
+      await expandSettings();
+      const user = require('@testing-library/user-event').default.setup();
 
       // Tab through controls
       await user.tab();
