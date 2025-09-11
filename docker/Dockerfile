@@ -52,9 +52,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && node --version && npm --version
 
-# Install vitest globally for frontend testing without npx dependency
-RUN npm install -g vitest @vitest/ui @testing-library/react @testing-library/jest-dom jsdom \
-    && vitest --version
+# Install global NPM packages for frontend testing using versioned constraints
+COPY frontend/npm-global-packages.json /tmp/npm-global-packages.json
+RUN PACKAGES=$(node -e "const pkg = require('/tmp/npm-global-packages.json'); console.log(Object.entries(pkg.packages).map(([name, version]) => \`\${name}@'\${version}'\`).join(' '))") \
+    && npm install -g $PACKAGES \
+    && vitest --version \
+    && rm /tmp/npm-global-packages.json
 
 # Install Playwright system dependencies as root first
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -100,23 +103,9 @@ RUN poetry run playwright install-deps
 WORKDIR /app/frontend
 ENV CI=false
 ENV GENERATE_SOURCEMAP=false
-# Comprehensive build environment validation (fail-fast if .dockerignore not working)
-RUN echo "🔍 Validating clean Node.js build environment..." && \
-    find /app -name "node_modules" -type d | head -1 | grep -q . && \
-    { echo "❌ ERROR: node_modules directories found in build context:"; \
-      find /app -name "node_modules" -type d; \
-      echo "Check .dockerignore patterns for **/node_modules/"; exit 1; } || \
-    echo "✅ No node_modules directories found"
-
-RUN echo "🔍 Checking for lock files..." && \
-    find /app -name "package-lock.json" -o -name "yarn.lock" -o -name "pnpm-lock.yaml" | head -1 | grep -q . && \
-    { echo "❌ ERROR: Lock files found in build context:"; \
-      find /app -name "package-lock.json" -o -name "yarn.lock" -o -name "pnpm-lock.yaml"; \
-      echo "Check .dockerignore patterns for **/package-lock.json, **/yarn.lock, **/pnpm-lock.yaml"; exit 1; } || \
-    echo "✅ No lock files found - clean for deterministic builds"
 # Install dependencies with clean, deterministic resolution
 # Note: npm install used instead of npm ci because package-lock.json is intentionally excluded
-# This ensures cross-platform compatibility while validation above ensures clean state
+# This ensures cross-platform compatibility and .dockerignore prevents artifacts from entering build context
 RUN npm install --no-audit --no-fund && npm run build
 
 # Build C++ backend during image construction

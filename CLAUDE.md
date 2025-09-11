@@ -17,6 +17,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project uses the @no-git-commits agent policy. You may stage changes with `git add` but must stop before committing. Only create commits when the user explicitly asks with phrases like "commit this", "create a commit", or "git commit".
 
+## **Build Artifacts Policy**
+
+**ZERO TOLERANCE: Never commit or copy any build artifacts, lock files, or generated content into git or Docker.**
+
+- **NO LOCK FILES**: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock` are never committed
+- **NO BUILD OUTPUTS**: `build/`, `dist/`, `.next/`, `out/`, `node_modules/` are never committed  
+- **NO GENERATED FILES**: Coverage reports, logs, cache directories are never committed
+- **VERSIONING STRATEGY**: All dependencies use `>=X.Y.Z <X+1.0.0` pattern to prevent breaking changes
+- **CLEAN BUILDS**: Docker builds generate fresh lock files for deterministic, reproducible environments
+
 ## Project Overview
 
 This is a Monte Carlo Tree Search (MCTS) implementation for the Corridors board game, featuring a high-performance C++ backend with Python bindings. The project combines advanced MCTS algorithms with efficient board representation and supports both traditional UCT and modern PUCT (Alpha-Zero style) formulations.
@@ -89,6 +99,26 @@ docker compose exec mcts pytest --benchmark-only # Run benchmarks
 
 # Quick test subsets (useful during development)
 docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fast tests only
+```
+
+#### Frontend Testing
+**ZERO NPX POLICY**: All commands use direct package names or npm scripts - npx is completely prohibited
+**NO JEST POLICY**: Vitest-only testing stack - Jest is completely prohibited
+
+```bash
+# Start Docker services first
+cd docker && docker compose up -d
+
+# Run frontend tests (inside container) - all commands use direct vitest
+docker compose exec mcts cd /app/frontend && npm run test          # Interactive mode
+docker compose exec mcts cd /app/frontend && npm run test:run      # Run once and exit
+docker compose exec mcts cd /app/frontend && npm run test:ui       # Web UI interface
+docker compose exec mcts cd /app/frontend && npm run test:coverage # With coverage report
+
+# Alternative: Direct vitest commands (vitest installed globally in container)
+docker compose exec mcts cd /app/frontend && vitest run           # Run once
+docker compose exec mcts cd /app/frontend && vitest --ui          # Web UI
+docker compose exec mcts cd /app/frontend && vitest --coverage    # Coverage
 ```
 
 **Note on Test Execution:**

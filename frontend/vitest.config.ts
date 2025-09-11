@@ -13,8 +13,11 @@ export default defineConfig({
     // Setup file for test configuration
     setupFiles: ['./vitest.setup.ts'],
     
-    // Include patterns for test discovery
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    // Include patterns for test discovery - supports tests in both frontend/ and tests/frontend/
+    include: [
+      '**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      '../tests/frontend/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+    ],
     
     // Exclude patterns - be more specific to avoid node_modules tests
     exclude: [

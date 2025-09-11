@@ -75,17 +75,28 @@ core.*
 *.core
 core.[0-9]*
 
-# Node.js dependencies and artifacts (comprehensive exclusion)
+# Node.js dependencies and artifacts - ZERO TOLERANCE (comprehensive exclusion)
 node_modules/
 **/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm/
+**/.npm/
 .yarn/
+**/.yarn/
 .pnpm-store/
+**/.pnpm-store/
 
-# React build outputs (built inside container)
+# React build outputs - ZERO TOLERANCE (built inside container)
+build/
+**/build/
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+**/out/
 frontend/build/
 frontend/dist/
 
@@ -99,8 +110,11 @@ pnpm-lock.yaml
 **/pnpm-lock.yaml
 poetry.lock
 
-# Test coverage reports
+# Test coverage reports - ZERO TOLERANCE for generated coverage files
 coverage/
+**/coverage/
+.nyc_output/
+**/.nyc_output/
 *.lcov
 
 # React development cache

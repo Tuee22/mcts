@@ -1,7 +1,10 @@
 // Vitest setup file for frontend tests - pure frontend focus
-import '@testing-library/jest-dom';
+import { expect, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, afterAll, vi } from 'vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+
+// Extend Vitest's expect with Testing Library matchers
+expect.extend(matchers);
 
 // Cleanup after each test automatically
 afterEach(() => {
