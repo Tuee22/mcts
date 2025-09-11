@@ -69,6 +69,12 @@ _limit_compare
 callgrind*
 gmon.out
 
+# Core dump files
+core
+core.*
+*.core
+core.[0-9]*
+
 # Node.js dependencies (exclude from Docker context for efficiency)
 node_modules/
 npm-debug.log*
