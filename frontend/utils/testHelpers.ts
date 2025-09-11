@@ -1,5 +1,5 @@
 // Test helper utilities for frontend tests
-import React, { ReactElement } from 'react';
+import React, { ReactElement, act } from 'react';
 import { render as rtlRender, RenderOptions, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
@@ -9,8 +9,12 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   // Future: add providers if needed (theme, context, etc.)
 }
 
-export const render = (ui: ReactElement, options?: CustomRenderOptions) => {
-  const result = rtlRender(ui, options);
+export const render = async (ui: ReactElement, options?: CustomRenderOptions) => {
+  let result: any;
+  
+  await act(async () => {
+    result = rtlRender(ui, options);
+  });
   
   // Create a properly configured user event instance
   let user;

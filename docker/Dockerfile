@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && node --version && npm --version
+    && rm -rf /var/lib/apt/lists/*
 
 # Install global NPM packages for frontend testing using versioned constraints
 COPY frontend/npm-global-packages.json /tmp/npm-global-packages.json
