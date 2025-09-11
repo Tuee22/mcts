@@ -1,7 +1,92 @@
-// Vitest setup file for frontend tests - pure frontend focus
-import '@testing-library/jest-dom';
+// Comprehensive Vitest setup file for frontend tests
+import React from 'react';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, afterAll, vi } from 'vitest';
+import { afterEach, beforeAll, afterAll, vi, expect } from 'vitest';
+
+// Make React available globally to prevent hook errors
+(globalThis as any).React = React;
+
+// Import React's act (not ReactDOM's) for modern act usage  
+import { act } from 'react';
+(globalThis as any).act = act;
+
+// Custom DOM matchers - Vitest native approach
+expect.extend({
+  toBeInTheDocument(received: Element) {
+    const pass = document.body.contains(received);
+    return {
+      message: () => 
+        pass 
+          ? `Expected element not to be in the document`
+          : `Expected element to be in the document`,
+      pass,
+    };
+  },
+  
+  toHaveClass(received: Element, expectedClass: string) {
+    const pass = received.classList.contains(expectedClass);
+    return {
+      message: () =>
+        pass
+          ? `Expected element not to have class "${expectedClass}"`
+          : `Expected element to have class "${expectedClass}"`,
+      pass,
+    };
+  },
+  
+  toHaveTextContent(received: Element, expectedText: string | RegExp) {
+    const actualText = received.textContent || '';
+    const pass = typeof expectedText === 'string' 
+      ? actualText.includes(expectedText)
+      : expectedText.test(actualText);
+    return {
+      message: () =>
+        pass
+          ? `Expected element not to have text content "${expectedText}"`
+          : `Expected element to have text content "${expectedText}", but got "${actualText}"`,
+      pass,
+    };
+  },
+  
+  toBeDisabled(received: HTMLElement) {
+    const pass = received.hasAttribute('disabled') || 
+                 (received as HTMLInputElement).disabled === true;
+    return {
+      message: () =>
+        pass
+          ? `Expected element not to be disabled`
+          : `Expected element to be disabled`,
+      pass,
+    };
+  },
+  
+  toHaveAttribute(received: Element, expectedAttribute: string, expectedValue?: string) {
+    const hasAttribute = received.hasAttribute(expectedAttribute);
+    if (!hasAttribute) {
+      return {
+        message: () => `Expected element to have attribute "${expectedAttribute}"`,
+        pass: false,
+      };
+    }
+    
+    if (expectedValue !== undefined) {
+      const actualValue = received.getAttribute(expectedAttribute);
+      const pass = actualValue === expectedValue;
+      return {
+        message: () =>
+          pass
+            ? `Expected element not to have attribute "${expectedAttribute}" with value "${expectedValue}"`
+            : `Expected element to have attribute "${expectedAttribute}" with value "${expectedValue}", but got "${actualValue}"`,
+        pass,
+      };
+    }
+    
+    return {
+      message: () => `Expected element not to have attribute "${expectedAttribute}"`,
+      pass: true,
+    };
+  }
+});
 
 // Cleanup after each test automatically
 afterEach(() => {
@@ -25,7 +110,9 @@ vi.mock('react-hot-toast', () => ({
 
 // Global test setup
 beforeAll(() => {
-
+  // Ensure React is properly initialized
+  console.log('React version in test environment:', React.version);
+  
   // Mock browser APIs that don't exist in jsdom
   setupBrowserAPIs();
   
@@ -40,6 +127,9 @@ afterAll(() => {
   // Restore original console methods
   console.error = originalConsoleError;
   console.warn = originalConsoleWarn;
+  
+  // Restore all mocks
+  vi.restoreAllMocks();
 });
 
 // Browser API Mocks
@@ -184,6 +274,22 @@ function setupBrowserAPIs() {
   // Mock URL.createObjectURL and URL.revokeObjectURL
   global.URL.createObjectURL = vi.fn(() => 'mock-url');
   global.URL.revokeObjectURL = vi.fn();
+
+  // Mock window.location
+  Object.defineProperty(window, 'location', {
+    value: {
+      href: 'http://localhost:3000',
+      protocol: 'http:',
+      host: 'localhost:3000',
+      hostname: 'localhost',
+      port: '3000',
+      pathname: '/',
+      search: '',
+      hash: '',
+      origin: 'http://localhost:3000',
+    },
+    writable: true,
+  });
 }
 
 // Performance API Mocks
@@ -204,6 +310,21 @@ function setupPerformanceAPIs() {
   // Mock requestIdleCallback
   global.requestIdleCallback = vi.fn(cb => setTimeout(cb, 1));
   global.cancelIdleCallback = vi.fn(clearTimeout);
+
+  // Mock performance API
+  Object.defineProperty(global, 'performance', {
+    value: {
+      now: vi.fn(() => Date.now()),
+      mark: vi.fn(),
+      measure: vi.fn(),
+      memory: {
+        usedJSHeapSize: 1000000,
+        totalJSHeapSize: 2000000,
+        jsHeapSizeLimit: 4000000,
+      },
+    },
+    writable: true,
+  });
 }
 
 // Console filtering for cleaner test output
@@ -220,7 +341,8 @@ function setupConsoleFiltering() {
         message.includes('Warning: componentWillReceiveProps') ||
         message.includes('Warning: componentWillMount') ||
         message.includes('act(...)') ||
-        message.includes('Warning: useLayoutEffect does nothing on the server')
+        message.includes('Warning: useLayoutEffect does nothing on the server') ||
+        message.includes('Warning: `ReactDOMTestUtils.act` is deprecated')
       )
     ) {
       return; // Suppress known React warnings in tests

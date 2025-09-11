@@ -95,7 +95,7 @@ docker compose exec mcts poetry run test-all --coverage
 
 # Individual components of test-all:
 # - Python backend tests: Unit (core + api), Integration, Benchmarks, Utils
-# - Frontend Jest tests: React component and utility tests
+# - Frontend Vitest tests: React component and utility tests
 # - E2E tests: Playwright browser-based tests
 ```
 
@@ -164,7 +164,7 @@ The `poetry run test-all` command executes all test categories in sequence:
 - **Benchmark Tests**: Performance benchmarks (`tests/benchmarks/`)
 - **Test Markers**: cpp, python, mcts, board, display, performance, edge_cases, api, websocket
 
-#### 2. Frontend Tests (Jest/React Testing Library)
+#### 2. Frontend Tests (Vitest/React Testing Library)
 - **Unit Tests**: Component and utility tests in `frontend/src/`
 - **Integration Tests**: Component interaction tests
 - **Note**: Runs inside Docker container with Node.js available
@@ -197,7 +197,7 @@ The `poetry run test-all` command executes all test categories in sequence:
   - Python Integration Tests (tests/integration/) - MANDATORY
   - Python Utility & Fixture Tests (tests/utils/, tests/fixtures/) - MANDATORY
   - Python Benchmark Tests (tests/benchmarks/) - MANDATORY
-  - Frontend tests (Jest) - MANDATORY  
+  - Frontend tests (Vitest) - MANDATORY  
   - E2E tests (Playwright) - MANDATORY
 - **Zero test warnings** (no RuntimeWarning, DeprecationWarning, etc.) - MANDATORY
 - No skipped tests due to errors
@@ -215,7 +215,7 @@ The `poetry run test-all` command executes all test categories in sequence:
   - Python Integration Tests results
   - Python Utility & Fixture Tests results
   - Python Benchmark Tests results
-  - Frontend test results (Jest output)
+  - Frontend test results (Vitest output)
   - E2E test results (Playwright output)
   - Each warning type and count (e.g., "14 warnings" for RuntimeWarning)
   - The specific warning messages (e.g., "coroutine 'AsyncMockMixin._execute_mock_call' was never awaited")

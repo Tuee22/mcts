@@ -3,7 +3,7 @@ import React, { act } from 'react'
 import { expect, afterEach, vi, beforeAll, afterAll } from 'vitest'
 import { cleanup, configure } from '@testing-library/react'
 
-// Define our own DOM matchers to replace jest-dom
+// Define custom DOM matchers for Vitest testing
 const customMatchers = {
   toBeInTheDocument(received: any) {
     const pass = received && document.body.contains(received);
