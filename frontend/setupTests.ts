@@ -145,6 +145,10 @@ afterEach(() => {
   vi.clearAllMocks();
   // Clear timers
   vi.clearAllTimers();
+  // Reset clipboard mock if it exists
+  if (navigator.clipboard && 'mockReset' in navigator.clipboard) {
+    (navigator.clipboard as any).mockReset();
+  }
 });
 
 afterAll(() => {
@@ -162,13 +166,24 @@ function setupBrowserAPIs() {
   if ('clipboard' in navigator) {
     delete (navigator as any).clipboard;
   }
+  
+  // Create a more comprehensive clipboard mock
+  const clipboardMock = {
+    writeText: vi.fn(() => Promise.resolve()),
+    readText: vi.fn(() => Promise.resolve('')),
+    write: vi.fn(() => Promise.resolve()),
+    read: vi.fn(() => Promise.resolve([])),
+    // Reset method for tests
+    mockReset: () => {
+      clipboardMock.writeText.mockReset();
+      clipboardMock.readText.mockReset();
+      clipboardMock.write.mockReset();
+      clipboardMock.read.mockReset();
+    }
+  };
+  
   Object.defineProperty(navigator, 'clipboard', {
-    value: {
-      writeText: vi.fn(() => Promise.resolve()),
-      readText: vi.fn(() => Promise.resolve('')),
-      write: vi.fn(() => Promise.resolve()),
-      read: vi.fn(() => Promise.resolve([]))
-    },
+    value: clipboardMock,
     writable: true,
     configurable: true
   });

@@ -10,11 +10,8 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 }
 
 export const render = (ui: ReactElement, options?: CustomRenderOptions) => {
-  // Wrap rendering in act() to handle React state updates
-  let result: ReturnType<typeof rtlRender>;
-  act(() => {
-    result = rtlRender(ui, options);
-  });
+  // Render without act() wrapper to avoid issues
+  const result = rtlRender(ui, options);
   
   // Create a properly configured user event instance
   const user = userEvent.setup({
@@ -23,7 +20,7 @@ export const render = (ui: ReactElement, options?: CustomRenderOptions) => {
   
   // Return enhanced result with additional utilities
   return {
-    ...result!,
+    ...result,
     user
   };
 };
@@ -247,3 +244,6 @@ export const createErrorBoundary = () => {
 export * from '@testing-library/react';
 export { userEvent };
 export { vi } from 'vitest';
+
+// Also export our custom waitFor alias
+export { waitForCondition as waitFor };

@@ -310,22 +310,26 @@ describe('App Component', () => {
 
   describe('Error Handling', () => {
     it('displays error toast when error exists in store', async () => {
+      // Start with no error, then set error to trigger useEffect
+      mockGameStore.error = null;
+
+      const { rerender } = render(<App />);
+
+      // Set error and rerender to trigger the useEffect
       mockGameStore.error = 'Connection failed';
+      rerender(<App />);
 
-      render(<App />);
-
-      await waitFor(() => {
-        expect(mockToast.error).toHaveBeenCalledWith(
-          'Connection failed',
-          expect.objectContaining({
-            duration: 4000,
-            style: expect.objectContaining({
-              background: '#ff4444',
-              color: '#ffffff'
-            })
+      // The useEffect should trigger and show toast
+      expect(mockToast.error).toHaveBeenCalledWith(
+        'Connection failed',
+        expect.objectContaining({
+          duration: 4000,
+          style: expect.objectContaining({
+            background: '#ff4444',
+            color: '#ffffff'
           })
-        );
-      });
+        })
+      );
 
       expect(mockGameStore.setError).toHaveBeenCalledWith(null);
     });
@@ -352,11 +356,10 @@ describe('App Component', () => {
 
       render(<App />);
 
+      // Advance timers and immediately check - no waitFor needed
       vi.advanceTimersByTime(1000);
 
-      await waitFor(() => {
-        expect(mockWebSocketService.getAIMove).toHaveBeenCalledWith('test-game-123');
-      });
+      expect(mockWebSocketService.getAIMove).toHaveBeenCalledWith('test-game-123');
 
       vi.useRealTimers();
     });
@@ -373,11 +376,10 @@ describe('App Component', () => {
 
       render(<App />);
 
+      // Advance timers and immediately check - no waitFor needed
       vi.advanceTimersByTime(500);
 
-      await waitFor(() => {
-        expect(mockWebSocketService.getAIMove).toHaveBeenCalledWith('test-game-123');
-      });
+      expect(mockWebSocketService.getAIMove).toHaveBeenCalledWith('test-game-123');
 
       vi.useRealTimers();
     });

@@ -220,6 +220,14 @@ export const resetGlobalMocks = () => {
   }
 };
 
+// Clipboard API mock
+export const mockClipboard = {
+  writeText: vi.fn().mockResolvedValue(undefined),
+  readText: vi.fn().mockResolvedValue(''),
+  write: vi.fn().mockResolvedValue(undefined),
+  read: vi.fn().mockResolvedValue([])
+};
+
 // Export individual mock instances for specific tests
 export const mockWebSocket = createMockWebSocket();
 export const mockWebSocketService = createMockWebSocketService();

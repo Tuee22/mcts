@@ -7,6 +7,10 @@ export default defineConfig({
   plugins: [react()],
   esbuild: {
     jsx: 'automatic',
+    target: 'esnext',
+  },
+  build: {
+    target: 'esnext',
   },
   test: {
     // Enable globals for vi, describe, it, expect
@@ -44,7 +48,7 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true, // Use single fork to reduce memory usage
+        singleFork: false, // Use multiple forks for better isolation
         execArgv: ['--max-old-space-size=2048'], // 2GB heap limit
       }
     },
