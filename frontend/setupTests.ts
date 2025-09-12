@@ -1,14 +1,28 @@
 // Comprehensive Vitest setup file for frontend tests
 import React from 'react';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeAll, afterAll, vi, expect } from 'vitest';
-
-// Make React available globally to prevent hook errors
-(globalThis as any).React = React;
 
 // Import React's act (not ReactDOM's) for modern act usage  
 import { act } from 'react';
+
+// Make React and act available globally to prevent hook errors
+(globalThis as any).React = React;
 (globalThis as any).act = act;
+
+// Configure testing library to use React.act
+configure({
+  // Use React.act instead of the deprecated ReactDOMTestUtils.act
+  asyncWrapper: async (cb) => {
+    let result: any
+    await act(async () => {
+      result = await cb()
+    })
+    return result
+  },
+  // Reduce timeout for faster tests
+  asyncUtilTimeout: 5000,
+})
 
 // Custom DOM matchers - Vitest native approach
 expect.extend({
@@ -85,16 +99,17 @@ expect.extend({
       message: () => `Expected element not to have attribute "${expectedAttribute}"`,
       pass: true,
     };
-  }
-});
+  },
 
-// Cleanup after each test automatically
-afterEach(() => {
-  cleanup();
-  // Clear all mocks after each test
-  vi.clearAllMocks();
-  // Clear timers
-  vi.clearAllTimers();
+  toBeVisible(received: any) {
+    if (!received) return { message: () => 'expected element to exist', pass: false };
+    const style = window.getComputedStyle(received);
+    const pass = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    return {
+      message: () => `expected element ${pass ? 'not ' : ''}to be visible`,
+      pass,
+    };
+  }
 });
 
 // Mock react-hot-toast globally to avoid rendering issues - must be at module level
@@ -123,6 +138,15 @@ beforeAll(() => {
   setupConsoleFiltering();
 });
 
+// Cleanup after each test automatically
+afterEach(() => {
+  cleanup();
+  // Clear all mocks after each test
+  vi.clearAllMocks();
+  // Clear timers
+  vi.clearAllTimers();
+});
+
 afterAll(() => {
   // Restore original console methods
   console.error = originalConsoleError;
@@ -134,7 +158,10 @@ afterAll(() => {
 
 // Browser API Mocks
 function setupBrowserAPIs() {
-  // Mock navigator.clipboard with configurable property
+  // Mock navigator.clipboard with configurable property - delete first if exists
+  if ('clipboard' in navigator) {
+    delete (navigator as any).clipboard;
+  }
   Object.defineProperty(navigator, 'clipboard', {
     value: {
       writeText: vi.fn(() => Promise.resolve()),
@@ -294,14 +321,12 @@ function setupBrowserAPIs() {
 
 // Performance API Mocks
 function setupPerformanceAPIs() {
-  // Mock performance.now with consistent timing - only if not already defined
-  if (!window.performance.now || Object.getOwnPropertyDescriptor(window.performance, 'now')?.configurable !== false) {
-    Object.defineProperty(window.performance, 'now', {
-      value: vi.fn(() => Date.now()),
-      configurable: true,
-      writable: true
-    });
-  }
+  // Mock performance.now with consistent timing
+  Object.defineProperty(window.performance, 'now', {
+    value: vi.fn(() => Date.now()),
+    configurable: true,
+    writable: true
+  });
 
   // Mock requestAnimationFrame
   global.requestAnimationFrame = vi.fn(cb => setTimeout(cb, 16));
@@ -340,7 +365,7 @@ function setupConsoleFiltering() {
         message.includes('Warning: An invalid form control') ||
         message.includes('Warning: componentWillReceiveProps') ||
         message.includes('Warning: componentWillMount') ||
-        message.includes('act(...)') ||
+        message.includes('Warning: An update to') ||
         message.includes('Warning: useLayoutEffect does nothing on the server') ||
         message.includes('Warning: `ReactDOMTestUtils.act` is deprecated')
       )

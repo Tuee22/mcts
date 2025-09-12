@@ -59,23 +59,30 @@ def main() -> None:
 
     # Get project root and frontend test directory
     project_root = Path(__file__).parent.parent.parent
-    frontend_test_dir = project_root / "tests" / "frontend"
+    frontend_test_dir = project_root / "frontend" / "tests"
+    frontend_src_dir = project_root / "frontend"
 
     if not frontend_test_dir.exists():
         print("❌ Frontend test directory not found")
         sys.exit(1)
 
-    os.chdir(frontend_test_dir)
+    if not frontend_src_dir.exists():
+        print("❌ Frontend source directory not found")
+        sys.exit(1)
 
-    # Build vitest command
-    cmd = ["vitest"]
+    os.chdir(frontend_src_dir)
 
+    # Build npm command to run vitest with proper config
+    cmd = ["npm", "run"]
     if args.watch:
-        # Watch mode
-        pass  # vitest runs in watch mode by default
+        cmd.append("test")  # Interactive watch mode
     else:
-        cmd.append("run")
+        cmd.append("test:run")  # Run once mode
 
+    # Use default config which now points to tests directory
+    cmd.append("--")  # Separator for npm run arguments
+
+    # Additional vitest options
     if args.ui:
         cmd.append("--ui")
 
@@ -117,14 +124,15 @@ def main() -> None:
 
     # Show configuration
     print("🧪 Frontend Test Configuration:")
-    print(f"   Working Directory: {frontend_test_dir}")
+    print(f"   Working Directory: {frontend_src_dir}")
+    print(f"   Test Directory: {frontend_test_dir}")
     print(f"   Coverage: {'Yes' if args.coverage else 'No'}")
     print(f"   Watch Mode: {'Yes' if args.watch else 'No'}")
     print(f"   UI Mode: {'Yes' if args.ui else 'No'}")
     if test_patterns:
         print(f"   Test Patterns: {', '.join(test_patterns)}")
 
-    success = run_command(cmd, "Frontend Tests", cwd=str(frontend_test_dir))
+    success = run_command(cmd, "Frontend Tests", cwd=str(frontend_src_dir))
 
     if success:
         print("\n🎉 All frontend tests passed!")

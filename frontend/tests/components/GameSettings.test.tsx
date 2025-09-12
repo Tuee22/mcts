@@ -1,45 +1,77 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import userEvent from '@testing-library/user-event';
-import { render, screen } from '@testing-library/react';
-import { createMockGameStore, createMockWebSocketService } from '../fixtures/mocks';
-import { mockDefaultGameSettings } from '../fixtures/gameSettings';
 
-// Create mock instances
-const mockGameStore = createMockGameStore({
-  gameSettings: mockDefaultGameSettings,
-  isConnected: true,
-  isLoading: false
+// Mock the game store first with vi.hoisted (same pattern as other tests)
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    gameId: null,
+    gameState: null,
+    gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+    isConnected: true,
+    isLoading: false,
+    error: null,
+    selectedHistoryIndex: null,
+    setGameId: vi.fn(),
+    setGameState: vi.fn(),
+    setGameSettings: vi.fn(),
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  // Create a proper Zustand-style mock that returns the store
+  const useGameStoreMock = vi.fn(() => store);
+  // CRITICAL: getState must return the same store object with all methods
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
 });
 
-const mockWsService = createMockWebSocketService();
-
-// Mock dependencies
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn(() => mockGameStore)
+  useGameStore: mockUseGameStore
 }));
 
 vi.mock('@/services/websocket', () => ({
-  wsService: mockWsService
+  wsService: {
+    connect: vi.fn(() => Promise.resolve()),
+    disconnect: vi.fn(),
+    isConnected: vi.fn(() => true),
+    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+    makeMove: vi.fn(() => Promise.resolve()),
+    getAIMove: vi.fn(() => Promise.resolve()),
+  }
 }));
 
-// Import component after mocking
+// Import components and utilities
 import { GameSettings } from '@/components/GameSettings';
+import { render, screen, createUser } from '../utils/testHelpers';
+import { mockDefaultGameSettings } from '../fixtures/gameSettings';
 
 describe('GameSettings Component', () => {
-  let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    user = userEvent.setup();
-    
-    // Reset mock returns
-    mockGameStore.resetMocks();
-    mockWsService.reset();
+    // Reset the game store state for each test
+    Object.assign(mockGameStore, {
+      gameId: null,
+      gameState: null,
+      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+      isConnected: true,
+      isLoading: false,
+      error: null,
+      selectedHistoryIndex: null
+    });
   });
 
   // Helper function to expand settings panel
   const expandSettings = async () => {
+    const user = createUser();
     const toggleButton = screen.getByRole('button', { name: /game settings/i });
     await user.click(toggleButton);
   };
@@ -55,6 +87,7 @@ describe('GameSettings Component', () => {
 
     it('expands settings panel when clicked', async () => {
       render(<GameSettings />);
+      const user = createUser();
       
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       await user.click(toggleButton);
@@ -106,6 +139,7 @@ describe('GameSettings Component', () => {
     it('changes mode when clicked', async () => {
       render(<GameSettings />);
       await expandSettings();
+      const user = createUser();
 
       const humanVsHumanButton = screen.getByTestId('mode-human-vs-human');
       await user.click(humanVsHumanButton);
@@ -131,6 +165,7 @@ describe('GameSettings Component', () => {
     it('changes difficulty when clicked', async () => {
       render(<GameSettings />);
       await expandSettings();
+      const user = createUser();
 
       const hardButton = screen.getByText('Hard');
       await user.click(hardButton);

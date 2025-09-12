@@ -1,42 +1,66 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock dependencies first (hoisted)
+// Mock the game store first with vi.hoisted (same pattern as other tests)
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    gameId: 'test-game-123',
+    gameState: null,
+    gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+    isConnected: true,
+    isLoading: false,
+    error: null,
+    selectedHistoryIndex: null,
+    setGameId: vi.fn(),
+    setGameState: vi.fn(),
+    setGameSettings: vi.fn(),
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  // Create a proper Zustand-style mock that returns the store
+  const useGameStoreMock = vi.fn(() => store);
+  // CRITICAL: getState must return the same store object with all methods
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn()
+  useGameStore: mockUseGameStore
 }));
 
 // Import components and utilities
 import { MoveHistory } from '@/components/MoveHistory';
-import { render, screen, waitFor } from '../utils/testHelpers';
+import { render, screen, waitFor, createUser } from '../utils/testHelpers';
 import { 
   mockInitialGameState, 
   mockMidGameState, 
   mockLongHistoryGameState,
   mockCompletedGameState
 } from '../fixtures/gameState';
-import { createMockGameStore, mockClipboard } from '../fixtures/mocks';
-import { useGameStore } from '@/store/gameStore';
-
-// Mock clipboard API after imports
-Object.assign(navigator, {
-  clipboard: mockClipboard
-});
 
 describe('MoveHistory Component', () => {
-  let mockStore: ReturnType<typeof createMockGameStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStore = createMockGameStore({
+    // Reset the game store state for each test
+    Object.assign(mockGameStore, {
       gameId: 'test-game-123',
       gameState: mockMidGameState,
+      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+      isConnected: true,
+      isLoading: false,
+      error: null,
       selectedHistoryIndex: null
     });
-    (useGameStore as any).mockReturnValue(mockStore);
-    
-    // Reset clipboard mocks
-    mockClipboard.writeText.mockResolvedValue(undefined);
   });
 
   describe('Basic Rendering', () => {
@@ -47,8 +71,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('shows empty state when no game exists', () => {
-      mockStore.gameState = null;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = null;
 
       render(<MoveHistory />);
 
@@ -56,8 +79,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('shows empty state when game has no moves', () => {
-      mockStore.gameState = mockInitialGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockInitialGameState;
 
       render(<MoveHistory />);
 
@@ -119,31 +141,29 @@ describe('MoveHistory Component', () => {
       const firstButton = screen.getByText('⏮') || screen.getByText('First');
       await user.click(firstButton);
 
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(0);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(0);
     });
 
     it('navigates to previous move', async () => {
-      mockStore.selectedHistoryIndex = 2;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 2;
 
       const { user } = render(<MoveHistory />);
 
       const previousButton = screen.getByText('◀') || screen.getByText('Previous');
       await user.click(previousButton);
 
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
     });
 
     it('navigates to next move', async () => {
-      mockStore.selectedHistoryIndex = 1;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 1;
 
       const { user } = render(<MoveHistory />);
 
       const nextButton = screen.getByText('▶') || screen.getByText('Next');
       await user.click(nextButton);
 
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(2);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(2);
     });
 
     it('navigates to last move', async () => {
@@ -153,24 +173,22 @@ describe('MoveHistory Component', () => {
       await user.click(lastButton);
 
       const lastIndex = mockMidGameState.move_history.length - 1;
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(lastIndex);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(lastIndex);
     });
 
     it('returns to current position', async () => {
-      mockStore.selectedHistoryIndex = 1;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 1;
 
       const { user } = render(<MoveHistory />);
 
       const currentButton = screen.getByText('Current');
       await user.click(currentButton);
 
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(null);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(null);
     });
 
     it('disables navigation buttons appropriately', () => {
-      mockStore.selectedHistoryIndex = 0; // First move selected
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 0; // First move selected
 
       render(<MoveHistory />);
 
@@ -183,8 +201,7 @@ describe('MoveHistory Component', () => {
 
     it('disables next/last buttons at end of history', () => {
       const lastIndex = mockMidGameState.move_history.length - 1;
-      mockStore.selectedHistoryIndex = lastIndex;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = lastIndex;
 
       render(<MoveHistory />);
 
@@ -203,12 +220,11 @@ describe('MoveHistory Component', () => {
       const secondMove = screen.getByText('2. e8');
       await user.click(secondMove);
 
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
     });
 
     it('highlights currently selected move', () => {
-      mockStore.selectedHistoryIndex = 1;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 1;
 
       render(<MoveHistory />);
 
@@ -219,8 +235,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('shows current move indicator when no history is selected', () => {
-      mockStore.selectedHistoryIndex = null;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = null;
 
       render(<MoveHistory />);
 
@@ -247,7 +262,8 @@ describe('MoveHistory Component', () => {
       const copyButton = screen.getByText('Copy Moves') || screen.getByText('📋');
       await user.click(copyButton);
 
-      expect(mockClipboard.writeText).toHaveBeenCalledWith('e2 e8 e3 c5h e7 g6v');
+      // Check if navigator.clipboard.writeText was called (it's mocked in setupTests.ts)
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('e2 e8 e3 c5h e7 g6v');
     });
 
     it('copies moves in correct notation format', async () => {
@@ -256,31 +272,30 @@ describe('MoveHistory Component', () => {
       const copyButton = screen.getByText('Copy Moves') || screen.getByText('📋');
       await user.click(copyButton);
 
-      const copiedText = mockClipboard.writeText.mock.calls[0][0];
+      const copiedText = (navigator.clipboard.writeText as any).mock.calls[0][0];
       expect(copiedText).toMatch(/^[a-z0-9h-v\s]+$/); // Valid move notation format
     });
 
     it('handles empty move history for copying', async () => {
-      mockStore.gameState = mockInitialGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockInitialGameState;
 
       const { user } = render(<MoveHistory />);
 
       const copyButton = screen.getByText('Copy Moves') || screen.getByText('📋');
       await user.click(copyButton);
 
-      expect(mockClipboard.writeText).toHaveBeenCalledWith('');
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('');
     });
 
     it('handles clipboard failure gracefully', async () => {
-      mockClipboard.writeText.mockRejectedValue(new Error('Clipboard access denied'));
+      (navigator.clipboard.writeText as any).mockRejectedValue(new Error('Clipboard access denied'));
 
       const { user } = render(<MoveHistory />);
 
       const copyButton = screen.getByText('Copy Moves') || screen.getByText('📋');
       await user.click(copyButton);
 
-      expect(mockClipboard.writeText).toHaveBeenCalled();
+      expect(navigator.clipboard.writeText).toHaveBeenCalled();
       // Component should not crash on clipboard failure
       expect(screen.getByText('Move History')).toBeInTheDocument();
     });
@@ -288,8 +303,7 @@ describe('MoveHistory Component', () => {
 
   describe('Long History Handling', () => {
     it('handles long move histories efficiently', () => {
-      mockStore.gameState = mockLongHistoryGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockLongHistoryGameState;
 
       const start = performance.now();
       render(<MoveHistory />);
@@ -300,8 +314,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('implements virtualization for very long histories', () => {
-      mockStore.gameState = mockLongHistoryGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockLongHistoryGameState;
 
       render(<MoveHistory />);
 
@@ -311,9 +324,8 @@ describe('MoveHistory Component', () => {
     });
 
     it('scrolls to selected move in long history', async () => {
-      mockStore.gameState = mockLongHistoryGameState;
-      mockStore.selectedHistoryIndex = 50; // Middle of long history
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockLongHistoryGameState;
+      mockGameStore.selectedHistoryIndex = 50; // Middle of long history
 
       render(<MoveHistory />);
 
@@ -328,8 +340,7 @@ describe('MoveHistory Component', () => {
 
   describe('Game Completion', () => {
     it('shows game result when game is completed', () => {
-      mockStore.gameState = mockCompletedGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockCompletedGameState;
 
       render(<MoveHistory />);
 
@@ -338,8 +349,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('highlights winning move', () => {
-      mockStore.gameState = mockCompletedGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockCompletedGameState;
 
       render(<MoveHistory />);
 
@@ -361,24 +371,24 @@ describe('MoveHistory Component', () => {
       (moveHistory as HTMLElement).focus();
 
       await user.keyboard('{ArrowUp}');
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalled();
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalled();
     });
 
     it('supports keyboard shortcuts for navigation', async () => {
       const { user } = render(<MoveHistory />);
 
       await user.keyboard('{Home}');
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(0);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(0);
 
       await user.keyboard('{End}');
       const lastIndex = mockMidGameState.move_history.length - 1;
-      expect(mockStore.setSelectedHistoryIndex).toHaveBeenCalledWith(lastIndex);
+      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(lastIndex);
     });
   });
 
   describe('Error Handling', () => {
     it('handles invalid move data gracefully', () => {
-      mockStore.gameState = {
+      mockGameStore.gameState = {
         ...mockMidGameState,
         move_history: [
           {
@@ -389,18 +399,16 @@ describe('MoveHistory Component', () => {
           }
         ]
       };
-      (useGameStore as any).mockReturnValue(mockStore);
 
       // Should not crash
       expect(() => render(<MoveHistory />)).not.toThrow();
     });
 
     it('handles missing move history gracefully', () => {
-      mockStore.gameState = {
+      mockGameStore.gameState = {
         ...mockMidGameState,
         move_history: [] // Empty history
       };
-      (useGameStore as any).mockReturnValue(mockStore);
 
       render(<MoveHistory />);
 
@@ -408,8 +416,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('handles navigation beyond boundaries', async () => {
-      mockStore.selectedHistoryIndex = 0;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 0;
 
       const { user } = render(<MoveHistory />);
 
@@ -418,7 +425,7 @@ describe('MoveHistory Component', () => {
       await user.click(previousButton);
 
       // Should not go below 0
-      expect(mockStore.setSelectedHistoryIndex).not.toHaveBeenCalledWith(-1);
+      expect(mockGameStore.setSelectedHistoryIndex).not.toHaveBeenCalledWith(-1);
     });
   });
 
@@ -496,8 +503,7 @@ describe('MoveHistory Component', () => {
     });
 
     it('announces current position to screen readers', () => {
-      mockStore.selectedHistoryIndex = 1;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 1;
 
       render(<MoveHistory />);
 

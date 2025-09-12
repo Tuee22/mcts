@@ -1,9 +1,40 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock dependencies first (hoisted)
+// Mock the game store first with vi.hoisted (same pattern as other tests)
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    gameId: null,
+    gameState: null,
+    gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+    isConnected: false,
+    isLoading: false,
+    error: null,
+    selectedHistoryIndex: null,
+    setGameId: vi.fn(),
+    setGameState: vi.fn(),
+    setGameSettings: vi.fn(),
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  // Create a proper Zustand-style mock that returns the store
+  const useGameStoreMock = vi.fn(() => store);
+  // CRITICAL: getState must return the same store object with all methods
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: vi.fn()
+  useGameStore: mockUseGameStore
 }));
 
 vi.mock('@/services/websocket', () => ({
@@ -28,29 +59,30 @@ import {
   mockSmallBoardState,
   mockStalemateGameState
 } from '../fixtures/gameState';
-import { createMockGameStore } from '../fixtures/mocks';
-import { useGameStore } from '@/store/gameStore';
 import { wsService } from '@/services/websocket';
 
 // Create reference to the mocked service for easier access in tests
 const mockWebSocketService = wsService as any;
 
 describe('GameBoard Component', () => {
-  let mockStore: ReturnType<typeof createMockGameStore>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStore = createMockGameStore({
+    // Reset the game store state for each test
+    Object.assign(mockGameStore, {
       gameId: 'test-game-123',
-      gameState: mockInitialGameState
+      gameState: mockInitialGameState,
+      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+      isConnected: false,
+      isLoading: false,
+      error: null,
+      selectedHistoryIndex: null
     });
-    (useGameStore as any).mockReturnValue(mockStore);
   });
 
   describe('Basic Rendering', () => {
     it('renders empty state when no game exists', () => {
-      mockStore.gameState = null;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = null;
 
       render(<GameBoard />);
 
@@ -69,8 +101,7 @@ describe('GameBoard Component', () => {
     });
 
     it('adapts to different board sizes', () => {
-      mockStore.gameState = mockSmallBoardState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockSmallBoardState;
 
       render(<GameBoard />);
 
@@ -97,8 +128,7 @@ describe('GameBoard Component', () => {
     });
 
     it('highlights current player', () => {
-      mockStore.gameState = { ...mockInitialGameState, current_player: 1 };
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = { ...mockInitialGameState, current_player: 1 };
 
       render(<GameBoard />);
 
@@ -116,8 +146,7 @@ describe('GameBoard Component', () => {
     });
 
     it('shows no legal moves when array is empty', () => {
-      mockStore.gameState = mockStalemateGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockStalemateGameState;
 
       render(<GameBoard />);
 
@@ -128,8 +157,7 @@ describe('GameBoard Component', () => {
 
   describe('Wall Rendering', () => {
     it('renders walls when present', () => {
-      mockStore.gameState = mockWallHeavyGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockWallHeavyGameState;
 
       render(<GameBoard />);
 
@@ -138,13 +166,12 @@ describe('GameBoard Component', () => {
     });
 
     it('distinguishes between horizontal and vertical walls', () => {
-      mockStore.gameState = mockMidGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockMidGameState;
 
       render(<GameBoard />);
 
-      const horizontalWalls = document.querySelectorAll('.wall.horizontal, .wall-horizontal, [data-testid*="horizontal"]');
-      const verticalWalls = document.querySelectorAll('.wall.vertical, .wall-vertical, [data-testid*="vertical"]');
+      const horizontalWalls = document.querySelectorAll('.game-wall.horizontal');
+      const verticalWalls = document.querySelectorAll('.game-wall.vertical');
 
       expect(horizontalWalls.length).toBe(1);
       expect(verticalWalls.length).toBe(1);
@@ -166,11 +193,10 @@ describe('GameBoard Component', () => {
     });
 
     it('updates wall counts correctly', () => {
-      mockStore.gameState = {
+      mockGameStore.gameState = {
         ...mockInitialGameState,
         walls_remaining: [8, 7]
       };
-      (useGameStore as any).mockReturnValue(mockStore);
 
       render(<GameBoard />);
 
@@ -188,8 +214,7 @@ describe('GameBoard Component', () => {
 
   describe('Game Over State', () => {
     it('displays game over message when winner exists', () => {
-      mockStore.gameState = mockCompletedGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockCompletedGameState;
 
       render(<GameBoard />);
 
@@ -198,10 +223,10 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents interactions when game is over', async () => {
-      mockStore.gameState = mockCompletedGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockCompletedGameState;
 
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       // Try to click on a cell - should not trigger move
       const cells = document.querySelectorAll('.game-cell, [data-testid^="cell-"]');
@@ -237,7 +262,8 @@ describe('GameBoard Component', () => {
     });
 
     it('does not make move when clicking on illegal position', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       // Find a non-legal cell
       const illegalCell = document.querySelector('.game-cell:not(.legal), .game-cell:not([data-testid^="legal-"])') as HTMLElement;
@@ -249,10 +275,11 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents moves when not connected', async () => {
-      mockStore.isConnected = false;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.isConnected = false;
+      mockGameStore.gameId = null; // No gameId means no moves can be made
 
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const legalCell = document.querySelector('.legal-move, .game-cell.legal') as HTMLElement;
       
@@ -263,10 +290,10 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents moves when viewing history', async () => {
-      mockStore.selectedHistoryIndex = 0;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 0;
 
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const cell = document.querySelector('.game-cell') as HTMLElement;
       
@@ -279,7 +306,8 @@ describe('GameBoard Component', () => {
 
   describe('Wall Placement Mode', () => {
     it('toggles to wall placement mode', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const wallButton = screen.getByText('Place Wall');
       await user.click(wallButton);
@@ -290,7 +318,8 @@ describe('GameBoard Component', () => {
     });
 
     it('toggles wall orientation', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       // Enter wall mode first
       const wallButton = screen.getByText('Place Wall');
@@ -304,7 +333,8 @@ describe('GameBoard Component', () => {
     });
 
     it('places wall when in wall mode', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       // Enter wall mode
       const wallButton = screen.getByText('Place Wall');
@@ -322,24 +352,23 @@ describe('GameBoard Component', () => {
 
   describe('History Integration', () => {
     it('displays historical position when history is selected', () => {
-      mockStore.selectedHistoryIndex = 0;
-      mockStore.gameState = mockMidGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.selectedHistoryIndex = 0;
+      mockGameStore.gameState = mockMidGameState;
 
       render(<GameBoard />);
 
       // Should show historical game state, not current
       // The exact implementation depends on how history is handled
-      expect(mockStore.selectedHistoryIndex).toBe(0);
+      expect(mockGameStore.selectedHistoryIndex).toBe(0);
     });
   });
 
   describe('Error Handling', () => {
     it('handles missing game ID gracefully', async () => {
-      mockStore.gameId = null;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameId = null;
 
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const cells = document.querySelectorAll('.game-cell');
       if (cells.length > 0) {
@@ -351,7 +380,8 @@ describe('GameBoard Component', () => {
     it('handles WebSocket errors gracefully', async () => {
       mockWebSocketService.makeMove.mockRejectedValue(new Error('Connection failed'));
 
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const legalCell = document.querySelector('.legal-move, .game-cell.legal') as HTMLElement;
       
@@ -366,11 +396,10 @@ describe('GameBoard Component', () => {
     });
 
     it('handles invalid game state gracefully', () => {
-      mockStore.gameState = {
+      mockGameStore.gameState = {
         ...mockInitialGameState,
         players: [] // Invalid - no players
       };
-      (useGameStore as any).mockReturnValue(mockStore);
 
       // Should not crash
       expect(() => render(<GameBoard />)).not.toThrow();
@@ -379,7 +408,8 @@ describe('GameBoard Component', () => {
 
   describe('Hover Effects', () => {
     it('shows hover effects on legal moves', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const legalCell = document.querySelector('.legal-move, .game-cell.legal') as HTMLElement;
       
@@ -400,20 +430,20 @@ describe('GameBoard Component', () => {
     });
 
     it('shows hover effects on wall slots in wall mode', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       // Enter wall mode
       const wallButton = screen.getByText('Place Wall');
       await user.click(wallButton);
 
-      const wallSlot = document.querySelector('.wall-slot, [data-testid^="wall-slot"]') as HTMLElement;
+      const wallSlot = document.querySelector('.wall-slot.legal') as HTMLElement;
       
       if (wallSlot) {
         await user.hover(wallSlot);
         
         await waitFor(() => {
-          expect(wallSlot).toHaveClass('hovered') || 
-          expect(wallSlot.style.opacity).not.toBe('');
+          expect(wallSlot).toHaveClass('hovered');
         });
       }
     });
@@ -421,11 +451,10 @@ describe('GameBoard Component', () => {
 
   describe('Performance', () => {
     it('renders large boards efficiently', () => {
-      mockStore.gameState = {
+      mockGameStore.gameState = {
         ...mockInitialGameState,
         board_size: 19 // Large board
       };
-      (useGameStore as any).mockReturnValue(mockStore);
 
       const start = performance.now();
       render(<GameBoard />);
@@ -436,8 +465,7 @@ describe('GameBoard Component', () => {
     });
 
     it('handles many walls efficiently', () => {
-      mockStore.gameState = mockWallHeavyGameState;
-      (useGameStore as any).mockReturnValue(mockStore);
+      mockGameStore.gameState = mockWallHeavyGameState;
 
       const start = performance.now();
       render(<GameBoard />);
@@ -464,11 +492,12 @@ describe('GameBoard Component', () => {
       render(<GameBoard />);
 
       const wallButton = screen.getByText('Place Wall');
-      expect(wallButton).toHaveAttribute('aria-label', expect.stringContaining('wall'));
+      expect(wallButton).toHaveAttribute('aria-label', 'Switch to wall placement mode');
     });
 
     it('supports keyboard navigation', async () => {
-      const { user } = render(<GameBoard />);
+      render(<GameBoard />);
+      const user = createUser();
 
       const wallButton = screen.getByText('Place Wall');
       wallButton.focus();

@@ -41,7 +41,7 @@ function App() {
   }, [error, setError]);
 
   useEffect(() => {
-    if (gameState && gameSettings.mode === 'ai_vs_ai' && gameId && !gameState.winner) {
+    if (gameState && gameSettings.mode === 'ai_vs_ai' && gameId && gameState.winner === null) {
       const timer = setTimeout(() => {
         if (gameState.current_player === 0 || gameState.current_player === 1) {
           wsService.getAIMove(gameId);
@@ -52,7 +52,7 @@ function App() {
   }, [gameState, gameSettings.mode, gameId]);
 
   useEffect(() => {
-    if (gameState && gameSettings.mode === 'human_vs_ai' && gameId && !gameState.winner) {
+    if (gameState && gameSettings.mode === 'human_vs_ai' && gameId && gameState.winner === null) {
       if (gameState.current_player === 1) {
         const timer = setTimeout(() => {
           wsService.getAIMove(gameId);
