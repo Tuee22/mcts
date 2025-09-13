@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "_comment": "Dependency versioning strategy: Upper bounds (>=X.Y.Z <X+1.0.0) prevent automatic major version updates that could introduce breaking changes. This matches the strategy used in pyproject.toml and provides better security and stability.",
   "dependencies": {
     "@testing-library/dom": ">=10.4.1 <11.0.0",

@@ -125,9 +125,6 @@ vi.mock('react-hot-toast', () => ({
 
 // Global test setup
 beforeAll(() => {
-  // Ensure React is properly initialized
-  console.log('React version in test environment:', React.version);
-  
   // Mock browser APIs that don't exist in jsdom
   setupBrowserAPIs();
   

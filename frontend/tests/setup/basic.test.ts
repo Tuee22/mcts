@@ -35,7 +35,6 @@ describe('Basic Test Setup Verification', () => {
   it('should have React available', () => {
     expect(React).toBeDefined();
     expect(React.version).toBeDefined();
-    console.log('React version:', React.version);
   });
 
   it('should support React Testing Library', () => {

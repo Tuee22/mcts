@@ -25,11 +25,8 @@ class WebSocketService {
   }
 
   connectToGame(gameId: string) {
-    console.log(`connectToGame called with gameId: ${gameId}`);
-    
     // Close existing connection
     if (this.socket) {
-      console.log('Closing existing WebSocket connection');
       this.socket.close();
     }
 
@@ -38,11 +35,9 @@ class WebSocketService {
     const wsUrl = `${protocol}//${window.location.host}/games/${gameId}/ws`;
 
     try {
-      console.log(`Connecting to game-specific WebSocket: ${wsUrl}`);
       this.socket = new WebSocket(wsUrl);
       this.setupEventListeners();
     } catch (error) {
-      console.error('Game WebSocket connection error:', error);
       useGameStore.getState().setError('Failed to connect to game');
     }
   }
@@ -79,24 +74,20 @@ class WebSocketService {
             // Connection confirmed from server
             useGameStore.getState().setIsConnected(true);
             useGameStore.getState().setError(null);
-            console.log('WebSocket connection confirmed by server');
             break;
           case 'game_created':
             // Handle game creation response
             if (data.game_id) {
               useGameStore.getState().setGameId(data.game_id);
               useGameStore.getState().setIsLoading(false);
-              console.log('Game created:', data.game_id);
             }
             break;
           case 'pong':
             // Handle ping/pong for keepalive
-            console.log('WebSocket pong received');
             break;
           case 'game_state':
             // Handle game state updates
             if (data.data) {
-              console.log('Game state update received:', data.data);
               const gameState = this.transformApiResponseToGameState(data.data);
               if (gameState) {
                 useGameStore.getState().setGameState(gameState);
@@ -106,7 +97,6 @@ class WebSocketService {
           case 'move':
             // Handle move updates
             if (data.data) {
-              console.log('Move update received:', data.data);
               // Fetch updated game state after a move
               this.requestGameState(data.data.game_id);
             }
@@ -114,7 +104,6 @@ class WebSocketService {
           case 'game_ended':
             // Handle game end
             if (data.data) {
-              console.log('Game ended:', data.data);
               const gameState = this.transformApiResponseToGameState(data.data);
               if (gameState) {
                 useGameStore.getState().setGameState(gameState);
@@ -124,11 +113,10 @@ class WebSocketService {
           case 'player_connected':
           case 'player_disconnected':
             // Handle player connection changes
-            console.log(`Player ${data.type}:`, data.data);
             break;
           // Add other message types as needed
           default:
-            console.log('Unknown WebSocket message type:', data.type);
+            break;
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -139,7 +127,6 @@ class WebSocketService {
 
   private transformApiResponseToGameState(apiResponse: any, boardSize?: number): GameState | null {
     try {
-      console.log('Transforming API response:', apiResponse);
       
       // Extract board size from response or use provided/default
       const board_size = apiResponse.board_size || boardSize || 9;
@@ -195,7 +182,6 @@ class WebSocketService {
         move_history
       };
       
-      console.log('Transformed GameState:', gameState);
       return gameState;
     } catch (error) {
       console.error('Error transforming API response to GameState:', error);
@@ -240,16 +226,12 @@ class WebSocketService {
   }
 
   async createGame(settings: any) {
-    console.log('🔥 createGame method called with settings:', settings);
-    
     try {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-        console.log('❌ Socket not connected, readyState:', this.socket?.readyState);
         useGameStore.getState().setError('Not connected to server');
         return;
       }
 
-      console.log('✅ Socket is connected, proceeding with game creation');
       useGameStore.getState().setIsLoading(true);
       // Convert frontend game settings to backend format
       const gameRequest = {
@@ -277,22 +259,18 @@ class WebSocketService {
       }
 
       const gameData = await response.json();
-      console.log('Game created successfully:', gameData);
       useGameStore.getState().setGameId(gameData.game_id);
       
       // First try to get game state via REST API immediately
-      console.log('Fetching initial game state via REST...');
       await this.requestGameState(gameData.game_id);
       
       // Connect to game-specific WebSocket for real-time updates
-      console.log('Connecting to game-specific WebSocket...');
       this.connectToGame(gameData.game_id);
       
       // Give WebSocket time to connect and send initial game state
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       useGameStore.getState().setIsLoading(false);
-      console.log('Game creation and setup completed');
       
     } catch (error) {
       console.error('Error creating game:', error);
@@ -316,8 +294,6 @@ class WebSocketService {
 
   async makeMove(gameId: string, move: string) {
     try {
-      console.log(`Making move: ${move} for game: ${gameId}`);
-      
       const response = await fetch(`/games/${gameId}/moves`, {
         method: 'POST',
         headers: {
@@ -334,13 +310,11 @@ class WebSocketService {
       }
 
       const moveResult = await response.json();
-      console.log('Move result:', moveResult);
       
       // After successful move, fetch updated game state
       await this.requestGameState(gameId);
       
     } catch (error) {
-      console.error('Error making move:', error);
       useGameStore.getState().setError(`Failed to make move: ${error}`);
     }
   }

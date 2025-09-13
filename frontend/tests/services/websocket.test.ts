@@ -47,8 +47,6 @@ const mockSocket = createMockWebSocket();
 mockSocket._testId = 'mock-websocket-instance';
 
 global.WebSocket = vi.fn().mockImplementation((url) => {
-  console.log('🔗 WebSocket constructor called with:', url);
-  console.log('🔗 Returning mock with testId:', mockSocket._testId);
   return mockSocket;
 });
 
@@ -66,8 +64,12 @@ global.fetch = mockFetch;
 import { wsService } from '@/services/websocket';
 
 describe('WebSocket Service', () => {
+  let consoleErrorSpy: any;
+  
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock console.error to suppress expected errors in tests
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     
     // CRITICAL: Reset WebSocket service state since it's a singleton
     wsService.disconnect();
@@ -118,6 +120,8 @@ describe('WebSocket Service', () => {
   afterEach(() => {
     // Clean up any lingering connections
     wsService.disconnect();
+    // Restore console.error
+    consoleErrorSpy.mockRestore();
   });
 
   describe('Connection Management', () => {
@@ -196,7 +200,8 @@ describe('WebSocket Service', () => {
     it('handles game creation failure', async () => {
       // Mock connected state
       mockSocket.readyState = WebSocket.OPEN;
-      mockFetch.mockRejectedValueOnce(new Error('Server error'));
+      const testError = new Error('Server error');
+      mockFetch.mockRejectedValueOnce(testError);
 
       await wsService.createGame(mockDefaultGameSettings);
       
@@ -228,7 +233,8 @@ describe('WebSocket Service', () => {
   describe('Error Handling', () => {
     it('handles network timeout gracefully', async () => {
       mockSocket.readyState = WebSocket.OPEN;
-      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
+      const timeoutError = new Error('Network timeout');
+      mockFetch.mockRejectedValueOnce(timeoutError);
 
       await wsService.makeMove('test-game-123', 'e2e4');
       

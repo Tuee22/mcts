@@ -5,8 +5,6 @@ import { GameMode } from '../types/game';
 import './GameSettings.css';
 
 export const GameSettings: React.FC = () => {
-  console.log('🔧 GameSettings component loaded with updated code!');
-  
   const { gameSettings, setGameSettings, isLoading, isConnected } = useGameStore();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -27,12 +25,7 @@ export const GameSettings: React.FC = () => {
   };
 
   const startNewGame = () => {
-    console.log('🚀 startNewGame called!');
-    console.log('  isConnected:', isConnected);
-    console.log('  gameSettings:', gameSettings);
-    
     if (!isConnected) {
-      console.error('❌ Cannot start game while disconnected');
       return;
     }
 
@@ -49,17 +42,8 @@ export const GameSettings: React.FC = () => {
       board_size: gameSettings.board_size
     };
 
-    console.log('✅ About to call wsService.createGame with settings:', settings);
-    
-    try {
-      wsService.createGame(settings);
-      console.log('✅ wsService.createGame called successfully');
-    } catch (error) {
-      console.error('❌ Error calling wsService.createGame:', error);
-    }
-    
+    wsService.createGame(settings);
     setShowSettings(false);
-    console.log('✅ Settings closed');
   };
 
   if (!showSettings) {
