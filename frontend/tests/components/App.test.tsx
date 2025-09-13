@@ -486,6 +486,77 @@ describe('App Component', () => {
     });
   });
 
+  describe('New Game Disconnection Bug', () => {
+    it('should NOT show disconnected status after clicking New Game', async () => {
+      vi.useFakeTimers();
+      
+      // Start with connected state and active game
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = mockMidGameState;
+      mockGameStore.isConnected = true;
+      
+      render(<App />);
+      
+      // Verify initial connected state
+      expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
+      
+      const newGameButton = screen.getByRole('button', { name: /new game/i });
+      await user.click(newGameButton);
+      
+      // BUG TEST: After clicking New Game, connection should remain "Connected"
+      // This will currently fail due to reset() setting isConnected: false
+      expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
+      expect(screen.getByTestId('connection-text')).not.toHaveTextContent('Disconnected');
+      
+      vi.useRealTimers();
+    });
+
+    it('should allow settings access after New Game button click', async () => {
+      vi.useFakeTimers();
+      
+      // Start with active game
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = mockMidGameState;
+      mockGameStore.isConnected = true;
+      
+      render(<App />);
+      
+      // Click New Game to reset
+      const newGameButton = screen.getByRole('button', { name: /new game/i });
+      await user.click(newGameButton);
+      
+      // Should return to game setup
+      expect(mockGameStore.reset).toHaveBeenCalled();
+      
+      // Game Settings button should be accessible (not disabled due to false disconnection)
+      // Note: This test may need adjustment based on how the component re-renders after reset
+      
+      vi.useRealTimers();
+    });
+
+    it('connection indicator should remain green after New Game', async () => {
+      vi.useFakeTimers();
+      
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = mockMidGameState;
+      mockGameStore.isConnected = true;
+      
+      render(<App />);
+      
+      const connectionIndicator = screen.getByTestId('connection-indicator');
+      expect(connectionIndicator).toHaveClass('connected');
+      
+      const newGameButton = screen.getByRole('button', { name: /new game/i });
+      await user.click(newGameButton);
+      
+      // Connection indicator should stay green (connected), not turn red (disconnected)
+      expect(connectionIndicator).toHaveClass('connected');
+      expect(connectionIndicator).not.toHaveClass('disconnected');
+      
+      vi.useRealTimers();
+    });
+  });
+
   describe('Accessibility', () => {
     it('provides proper semantic structure', () => {
       render(<App />);

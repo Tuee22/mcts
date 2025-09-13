@@ -593,17 +593,62 @@ describe('Game Store', () => {
       expect(resetState.selectedHistoryIndex).toBeNull();
     });
 
-    it('preserves connection state on reset', () => {
-      const { setIsConnected, reset } = mockStore;
+    it('preserves connection state on reset (NEW GAME DISCONNECTION BUG)', () => {
+      const { setIsConnected, setGameId, setGameState, reset } = mockStore;
 
-      // Connection should be preserved through reset
+      // BUG REPRODUCTION: Set up a connected game state
       setIsConnected(true);
+      setGameId('test-game-123');
+      setGameState(mockMidGameState);
+      
+      // Verify we're connected with an active game
+      expect(mockStore.isConnected).toBe(true);
+      expect(mockStore.gameId).toBe('test-game-123');
+      
+      // Call reset (this is what "New Game" button does)
       reset();
+      
+      // BUG: Currently this test FAILS because reset() sets isConnected: false
+      // The expected behavior is that connection state should be preserved
+      expect(mockStore.isConnected).toBe(true); // Should remain connected
+      expect(mockStore.gameId).toBeNull(); // Game data should be cleared
+      expect(mockStore.gameState).toBeNull(); // Game data should be cleared
+    });
 
-      // Connection state might be preserved depending on implementation
-      // This test verifies the behavior, whatever it is
-      const connectionState = mockStore.isConnected;
-      expect(typeof connectionState).toBe('boolean');
+    it('should NOT reset connection state when clearing game data', () => {
+      const { setIsConnected, setError, setGameId, setGameState, reset } = mockStore;
+
+      // Set up various connection states
+      setIsConnected(true);
+      setError(null);
+      setGameId('active-game');
+      setGameState(mockMidGameState);
+      
+      reset();
+      
+      // Connection and error state should be preserved
+      expect(mockStore.isConnected).toBe(true);
+      expect(mockStore.error).toBeNull();
+      
+      // Only game data should be reset
+      expect(mockStore.gameId).toBeNull();
+      expect(mockStore.gameState).toBeNull();
+    });
+
+    it('should preserve disconnected state when reset during disconnection', () => {
+      const { setIsConnected, setError, setGameId, reset } = mockStore;
+
+      // Simulate being disconnected with error
+      setIsConnected(false);
+      setError('WebSocket connection lost');
+      setGameId('test-game-123');
+      
+      reset();
+      
+      // Should preserve the disconnected state and error
+      expect(mockStore.isConnected).toBe(false);
+      expect(mockStore.error).toBe('WebSocket connection lost');
+      expect(mockStore.gameId).toBeNull(); // But clear game data
     });
   });
 
