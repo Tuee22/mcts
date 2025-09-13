@@ -10,9 +10,13 @@ describe('Performance Edge Cases', () => {
   });
 
   afterEach(() => {
-    // Force cleanup
-    vi.clearAllTimers();
-    vi.runOnlyPendingTimers();
+    // Force cleanup (handle case where timers aren't mocked)
+    try {
+      vi.clearAllTimers();
+      vi.runOnlyPendingTimers();
+    } catch {
+      // Timers are not mocked, skip
+    }
     
     // Force garbage collection if available
     if (global.gc) {
@@ -76,7 +80,7 @@ describe('Performance Edge Cases', () => {
       expect(screen.getByTestId('many-props')).toHaveTextContent('100');
     });
 
-    it('handles context updates with many consumers', () => {
+    it('handles context updates with many consumers', async () => {
       const TestContext = React.createContext<{ value: number; setValue: (v: number) => void }>({
         value: 0,
         setValue: () => {}

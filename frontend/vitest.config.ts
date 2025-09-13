@@ -36,20 +36,22 @@ export default defineConfig({
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
-      // Exclude performance tests by default (run separately)
-      '**/performanceEdgeCases.test.*'
+      // Conditionally exclude performance tests unless env var set
+      ...(process.env.INCLUDE_PERFORMANCE_TESTS !== 'true' ? ['**/performanceEdgeCases.test.*'] : [])
     ],
     
     // Test timeout settings - increased for memory-intensive tests
-    testTimeout: 15000,
-    hookTimeout: 10000,
+    testTimeout: 20000,
+    hookTimeout: 15000,
+    teardownTimeout: 5000,
     
     // Pool options for better performance and memory management
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false, // Use multiple forks for better isolation
-        execArgv: ['--max-old-space-size=2048'], // 2GB heap limit
+        singleFork: true, // Use single fork to prevent memory issues
+        execArgv: ['--max-old-space-size=8192', '--expose-gc'], // 8GB heap limit with garbage collection
+        maxWorkers: 1, // Single worker to prevent memory exhaustion
       }
     },
     
@@ -60,7 +62,9 @@ export default defineConfig({
     bail: 0,
     
     // Memory and performance optimizations
-    logHeapUsage: false,
+    logHeapUsage: true,
+    isolate: true, // Isolate tests better
+    watch: false, // Disable watch mode for stability
     
     // Coverage configuration
     coverage: {

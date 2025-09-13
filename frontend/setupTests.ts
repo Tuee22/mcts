@@ -143,11 +143,28 @@ afterEach(() => {
   cleanup();
   // Clear all mocks after each test
   vi.clearAllMocks();
-  // Clear timers
-  vi.clearAllTimers();
+  // Clear timers and intervals if they are mocked
+  try {
+    vi.clearAllTimers();
+    vi.runOnlyPendingTimers();
+  } catch {
+    // Timers are not mocked, skip
+  }
   // Reset clipboard mock if it exists
   if (navigator.clipboard && 'mockReset' in navigator.clipboard) {
     (navigator.clipboard as any).mockReset();
+  }
+  // Clear any pending timeouts/intervals
+  if (typeof window !== 'undefined') {
+    // Clear any lingering timeouts
+    for (let i = 1; i < 9999; i++) {
+      clearTimeout(i);
+      clearInterval(i);
+    }
+  }
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
   }
 });
 
