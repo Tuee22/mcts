@@ -140,7 +140,7 @@ class TestGameCreationDisconnectionBug:
                         # Check for appropriate "connecting" messaging
                         # Check button title attribute if available
                         try:
-                            title_attr = await settings_button.get_attribute("title")  # type: ignore
+                            title_attr = await settings_button.get_attribute("title")
                             if title_attr and "connect" in title_attr.lower():
                                 print("✅ Button shows appropriate connecting message")
                         except AttributeError:

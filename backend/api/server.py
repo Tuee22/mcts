@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
 from fastapi import (
+    APIRouter,
     BackgroundTasks,
     Depends,
     FastAPI,
@@ -69,6 +70,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Create API router for /api-prefixed endpoints (health only)
+api_router = APIRouter(prefix="/api")
 
 # Static files configuration for frontend - updated for container path
 FRONTEND_BUILD_DIR = Path("/app/frontend/build")
@@ -612,6 +616,21 @@ async def health_check() -> Dict[str, Union[str, int]]:
     }
 
 
+@api_router.get("/health")
+async def api_health_check() -> Dict[str, Union[str, int]]:
+    """API health check endpoint."""
+    if game_manager is None or ws_manager is None:
+        raise HTTPException(status_code=500, detail="Server not initialized")
+    return {
+        "status": "healthy",
+        "active_games": await game_manager.get_active_game_count(),
+        "connected_clients": ws_manager.get_connection_count(),
+    }
+
+
+# Include API router after all routes are defined
+app.include_router(api_router)
+
 # ==================== Frontend SPA Routes ====================
 
 
@@ -648,6 +667,7 @@ async def serve_spa(request: Request, full_path: str) -> FileResponse:
     # Don't serve SPA for API routes
     if full_path.startswith(
         (
+            "api/",
             "games",
             "matchmaking",
             "stats",

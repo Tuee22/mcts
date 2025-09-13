@@ -226,6 +226,14 @@ class WebSocketManager:
     ) -> None:
         """Safely send JSON message to a WebSocketProtocol."""
         try:
+            # Check if connection is still active before sending
+            # FastAPI WebSocket states: 0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=DISCONNECTING
+            # Temporarily disabled strict state check to debug WebSocket issues
+            # if hasattr(websocket, 'client_state') and websocket.client_state != 2:
+            #     logger.debug(f"WebSocket not connected (state: {websocket.client_state}), skipping send")
+            #     dead_connections.append(websocket)
+            #     return
+
             # Convert TypedDict to dict for WebSocketProtocol API compatibility
             message_dict = dict(message)
             await websocket.send_json(message_dict)

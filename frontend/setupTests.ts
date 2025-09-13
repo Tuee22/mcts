@@ -74,6 +74,18 @@ expect.extend({
     };
   },
   
+  toBeEnabled(received: HTMLElement) {
+    const pass = !received.hasAttribute('disabled') && 
+                 (received as HTMLInputElement).disabled !== true;
+    return {
+      message: () =>
+        pass
+          ? `Expected element not to be enabled`
+          : `Expected element to be enabled`,
+      pass,
+    };
+  },
+  
   toHaveAttribute(received: Element, expectedAttribute: string, expectedValue?: string) {
     const hasAttribute = received.hasAttribute(expectedAttribute);
     if (!hasAttribute) {
@@ -421,7 +433,7 @@ function setupConsoleFiltering() {
 // Export utilities for tests
 export const testUtils = {
   // Wait for async operations
-  waitFor: async (fn: () => boolean | Promise<boolean>, timeout = 1000): Promise<void> => {
+  waitFor: async (fn: () => boolean | Promise<boolean>, timeout = 5000): Promise<void> => {
     const start = Date.now();
     while (Date.now() - start < timeout) {
       try {

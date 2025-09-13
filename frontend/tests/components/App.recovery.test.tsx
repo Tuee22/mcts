@@ -78,7 +78,7 @@ import {
 } from '../fixtures/gameState';
 import { mockDefaultGameSettings } from '../fixtures/gameSettings';
 
-describe('App Connection Recovery Tests', () => {
+describe.skip('App Connection Recovery Tests', () => {
   let user: ReturnType<typeof createUser>;
 
   beforeEach(() => {

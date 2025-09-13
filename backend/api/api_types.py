@@ -19,6 +19,8 @@ from typing_extensions import TypedDict
 class WebSocketProtocol(Protocol):
     """Protocol for WebSocket interface."""
 
+    client_state: int  # FastAPI WebSocket state
+
     async def accept(self) -> None:
         ...
 

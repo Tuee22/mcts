@@ -27,6 +27,7 @@ class MockWebSocket:
     """Mock WebSocket for testing that implements the WebSocket interface."""
 
     def __init__(self) -> None:
+        self.client_state: int = 1  # WebSocket state (e.g., CONNECTED)
         self._accept_mock = MagicMock()
         self._send_text_mock = MagicMock()
         self._send_json_mock = MagicMock()

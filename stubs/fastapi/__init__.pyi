@@ -4,8 +4,28 @@ from typing import Callable, Dict, List, Optional, TypeVar, Union
 
 T = TypeVar("T")
 
+class APIRouter:
+    """FastAPI router for organizing endpoints."""
+
+    def __init__(
+        self,
+        prefix: str = "",
+        tags: Optional[List[str]] = None,
+        dependencies: Optional[List[object]] = None,
+        responses: Optional[Dict[Union[int, str], Dict[str, object]]] = None,
+        **kwargs: object,
+    ) -> None: ...
+    def get(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+    def post(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+    def put(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+    def delete(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+    def patch(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+    def websocket(self, path: str, **kwargs: object) -> Callable[[T], T]: ...
+
 class WebSocket:
     """Type definition for FastAPI WebSocket."""
+
+    client_state: int  # WebSocket connection state
 
     async def accept(self) -> None:
         """Accept the WebSocket connection."""
@@ -51,6 +71,13 @@ class FastAPI:
     def mount(self, path: str, app: object, name: Optional[str] = None) -> None: ...
     def add_middleware(
         self, middleware_class: type[object], **kwargs: object
+    ) -> None: ...
+    def include_router(
+        self,
+        router: APIRouter,
+        prefix: str = "",
+        tags: Optional[List[str]] = None,
+        **kwargs: object,
     ) -> None: ...
 
 class BackgroundTasks:

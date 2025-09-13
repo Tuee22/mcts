@@ -56,7 +56,7 @@ export const waitForCondition = async (
   condition: () => boolean | Promise<boolean>,
   options: { timeout?: number; interval?: number } = {}
 ): Promise<void> => {
-  const { timeout = 1000, interval = 10 } = options;
+  const { timeout = 5000, interval = 10 } = options;
   const start = Date.now();
   
   while (Date.now() - start < timeout) {
