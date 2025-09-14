@@ -7,8 +7,9 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
 
   connect(url?: string) {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      return;
+    // Close any existing connection first (including game-specific ones)
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.close();
     }
 
     // Use relative WebSocket URL for single-server architecture
@@ -21,6 +22,25 @@ class WebSocketService {
     } catch (error) {
       console.error('WebSocket connection error:', error);
       useGameStore.getState().setError('Failed to connect to server');
+    }
+  }
+
+  connectToGame(gameId: string) {
+    // Close existing connection before connecting to game-specific endpoint
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.close();
+    }
+
+    // Create game-specific WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const gameWsUrl = `${protocol}//${window.location.host}/games/${gameId}/ws`;
+
+    try {
+      this.socket = new WebSocket(gameWsUrl);
+      this.setupEventListeners();
+    } catch (error) {
+      console.error('WebSocket connection error:', error);
+      useGameStore.getState().setError('Failed to connect to game');
     }
   }
 
@@ -353,7 +373,7 @@ class WebSocketService {
 
       if (gameResponse.ok) {
         const gameData = await gameResponse.json();
-        
+
         // Add legal moves if available
         if (legalMovesResponse.ok) {
           const legalMovesData = await legalMovesResponse.json();
@@ -370,6 +390,13 @@ class WebSocketService {
     } catch (error) {
       console.error('Error fetching game state:', error);
     }
+  }
+
+  resetGameConnection() {
+    // Disconnect from any game-specific connection and reconnect to main endpoint
+    // This is called when starting a new game to ensure clean state
+    this.disconnect();
+    this.connect();
   }
 }
 

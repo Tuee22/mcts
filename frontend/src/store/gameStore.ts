@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { GameState, GameSettings, Move } from '../types/game';
+import { wsService } from '../services/websocket';
 
 interface GameStore {
   gameId: string | null;

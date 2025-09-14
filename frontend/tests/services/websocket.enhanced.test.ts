@@ -108,9 +108,12 @@ describe.skip('WebSocket Service Enhanced Tests', () => {
   describe('connectToGame Method (Previously Untested)', () => {
     it('should connect to game-specific WebSocket endpoint', () => {
       const gameId = 'test-game-123';
-      
+
       wsService.connectToGame(gameId);
-      
+
+      // Force the service to use our mock socket
+      (wsService as any).socket = mockSocket;
+
       expect(global.WebSocket).toHaveBeenCalledWith(
         expect.stringContaining(`/games/${gameId}/ws`)
       );

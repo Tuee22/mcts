@@ -8,13 +8,14 @@ import { GameSettings } from './components/GameSettings';
 import './App.css';
 
 function App() {
-  const { 
-    gameState, 
-    gameId, 
-    isConnected, 
+  const {
+    gameState,
+    gameId,
+    isConnected,
     error,
     gameSettings,
-    setError 
+    setError,
+    reset
   } = useGameStore();
 
   useEffect(() => {
@@ -62,14 +63,16 @@ function App() {
     }
   }, [gameState, gameSettings.mode, gameId]);
 
+  // App component render
+
   return (
     <div className="App">
       <Toaster position="top-center" />
-      
+
       <header className="app-header">
         <h1 className="app-title">CORRIDORS</h1>
         <div className="connection-status" data-testid="connection-status">
-          <span 
+          <span
             className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
             data-testid="connection-indicator"
           ></span>
@@ -123,11 +126,9 @@ function App() {
               </div>
               
               <div className="game-controls-panel">
-                <button 
+                <button
                   className="retro-btn"
-                  onClick={() => {
-                    useGameStore.getState().reset();
-                  }}
+                  onClick={reset}
                 >
                   New Game
                 </button>

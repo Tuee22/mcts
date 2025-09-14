@@ -486,7 +486,7 @@ describe('App Component', () => {
     });
   });
 
-  describe.skip('New Game Disconnection Bug', () => {
+  describe('New Game Disconnection Bug', () => {
     let user: ReturnType<typeof createUser>;
 
     beforeEach(() => {

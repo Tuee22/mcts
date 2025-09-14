@@ -19,36 +19,33 @@ vi.mock('@/services/websocket', () => ({
 }));
 
 describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
-  let store: ReturnType<typeof useGameStore>;
+  const getStore = () => useGameStore.getState();
 
   beforeEach(() => {
-    // Get a fresh store instance for each test
-    store = useGameStore.getState();
-    
     // Reset to initial state
-    store.reset();
+    getStore().reset();
     vi.clearAllMocks();
   });
 
   describe('Reset During Active Operations', () => {
     it('should handle reset during game creation (loading state)', () => {
       // Set up loading state as if game creation is in progress
-      store.setIsConnected(true);
-      store.setIsLoading(true);
-      store.setGameSettings({ mode: 'human_vs_ai', ai_difficulty: 'hard', board_size: 7 });
-      
+      getStore().setIsConnected(true);
+      getStore().setIsLoading(true);
+      getStore().setGameSettings({ mode: 'human_vs_ai', ai_difficulty: 'hard', board_size: 7 });
+
       // Verify loading state
-      expect(store.isLoading).toBe(true);
-      expect(store.isConnected).toBe(true);
-      
+      expect(getStore().isLoading).toBe(true);
+      expect(getStore().isConnected).toBe(true);
+
       // Reset during loading (user clicks New Game while creation in progress)
-      store.reset();
-      
+      getStore().reset();
+
       // Loading should be cleared, but connection should be preserved
-      expect(store.isLoading).toBe(false); // Loading cleared
-      expect(store.isConnected).toBe(true); // BUG: This will fail - connection should persist
-      expect(store.gameId).toBe(null); // Game data cleared
-      expect(store.gameSettings).toEqual({
+      expect(getStore().isLoading).toBe(false); // Loading cleared
+      expect(getStore().isConnected).toBe(true); // BUG: This will fail - connection should persist
+      expect(getStore().gameId).toBe(null); // Game data cleared
+      expect(getStore().gameSettings).toEqual({
         mode: 'human_vs_ai',
         ai_difficulty: 'medium', 
         ai_time_limit: 5000,
@@ -58,9 +55,9 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
 
     it('should handle reset while WebSocket messages are being processed', () => {
       // Set up active game state
-      store.setIsConnected(true);
-      store.setGameId('active-game-123');
-      store.setGameState({
+      getStore().setIsConnected(true);
+      getStore().setGameId('active-game-123');
+      getStore().setGameState({
         board_size: 9,
         players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
         walls: [],
@@ -75,25 +72,25 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
       } as GameState);
       
       // Simulate WebSocket message processing (like receiving game state updates)
-      store.setIsLoading(true); // Simulating processing state
+      getStore().setIsLoading(true); // Simulating processing state
       
       // Reset during message processing
-      store.reset();
+      getStore().reset();
       
       // Should clear all game data and processing state
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isLoading).toBe(false);
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isLoading).toBe(false);
       // But connection should persist
-      expect(store.isConnected).toBe(true);
+      expect(getStore().isConnected).toBe(true);
     });
 
     it('should handle reset during AI move processing', () => {
       // Set up AI vs Human game where AI move is being calculated
-      store.setIsConnected(true);
-      store.setGameId('ai-game-123');
-      store.setGameSettings({ mode: 'human_vs_ai', ai_difficulty: 'expert' });
-      store.setGameState({
+      getStore().setIsConnected(true);
+      getStore().setGameId('ai-game-123');
+      getStore().setGameSettings({ mode: 'human_vs_ai', ai_difficulty: 'expert' });
+      getStore().setGameState({
         board_size: 9,
         players: [{ x: 4, y: 7 }, { x: 4, y: 1 }],
         walls: [],
@@ -108,28 +105,28 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
       } as GameState);
       
       // Set loading to simulate AI thinking
-      store.setIsLoading(true);
+      getStore().setIsLoading(true);
       
       // Reset while AI is thinking (user clicks New Game)
-      store.reset();
+      getStore().reset();
       
       // Should clear everything including the AI processing state
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isLoading).toBe(false);
-      expect(store.isConnected).toBe(true); // Connection preserved
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isLoading).toBe(false);
+      expect(getStore().isConnected).toBe(true); // Connection preserved
     });
   });
 
   describe('Rapid Reset Scenarios', () => {
     it('should handle multiple rapid resets with connection verification', () => {
       // Set up connected state
-      store.setIsConnected(true);
+      getStore().setIsConnected(true);
       
       // Rapid fire resets (user clicking New Game multiple times)
       for (let i = 0; i < 10; i++) {
-        store.setGameId(`game-${i}`);
-        store.setGameState({
+        getStore().setGameId(`game-${i}`);
+        getStore().setGameState({
           board_size: 9,
           players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
           walls: [],
@@ -141,13 +138,13 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
           walls_remaining: [10, 10]
         } as GameState);
         
-        store.reset();
+        getStore().reset();
         
         // After each reset, verify consistent state
-        expect(store.gameId).toBe(null);
-        expect(store.gameState).toBe(null);
-        expect(store.isConnected).toBe(true); // Should stay connected
-        expect(store.selectedHistoryIndex).toBe(null);
+        expect(getStore().gameId).toBe(null);
+        expect(getStore().gameState).toBe(null);
+        expect(getStore().isConnected).toBe(true); // Should stay connected
+        expect(getStore().selectedHistoryIndex).toBe(null);
       }
     });
 
@@ -160,24 +157,24 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
         null
       ];
       
-      store.setIsConnected(true);
+      getStore().setIsConnected(true);
       
       errorStates.forEach(errorState => {
         // Set up error state
-        store.setError(errorState);
-        store.setGameId('error-game');
-        store.setIsLoading(true);
+        getStore().setError(errorState);
+        getStore().setGameId('error-game');
+        getStore().setIsLoading(true);
         
         // Reset during error
-        store.reset();
+        getStore().reset();
         
         // Verify consistent reset behavior regardless of error
-        expect(store.gameId).toBe(null);
-        expect(store.gameState).toBe(null);
-        expect(store.isLoading).toBe(false);
-        expect(store.isConnected).toBe(true);
+        expect(getStore().gameId).toBe(null);
+        expect(getStore().gameState).toBe(null);
+        expect(getStore().isLoading).toBe(false);
+        expect(getStore().isConnected).toBe(true);
         // Error state might be preserved to help user understand issues
-        expect(store.error).toBe(errorState);
+        expect(getStore().error).toBe(errorState);
       });
     });
   });
@@ -185,24 +182,24 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
   describe('Reset State Consistency', () => {
     it('should maintain connection state through complex reset chains', () => {
       // Start connected
-      store.setIsConnected(true);
-      store.setError(null);
+      getStore().setIsConnected(true);
+      getStore().setError(null);
       
       // Complex state setup and reset chain
       const operations = [
         () => {
-          store.setGameId('game-1');
-          store.setIsLoading(true);
-          store.reset();
+          getStore().setGameId('game-1');
+          getStore().setIsLoading(true);
+          getStore().reset();
         },
         () => {
-          store.setGameSettings({ mode: 'ai_vs_ai', board_size: 5 });
-          store.setSelectedHistoryIndex(3);
-          store.reset();
+          getStore().setGameSettings({ mode: 'ai_vs_ai', board_size: 5 });
+          getStore().setSelectedHistoryIndex(3);
+          getStore().reset();
         },
         () => {
-          store.setError('Temp error');
-          store.setGameState({
+          getStore().setError('Temp error');
+          getStore().setGameState({
             board_size: 7,
             players: [{ x: 3, y: 6 }, { x: 3, y: 0 }],
             walls: [{ x: 1, y: 2, orientation: 'horizontal' }],
@@ -213,7 +210,7 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
             move_history: [],
             walls_remaining: [9, 10]
           } as GameState);
-          store.reset();
+          getStore().reset();
         }
       ];
       
@@ -221,53 +218,53 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
         operation();
         
         // Verify consistent state after each reset
-        expect(store.gameId).toBe(null);
-        expect(store.gameState).toBe(null);
-        expect(store.isLoading).toBe(false);
-        expect(store.selectedHistoryIndex).toBe(null);
-        expect(store.gameSettings).toEqual({
+        expect(getStore().gameId).toBe(null);
+        expect(getStore().gameState).toBe(null);
+        expect(getStore().isLoading).toBe(false);
+        expect(getStore().selectedHistoryIndex).toBe(null);
+        expect(getStore().gameSettings).toEqual({
           mode: 'human_vs_ai',
           ai_difficulty: 'medium',
           ai_time_limit: 5000,
           board_size: 9
         });
         // Critical: Connection should be preserved
-        expect(store.isConnected).toBe(true);
+        expect(getStore().isConnected).toBe(true);
       });
     });
 
     it('should handle reset when store is in inconsistent state', () => {
       // Create artificially inconsistent state (edge case)
-      store.setGameId('game-123');
-      store.setGameState(null); // Game ID without state
-      store.setIsConnected(true);
-      store.setIsLoading(true);
-      store.setSelectedHistoryIndex(5); // History index without game state
+      getStore().setGameId('game-123');
+      getStore().setGameState(null); // Game ID without state
+      getStore().setIsConnected(true);
+      getStore().setIsLoading(true);
+      getStore().setSelectedHistoryIndex(5); // History index without game state
       
       // Reset should clean up inconsistencies
-      store.reset();
+      getStore().reset();
       
       // Should result in consistent clean state
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isLoading).toBe(false);
-      expect(store.selectedHistoryIndex).toBe(null);
-      expect(store.isConnected).toBe(true);
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isLoading).toBe(false);
+      expect(getStore().selectedHistoryIndex).toBe(null);
+      expect(getStore().isConnected).toBe(true);
     });
   });
 
   describe('Reset Interaction with Connection States', () => {
     it('should preserve connected state during game state transitions', () => {
       // Simulate a typical game flow with reset
-      store.setIsConnected(true);
-      store.setError(null);
+      getStore().setIsConnected(true);
+      getStore().setError(null);
       
       // 1. Create game
-      store.setGameId('flow-game-123');
-      store.setIsLoading(false);
+      getStore().setGameId('flow-game-123');
+      getStore().setIsLoading(false);
       
       // 2. Game in progress
-      store.setGameState({
+      getStore().setGameState({
         board_size: 9,
         players: [{ x: 4, y: 6 }, { x: 4, y: 2 }],
         walls: [],
@@ -284,52 +281,52 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
       } as GameState);
       
       // 3. Reset (New Game clicked)
-      store.reset();
+      getStore().reset();
       
       // Should be ready for new game but still connected
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isConnected).toBe(true);
-      expect(store.error).toBe(null);
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isConnected).toBe(true);
+      expect(getStore().error).toBe(null);
       
       // 4. Should be able to immediately start another game
-      store.setGameId('new-game-456');
-      expect(store.gameId).toBe('new-game-456');
-      expect(store.isConnected).toBe(true);
+      getStore().setGameId('new-game-456');
+      expect(getStore().gameId).toBe('new-game-456');
+      expect(getStore().isConnected).toBe(true);
     });
 
     it('should preserve disconnected state when reset during disconnection', () => {
       // Simulate disconnection scenario
-      store.setIsConnected(false);
-      store.setError('WebSocket connection lost');
-      store.setGameId('disconnected-game');
+      getStore().setIsConnected(false);
+      getStore().setError('WebSocket connection lost');
+      getStore().setGameId('disconnected-game');
       
       // Reset while disconnected
-      store.reset();
+      getStore().reset();
       
       // Should preserve disconnection context but clear game data
-      expect(store.isConnected).toBe(false);
-      expect(store.error).toBe('WebSocket connection lost');
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
+      expect(getStore().isConnected).toBe(false);
+      expect(getStore().error).toBe('WebSocket connection lost');
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
     });
 
     it('should handle reset during connection state transitions', () => {
       // Start disconnected
-      store.setIsConnected(false);
-      store.setError('Initial connection failed');
+      getStore().setIsConnected(false);
+      getStore().setError('Initial connection failed');
       
       // Begin connecting (transition state)
-      store.setError(null);
-      store.setIsLoading(true); // Loading could indicate connection attempt
+      getStore().setError(null);
+      getStore().setIsLoading(true); // Loading could indicate connection attempt
       
       // Reset during connection attempt
-      store.reset();
+      getStore().reset();
       
       // Should clear loading but preserve connection attempt context
-      expect(store.isLoading).toBe(false);
-      expect(store.isConnected).toBe(false); // Still disconnected
-      expect(store.gameId).toBe(null);
+      expect(getStore().isLoading).toBe(false);
+      expect(getStore().isConnected).toBe(false); // Still disconnected
+      expect(getStore().gameId).toBe(null);
     });
   });
 
@@ -343,7 +340,7 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
       }));
       
       // Create game state with large history
-      store.setGameState({
+      getStore().setGameState({
         board_size: 9,
         players: [{ x: 4, y: 4 }, { x: 4, y: 4 }],
         walls: Array.from({ length: 20 }, (_, i) => ({
@@ -359,29 +356,29 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
         walls_remaining: [0, 0]
       } as GameState);
       
-      store.setIsConnected(true);
+      getStore().setIsConnected(true);
       
       // Reset should handle large state efficiently
       const startTime = performance.now();
-      store.reset();
+      getStore().reset();
       const endTime = performance.now();
       
       // Should complete quickly (less than 10ms for most cases)
       expect(endTime - startTime).toBeLessThan(50);
       
       // Should properly clear everything
-      expect(store.gameState).toBe(null);
-      expect(store.isConnected).toBe(true);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isConnected).toBe(true);
     });
 
     it('should not create memory leaks with repeated resets', () => {
-      store.setIsConnected(true);
+      getStore().setIsConnected(true);
       
       // Simulate many reset cycles
       for (let cycle = 0; cycle < 50; cycle++) {
         // Create some state
-        store.setGameId(`cycle-game-${cycle}`);
-        store.setGameState({
+        getStore().setGameId(`cycle-game-${cycle}`);
+        getStore().setGameState({
           board_size: 9,
           players: [{ x: cycle % 9, y: cycle % 9 }, { x: 8 - (cycle % 9), y: 8 - (cycle % 9) }],
           walls: [],
@@ -394,50 +391,50 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
         } as GameState);
         
         // Reset
-        store.reset();
+        getStore().reset();
         
         // Verify clean state
-        expect(store.gameId).toBe(null);
-        expect(store.gameState).toBe(null);
-        expect(store.isConnected).toBe(true);
+        expect(getStore().gameId).toBe(null);
+        expect(getStore().gameState).toBe(null);
+        expect(getStore().isConnected).toBe(true);
       }
     });
   });
 
   describe('Reset Synchronization', () => {
     it('should handle simultaneous resets safely', () => {
-      store.setIsConnected(true);
-      store.setGameId('concurrent-game');
+      getStore().setIsConnected(true);
+      getStore().setGameId('concurrent-game');
       
       // Simulate rapid concurrent reset calls (edge case)
       const resetPromises = Array.from({ length: 5 }, async () => {
-        store.reset();
+        getStore().reset();
       });
       
       // All should complete without error
       expect(() => Promise.all(resetPromises)).not.toThrow();
       
       // Final state should be consistent
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isConnected).toBe(true);
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isConnected).toBe(true);
     });
 
     it('should maintain state consistency during concurrent operations', () => {
-      store.setIsConnected(true);
+      getStore().setIsConnected(true);
       
       // Simulate concurrent operations (reset + other state changes)
-      store.reset();
-      store.setGameId('concurrent-1'); // Simultaneous with reset
-      store.reset();
-      store.setError('concurrent error'); // Simultaneous with reset
-      store.reset();
+      getStore().reset();
+      getStore().setGameId('concurrent-1'); // Simultaneous with reset
+      getStore().reset();
+      getStore().setError('concurrent error'); // Simultaneous with reset
+      getStore().reset();
       
       // Should end up in a consistent state
-      expect(store.gameId).toBe(null);
-      expect(store.gameState).toBe(null);
-      expect(store.isConnected).toBe(true);
-      expect(store.error).toBe('concurrent error'); // Last error preserved
+      expect(getStore().gameId).toBe(null);
+      expect(getStore().gameState).toBe(null);
+      expect(getStore().isConnected).toBe(true);
+      expect(getStore().error).toBe('concurrent error'); // Last error preserved
     });
   });
 });

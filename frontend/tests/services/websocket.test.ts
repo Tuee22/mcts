@@ -43,10 +43,11 @@ import { mockInitialGameState } from '../fixtures/gameState';
 
 // Create WebSocket mock instance before service import
 const mockSocket = createMockWebSocket();
-// Add unique identifier for tracking
 mockSocket._testId = 'mock-websocket-instance';
 
 global.WebSocket = vi.fn().mockImplementation((url) => {
+  // Always return the same mock socket instance
+  mockSocket.url = url;
   return mockSocket;
 });
 
@@ -70,10 +71,10 @@ describe('WebSocket Service', () => {
     vi.clearAllMocks();
     // Mock console.error to suppress expected errors in tests
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    
+
     // CRITICAL: Reset WebSocket service state since it's a singleton
     wsService.disconnect();
-    
+
     // Reset WebSocket mock state
     mockSocket.reset();
     
@@ -212,17 +213,27 @@ describe('WebSocket Service', () => {
 
   describe('Move Handling', () => {
     it('makes move when connected', async () => {
+      // Set socket to OPEN state before connecting
+      mockSocket.readyState = WebSocket.OPEN;
+
       // Connect the service first
       wsService.connect();
 
+      // Force the service to use our mock socket
+      (wsService as any).socket = mockSocket;
+
       // Simulate successful connection
-      mockSocket.readyState = WebSocket.OPEN;
       mockSocket.simulateOpen();
 
-      // Clear the mocks to only track the move send
-      vi.clearAllMocks();
+      // Clear the mocks to only track the move send, but preserve the socket mock
+      mockGameStore.setGameId.mockClear();
+      mockGameStore.setGameState.mockClear();
+      mockGameStore.setIsConnected.mockClear();
+      mockGameStore.setIsLoading.mockClear();
+      mockGameStore.setError.mockClear();
 
       await wsService.makeMove('test-game-123', 'e2e4');
+
 
       expect(mockSocket.send).toHaveBeenCalledWith(JSON.stringify({
         type: 'move',
