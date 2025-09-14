@@ -46,17 +46,12 @@ class TestNewGameDisconnectionBug:
 
                 print("✅ Step 1: Connected to application")
 
-                # Step 2: Open game settings
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await expect(settings_button).to_be_enabled()
-                await settings_button.click()
-
-                # Verify settings opened without connection warning
+                # Step 2: Settings panel should be visible by default (no need to click button)
                 await expect(page.locator("text=Game Settings")).to_be_visible()
                 connection_warning = page.locator('[data-testid="connection-warning"]')
                 await expect(connection_warning).not_to_be_visible()
 
-                print("✅ Step 2: Game settings opened successfully")
+                print("✅ Step 2: Game settings panel is visible by default")
 
                 # Step 3: Start a game
                 start_game_button = page.locator('[data-testid="start-game-button"]')
@@ -88,12 +83,7 @@ class TestNewGameDisconnectionBug:
 
                 print("✅ Step 4: New Game clicked, connection status preserved")
 
-                # Step 5: Try to open settings again - should work without disconnection warning
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await expect(settings_button).to_be_enabled()
-                await settings_button.click()
-
-                # Settings should open normally
+                # Step 5: Settings panel should already be visible after New Game (no button to click)
                 await expect(page.locator("text=Game Settings")).to_be_visible()
 
                 # Should NOT show connection warning
@@ -107,7 +97,7 @@ class TestNewGameDisconnectionBug:
                 await expect(start_game_button).not_to_have_text("Disconnected")
 
                 print(
-                    "✅ Step 5: Settings accessible again after New Game - bug not present"
+                    "✅ Step 5: Settings panel visible after New Game - bug not present"
                 )
 
             except Exception as e:
@@ -148,9 +138,7 @@ class TestNewGameDisconnectionBug:
                     page.locator('[data-testid="connection-text"]')
                 ).to_have_text("Connected", timeout=10000)
 
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -158,25 +146,36 @@ class TestNewGameDisconnectionBug:
                     page.locator('[data-testid="game-container"]')
                 ).to_be_visible(timeout=10000)
 
-                # Click "New Game" multiple times rapidly
-                new_game_button = page.locator('button:has-text("New Game")')
+                # Test multiple New Game -> Start Game cycles to test stability
+                for i in range(
+                    3
+                ):  # Reduced to 3 cycles since each cycle requires full game creation
+                    print(f"New Game cycle #{i+1}")
 
-                for i in range(5):
-                    print(f"New Game click #{i+1}")
+                    # Click New Game (only available when game is active)
+                    new_game_button = page.locator('button:has-text("New Game")')
                     await new_game_button.click()
-                    await page.wait_for_timeout(200)  # Small delay between clicks
 
-                    # Should maintain connection throughout
+                    # Should return to setup and maintain connection
+                    await expect(
+                        page.locator('[data-testid="game-setup"]')
+                    ).to_be_visible()
                     connection_text = page.locator('[data-testid="connection-text"]')
                     await expect(connection_text).to_have_text("Connected")
 
-                # After all clicks, should still be able to start a new game
-                await expect(page.locator('[data-testid="game-setup"]')).to_be_visible()
+                    # Start a new game to continue the cycle (except for the last iteration)
+                    if i < 2:  # Don't start another game on the final iteration
+                        start_button = page.locator('[data-testid="start-game-button"]')
+                        await start_button.click()
+                        await expect(
+                            page.locator('[data-testid="game-container"]')
+                        ).to_be_visible(timeout=10000)
 
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await expect(settings_button).to_be_enabled()
+                # Final verification: should be able to start another game
+                start_button = page.locator('[data-testid="start-game-button"]')
+                await expect(start_button).to_be_enabled()
 
-                print("✅ Multiple New Game clicks handled correctly")
+                print("✅ Multiple New Game cycles handled correctly")
 
             finally:
                 await browser.close()
@@ -222,9 +221,7 @@ class TestNewGameDisconnectionBug:
                 connection_text = page.locator('[data-testid="connection-text"]')
                 await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -246,9 +243,7 @@ class TestNewGameDisconnectionBug:
                 # Should still be able to create another game (proving WebSocket works)
                 await expect(page.locator('[data-testid="game-setup"]')).to_be_visible()
 
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -285,9 +280,7 @@ class TestNewGameDisconnectionBug:
                     page.locator('[data-testid="connection-text"]')
                 ).to_have_text("Connected", timeout=10000)
 
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -301,11 +294,7 @@ class TestNewGameDisconnectionBug:
 
                 await expect(page.locator('[data-testid="game-setup"]')).to_be_visible()
 
-                # Immediately try to create another game (no waiting)
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
-                # Should open immediately without connection warning
+                # Settings panel should already be visible (no need to click)
                 await expect(page.locator("text=Game Settings")).to_be_visible()
                 connection_warning = page.locator('[data-testid="connection-warning"]')
                 await expect(connection_warning).not_to_be_visible()
@@ -355,10 +344,7 @@ class TestNewGameDisconnectionBug:
                     indicator_class or ""
                 ), f"Expected 'connected' class, got: {indicator_class}"
 
-                # Create game
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Create game - settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -383,12 +369,10 @@ class TestNewGameDisconnectionBug:
                 # Test that the indicator is not just visually wrong but functionally accurate
                 # by verifying that WebSocket-dependent features work
 
-                # Should be able to open settings (requires connection)
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await expect(settings_button).to_be_enabled()
+                # Settings panel should be visible (requires connection)
+                await expect(page.locator("text=Game Settings")).to_be_visible()
 
                 # Should be able to create a game (requires WebSocket)
-                await settings_button.click()
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await expect(start_button).to_be_enabled()
                 await expect(start_button).not_to_have_text("Disconnected")
@@ -421,10 +405,7 @@ class TestNewGameDisconnectionBug:
                     page.locator('[data-testid="connection-text"]')
                 ).to_have_text("Connected", timeout=10000)
 
-                # Create a game
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-                await settings_button.click()
-
+                # Create a game - settings panel should be visible by default
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 

@@ -5,7 +5,7 @@ import { GameMode } from '../types/game';
 import './GameSettings.css';
 
 export const GameSettings: React.FC = () => {
-  const { gameSettings, setGameSettings, isLoading, isConnected } = useGameStore();
+  const { gameSettings, setGameSettings, isLoading, isConnected, gameId } = useGameStore();
   const [showSettings, setShowSettings] = useState(false);
 
   const handleModeChange = (mode: GameMode) => {
@@ -46,9 +46,11 @@ export const GameSettings: React.FC = () => {
     setShowSettings(false);
   };
 
-  if (!showSettings) {
+  // Show settings panel by default when no game is active (during setup)
+  // Only show toggle button when there's an active game
+  if (!showSettings && gameId) {
     return (
-      <button 
+      <button
         className="retro-btn toggle-settings"
         onClick={() => setShowSettings(true)}
         disabled={!isConnected}
@@ -213,12 +215,14 @@ export const GameSettings: React.FC = () => {
         >
           {isLoading ? 'Starting...' : !isConnected ? 'Disconnected' : 'Start Game'}
         </button>
-        <button 
-          className="retro-btn cancel"
-          onClick={() => setShowSettings(false)}
-        >
-          Cancel
-        </button>
+        {gameId && (
+          <button
+            className="retro-btn cancel"
+            onClick={() => setShowSettings(false)}
+          >
+            Cancel
+          </button>
+        )}
       </div>
       </div>
     </div>

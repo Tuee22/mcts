@@ -128,7 +128,11 @@ function App() {
               <div className="game-controls-panel">
                 <button
                   className="retro-btn"
-                  onClick={reset}
+                  onClick={() => {
+                    // Disconnect from game-specific WebSocket first to prevent race conditions
+                    wsService.disconnectFromGame();
+                    reset();
+                  }}
                 >
                   New Game
                 </button>

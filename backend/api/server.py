@@ -642,121 +642,7 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
                     if message.type == "ping":
                         response = PongMessage(type="pong")
                         await websocket.send_json(response.model_dump())
-                    elif message.type == "create_game":
-                        # Actually create a game via the game manager
-                        if game_manager is None:
-                            await websocket.send_json(
-                                {"type": "error", "error": "Server not initialized"}
-                            )
-                        else:
-                            # Convert WebSocket message to game settings
-                            from .models import GameCreateRequest, GameSettings
-
-                            # Create the settings object
-                            board_size = (
-                                message.board_size
-                                if hasattr(message, "board_size")
-                                else 9
-                            )
-                            if (
-                                hasattr(message, "settings")
-                                and "board_size" in message.settings
-                            ):
-                                board_size_value = message.settings["board_size"]
-                                if isinstance(board_size_value, int):
-                                    board_size = board_size_value
-                                elif (
-                                    isinstance(board_size_value, str)
-                                    and board_size_value.isdigit()
-                                ):
-                                    board_size = int(board_size_value)
-
-                            ai_config = None
-                            if (
-                                hasattr(message, "settings")
-                                and "ai_config" in message.settings
-                            ):
-                                ai_config = message.settings["ai_config"]
-                            elif (
-                                hasattr(message, "machine_settings")
-                                and message.machine_settings
-                            ):
-                                ai_config = message.machine_settings
-
-                            settings = GameSettings(
-                                board_size=board_size, ai_config=ai_config
-                            )
-
-                            # Create game request
-                            request = GameCreateRequest(
-                                player1_type=message.player1_type,
-                                player2_type=message.player2_type,
-                                player1_name=message.player1_name,
-                                player2_name=message.player2_name,
-                                settings=settings,
-                            )
-
-                            try:
-                                # Create the game
-                                game = await game_manager.create_game(
-                                    player1_type=request.player1_type,
-                                    player2_type=request.player2_type,
-                                    player1_name=request.player1_name,
-                                    player2_name=request.player2_name,
-                                    settings=request.settings,
-                                )
-
-                                # Get legal moves for the new game
-                                legal_moves = []
-                                try:
-                                    legal_moves = await game_manager.get_legal_moves(
-                                        game.game_id
-                                    )
-                                except Exception as e:
-                                    logger.error(
-                                        f"Failed to get legal moves for new game: {e}"
-                                    )
-
-                                # Get game response for board display
-                                game_response = GameResponse.from_game_session(game)
-
-                                # Send success response with full game state
-                                await websocket.send_json(
-                                    {
-                                        "type": "game_created",
-                                        "game_id": game.game_id,
-                                        "data": {
-                                            "game_id": game.game_id,
-                                            "status": game.status.value,
-                                            "player1_id": game.player1.id,
-                                            "player2_id": game.player2.id,
-                                            "player1": {
-                                                "id": game.player1.id,
-                                                "name": game.player1.name,
-                                            },
-                                            "player2": {
-                                                "id": game.player2.id,
-                                                "name": game.player2.name,
-                                            },
-                                            "current_turn": game.current_turn,
-                                            "board_size": 9,  # Default board size
-                                            "board_display": game_response.board_display,
-                                            "winner": game_response.winner,
-                                            "legal_moves": legal_moves,
-                                            "created_at": game_response.created_at.isoformat(),
-                                        },
-                                    }
-                                )
-                            except Exception as e:
-                                logger.error(
-                                    f"Failed to create game via WebSocket: {e}"
-                                )
-                                await websocket.send_json(
-                                    {
-                                        "type": "error",
-                                        "error": f"Failed to create game: {str(e)}",
-                                    }
-                                )
+                    # Note: create_game removed - now handled via REST API POST /games
                     elif message.type == "join_game":
                         # Handle joining an existing game
                         if game_manager is None:
@@ -832,70 +718,7 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
                                         "error": f"Failed to get AI move: {str(e)}",
                                     }
                                 )
-                    elif message.type == "move":
-                        # Handle move via general WebSocket
-                        if game_manager is None:
-                            await websocket.send_json(
-                                {"type": "error", "error": "Server not initialized"}
-                            )
-                        else:
-                            try:
-                                # Make the move
-                                move_result = await game_manager.make_move(
-                                    game_id=message.game_id,
-                                    player_id=message.player_id,
-                                    action=message.action,
-                                )
-
-                                # Get updated game state
-                                updated_game = await game_manager.get_game(
-                                    message.game_id
-                                )
-                                if updated_game:
-                                    game_response = GameResponse.from_game_session(
-                                        updated_game
-                                    )
-
-                                    # Get legal moves
-                                    legal_moves = []
-                                    try:
-                                        legal_moves = (
-                                            await game_manager.get_legal_moves(
-                                                message.game_id
-                                            )
-                                        )
-                                    except Exception as e:
-                                        logger.error(
-                                            f"Failed to get legal moves after move: {e}"
-                                        )
-
-                                    # Send updated game state
-                                    await websocket.send_json(
-                                        {
-                                            "type": "game_state",
-                                            "data": {
-                                                "game_id": game_response.game_id,
-                                                "status": game_response.status,
-                                                "player1_id": game_response.player1.id,
-                                                "player2_id": game_response.player2.id,
-                                                "current_turn": game_response.current_turn,
-                                                "winner": game_response.winner,
-                                                "board_display": game_response.board_display,
-                                                "board_size": 9,  # Default board size - could be made configurable
-                                                "legal_moves": legal_moves,
-                                                "created_at": game_response.created_at.isoformat(),
-                                            },
-                                        }
-                                    )
-
-                            except Exception as e:
-                                logger.error(f"Failed to make move via WebSocket: {e}")
-                                await websocket.send_json(
-                                    {
-                                        "type": "error",
-                                        "error": f"Failed to make move: {str(e)}",
-                                    }
-                                )
+                    # Note: move handling removed - use REST API POST /games/{id}/moves or game-specific WebSocket
 
                 except (ValidationError, ValueError) as e:
                     logger.warning(f"Invalid WebSocket message: {e}")
@@ -928,17 +751,7 @@ async def health_check() -> Dict[str, Union[str, int]]:
         "connected_clients": ws_manager.get_connection_count(),
     }
 
-
-@api_router.get("/health")
-async def api_health_check() -> Dict[str, Union[str, int]]:
-    """API health check endpoint."""
-    if game_manager is None or ws_manager is None:
-        raise HTTPException(status_code=500, detail="Server not initialized")
-    return {
-        "status": "healthy",
-        "active_games": await game_manager.get_active_game_count(),
-        "connected_clients": ws_manager.get_connection_count(),
-    }
+    # Duplicate health endpoint removed - use /health instead
 
 
 # ==================== Test Endpoints for E2E Tests ====================

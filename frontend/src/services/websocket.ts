@@ -3,6 +3,8 @@ import { GameState, Position, Wall, Player } from '../types/game';
 
 class WebSocketService {
   private socket: WebSocket | null = null;
+  private gameSocket: WebSocket | null = null;
+  private currentGameId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
@@ -26,22 +28,33 @@ class WebSocketService {
   }
 
   connectToGame(gameId: string) {
-    // Close existing connection before connecting to game-specific endpoint
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.close();
+    // Close existing game connection if switching games
+    if (this.gameSocket && this.gameSocket.readyState === WebSocket.OPEN) {
+      this.gameSocket.close();
     }
+
+    // Update current game ID
+    this.currentGameId = gameId;
 
     // Create game-specific WebSocket URL
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const gameWsUrl = `${protocol}//${window.location.host}/games/${gameId}/ws`;
 
     try {
-      this.socket = new WebSocket(gameWsUrl);
-      this.setupEventListeners();
+      this.gameSocket = new WebSocket(gameWsUrl);
+      this.setupGameEventListeners();
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      console.error('Game WebSocket connection error:', error);
       useGameStore.getState().setError('Failed to connect to game');
     }
+  }
+
+  disconnectFromGame() {
+    if (this.gameSocket && this.gameSocket.readyState === WebSocket.OPEN) {
+      this.gameSocket.close();
+    }
+    this.gameSocket = null;
+    this.currentGameId = null;
   }
 
 
@@ -78,55 +91,8 @@ class WebSocketService {
             useGameStore.getState().setIsConnected(true);
             useGameStore.getState().setError(null);
             break;
-          case 'game_created':
-            // Handle game creation response
-            if (data.game_id) {
-              useGameStore.getState().setGameId(data.game_id);
-
-              // If we have game data, transform and set it
-              if (data.data) {
-                const gameState = this.transformApiResponseToGameState(data.data);
-                if (gameState) {
-                  useGameStore.getState().setGameState(gameState);
-                }
-              }
-
-              // Game data is already included in game_created response, no need for join_game
-
-              useGameStore.getState().setIsLoading(false);
-            }
-            break;
           case 'pong':
             // Handle ping/pong for keepalive
-            break;
-          case 'game_state':
-            // Handle game state updates
-            if (data.data) {
-              const gameState = this.transformApiResponseToGameState(data.data);
-              if (gameState) {
-                useGameStore.getState().setGameState(gameState);
-              }
-            }
-            break;
-          case 'move':
-            // Handle move updates
-            if (data.data) {
-              // Fetch updated game state after a move
-              this.requestGameState(data.data.game_id);
-            }
-            break;
-          case 'game_ended':
-            // Handle game end
-            if (data.data) {
-              const gameState = this.transformApiResponseToGameState(data.data);
-              if (gameState) {
-                useGameStore.getState().setGameState(gameState);
-              }
-            }
-            break;
-          case 'player_connected':
-          case 'player_disconnected':
-            // Handle player connection changes
             break;
           case 'error':
             // Handle server errors
@@ -144,6 +110,65 @@ class WebSocketService {
       }
     };
 
+  }
+
+  private setupGameEventListeners() {
+    if (!this.gameSocket) return;
+
+    this.gameSocket.onopen = () => {
+      // Game WebSocket connected - already connected to main WS
+    };
+
+    this.gameSocket.onclose = () => {
+      // Game WebSocket disconnected
+    };
+
+    this.gameSocket.onerror = (error: any) => {
+      console.error('Game WebSocket connection error:', error);
+    };
+
+    this.gameSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        // Handle game-specific messages
+        switch (data.type) {
+          case 'game_state':
+            // Only handle game state if we're still connected to the same game
+            if (data.data && data.data.game_id === this.currentGameId) {
+              const gameState = this.transformApiResponseToGameState(data.data);
+              if (gameState) {
+                useGameStore.getState().setGameState(gameState);
+              }
+            }
+            break;
+          case 'move':
+            // Handle move updates for current game
+            if (data.data && data.data.game_id === this.currentGameId) {
+              this.requestGameState(data.data.game_id);
+            }
+            break;
+          case 'game_ended':
+            // Handle game end for current game
+            if (data.data && data.data.game_id === this.currentGameId) {
+              const gameState = this.transformApiResponseToGameState(data.data);
+              if (gameState) {
+                useGameStore.getState().setGameState(gameState);
+              }
+            }
+            break;
+          case 'error':
+            if (data.error) {
+              useGameStore.getState().setError(data.error);
+            }
+            break;
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error('Error parsing game WebSocket message:', error);
+      }
+    };
   }
 
   private transformApiResponseToGameState(apiResponse: any, boardSize?: number): GameState | null {
@@ -278,28 +303,54 @@ class WebSocketService {
 
   async createGame(settings: any) {
     try {
-      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      if (!this.isConnected()) {
         useGameStore.getState().setError('Not connected to server');
         return;
       }
 
       useGameStore.getState().setIsLoading(true);
 
-      // Create game via WebSocket message
+      // Create game via REST API instead of WebSocket
       const gameRequest = {
-        type: 'create_game',
         player1_type: 'human',
         player2_type: settings.mode === 'human_vs_human' ? 'human' : 'machine',
         player1_name: 'Player 1',
         player2_name: settings.mode === 'human_vs_human' ? 'Player 2' : 'AI',
-        board_size: settings.board_size,
         settings: {
           board_size: settings.board_size,
           ai_config: settings.ai_config
         }
       };
 
-      this.socket.send(JSON.stringify(gameRequest));
+      const response = await fetch('/games', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(gameRequest),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const gameData = await response.json();
+
+      // Set game ID and state
+      useGameStore.getState().setGameId(gameData.game_id);
+
+      // Transform API response to GameState if we have the data
+      if (gameData) {
+        const gameState = this.transformApiResponseToGameState(gameData);
+        if (gameState) {
+          useGameStore.getState().setGameState(gameState);
+        }
+      }
+
+      useGameStore.getState().setIsLoading(false);
+
+      // Connect to game-specific WebSocket for real-time updates
+      this.connectToGame(gameData.game_id);
 
     } catch (error) {
       console.error('Error creating game:', error);
@@ -357,6 +408,7 @@ class WebSocketService {
       this.socket.close();
       this.socket = null;
     }
+    this.disconnectFromGame();
   }
 
   isConnected(): boolean {
