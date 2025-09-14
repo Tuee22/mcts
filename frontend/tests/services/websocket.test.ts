@@ -212,21 +212,34 @@ describe('WebSocket Service', () => {
 
   describe('Move Handling', () => {
     it('makes move when connected', async () => {
+      // Connect the service first
+      wsService.connect();
+
+      // Simulate successful connection
       mockSocket.readyState = WebSocket.OPEN;
+      mockSocket.simulateOpen();
+
+      // Clear the mocks to only track the move send
+      vi.clearAllMocks();
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      expect(mockFetch).toHaveBeenCalledWith('/games/test-game-123/moves', expect.any(Object));
+      expect(mockSocket.send).toHaveBeenCalledWith(JSON.stringify({
+        type: 'move',
+        game_id: 'test-game-123',
+        player_id: 'player1',
+        action: 'e2e4'
+      }));
     });
 
     it('rejects move when not connected', async () => {
+      // Service should not send when not connected
       mockSocket.readyState = WebSocket.CLOSED;
 
       await wsService.makeMove('test-game-123', 'e2e4');
-      
-      // The service doesn't check connection for moves, it just handles fetch errors
-      // So we expect fetch to be called and potentially fail
-      expect(mockFetch).toHaveBeenCalledWith('/games/test-game-123/moves', expect.any(Object));
+
+      // The service checks connection before sending moves, so no socket.send should be called
+      expect(mockSocket.send).not.toHaveBeenCalled();
     });
   });
 

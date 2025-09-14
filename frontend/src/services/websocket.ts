@@ -24,23 +24,6 @@ class WebSocketService {
     }
   }
 
-  connectToGame(gameId: string) {
-    // Close existing connection
-    if (this.socket) {
-      this.socket.close();
-    }
-
-    // Connect to game-specific WebSocket endpoint
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/games/${gameId}/ws`;
-
-    try {
-      this.socket = new WebSocket(wsUrl);
-      this.setupEventListeners();
-    } catch (error) {
-      useGameStore.getState().setError('Failed to connect to game');
-    }
-  }
 
   private setupEventListeners() {
     if (!this.socket) return;
@@ -79,6 +62,17 @@ class WebSocketService {
             // Handle game creation response
             if (data.game_id) {
               useGameStore.getState().setGameId(data.game_id);
+
+              // If we have game data, transform and set it
+              if (data.data) {
+                const gameState = this.transformApiResponseToGameState(data.data);
+                if (gameState) {
+                  useGameStore.getState().setGameState(gameState);
+                }
+              }
+
+              // Game data is already included in game_created response, no need for join_game
+
               useGameStore.getState().setIsLoading(false);
             }
             break;
@@ -113,6 +107,13 @@ class WebSocketService {
           case 'player_connected':
           case 'player_disconnected':
             // Handle player connection changes
+            break;
+          case 'error':
+            // Handle server errors
+            if (data.error) {
+              useGameStore.getState().setError(data.error);
+              useGameStore.getState().setIsLoading(false);
+            }
             break;
           // Add other message types as needed
           default:
@@ -160,8 +161,9 @@ class WebSocketService {
       const walls = apiResponse.board_display ? 
         this.parseWallsFromBoard(apiResponse.board_display, board_size) : [];
       
-      // Use legal moves from API response if available
-      const legal_moves = apiResponse.legal_moves || [];
+      // Use legal moves from API response if available and transform them
+      const backend_legal_moves = apiResponse.legal_moves || [];
+      const legal_moves = this.transformLegalMoves(backend_legal_moves, board_size);
       
       // Create basic move history from move count (simplified)
       const move_history = Array.from({ length: apiResponse.move_count || 0 }, (_, i) => ({
@@ -225,6 +227,35 @@ class WebSocketService {
     return []; // For now, return empty array
   }
 
+  private transformLegalMoves(backendMoves: string[], boardSize: number): string[] {
+    const frontendMoves: string[] = [];
+
+    for (const move of backendMoves) {
+      if (move.startsWith('*(')) {
+        // Parse piece move: "*(4,7)" -> "e2"
+        const match = move.match(/\*\((\d+),(\d+)\)/);
+        if (match) {
+          const x = parseInt(match[1]);
+          const y = parseInt(match[2]);
+          const notation = `${String.fromCharCode(97 + x)}${boardSize - y}`;
+          frontendMoves.push(notation);
+        }
+      } else if (move.startsWith('H(') || move.startsWith('V(')) {
+        // Parse wall move: "H(1,2)" -> "b7h", "V(3,4)" -> "d5v"
+        const match = move.match(/([HV])\((\d+),(\d+)\)/);
+        if (match) {
+          const orientation = match[1] === 'H' ? 'h' : 'v';
+          const x = parseInt(match[2]);
+          const y = parseInt(match[3]);
+          const notation = `${String.fromCharCode(97 + x)}${boardSize - y}${orientation}`;
+          frontendMoves.push(notation);
+        }
+      }
+    }
+
+    return frontendMoves;
+  }
+
   async createGame(settings: any) {
     try {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -233,45 +264,23 @@ class WebSocketService {
       }
 
       useGameStore.getState().setIsLoading(true);
-      // Convert frontend game settings to backend format
+
+      // Create game via WebSocket message
       const gameRequest = {
+        type: 'create_game',
         player1_type: 'human',
         player2_type: settings.mode === 'human_vs_human' ? 'human' : 'machine',
         player1_name: 'Player 1',
         player2_name: settings.mode === 'human_vs_human' ? 'Player 2' : 'AI',
+        board_size: settings.board_size,
         settings: {
           board_size: settings.board_size,
           ai_config: settings.ai_config
         }
       };
 
-      // Create game via REST API
-      const response = await fetch('/games', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(gameRequest)
-      });
+      this.socket.send(JSON.stringify(gameRequest));
 
-      if (!response.ok) {
-        throw new Error(`Failed to create game: ${response.statusText}`);
-      }
-
-      const gameData = await response.json();
-      useGameStore.getState().setGameId(gameData.game_id);
-      
-      // First try to get game state via REST API immediately
-      await this.requestGameState(gameData.game_id);
-      
-      // Connect to game-specific WebSocket for real-time updates
-      this.connectToGame(gameData.game_id);
-      
-      // Give WebSocket time to connect and send initial game state
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      useGameStore.getState().setIsLoading(false);
-      
     } catch (error) {
       console.error('Error creating game:', error);
       useGameStore.getState().setError(`Failed to create game: ${error}`);
@@ -288,32 +297,24 @@ class WebSocketService {
     useGameStore.getState().setIsLoading(true);
     this.socket.send(JSON.stringify({
       type: 'join_game',
-      data: { game_id: gameId }
+      game_id: gameId
     }));
   }
 
-  async makeMove(gameId: string, move: string) {
+  makeMove(gameId: string, move: string) {
     try {
-      const response = await fetch(`/games/${gameId}/moves`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: move,
-          player_id: 'player1' // For now, assuming player1 - would need proper player tracking
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Move failed: ${response.statusText}`);
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+        useGameStore.getState().setError('Not connected to server');
+        return;
       }
 
-      const moveResult = await response.json();
-      
-      // After successful move, fetch updated game state
-      await this.requestGameState(gameId);
-      
+      this.socket.send(JSON.stringify({
+        type: 'move',
+        game_id: gameId,
+        player_id: 'player1', // For now, assuming player1 - would need proper player tracking
+        action: move
+      }));
+
     } catch (error) {
       useGameStore.getState().setError(`Failed to make move: ${error}`);
     }
@@ -327,7 +328,7 @@ class WebSocketService {
 
     this.socket.send(JSON.stringify({
       type: 'get_ai_move',
-      data: { game_id: gameId }
+      game_id: gameId
     }));
   }
 

@@ -164,7 +164,7 @@ class TestBoardInteractions:
             print(f"✅ Found {wall_count} legal wall positions")
             # Try to click on first legal wall position
             first_wall = legal_wall_elements.first
-            await first_wall.click()
+            await first_wall.click(force=True)
             await async_page.wait_for_timeout(1000)
             print("✅ Wall placement attempted")
         else:
