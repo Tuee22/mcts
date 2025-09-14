@@ -115,18 +115,25 @@ async def create_game(request: GameCreateRequest) -> GameResponse:
     if game_manager is None or ws_manager is None:
         raise HTTPException(status_code=500, detail="Server not initialized")
     try:
-        game = await game_manager.create_game(
-            player1_type=request.player1_type,
-            player2_type=request.player2_type,
-            player1_name=request.player1_name,
-            player2_name=request.player2_name,
-            settings=request.settings,
+        # Add timeout to prevent hanging requests
+        game = await asyncio.wait_for(
+            game_manager.create_game(
+                player1_type=request.player1_type,
+                player2_type=request.player2_type,
+                player1_name=request.player1_name,
+                player2_name=request.player2_name,
+                settings=request.settings,
+            ),
+            timeout=10.0,  # 10 second timeout
         )
 
         # Notify WebSocket clients about new game
         await ws_manager.broadcast_game_created(game.game_id)
 
         return GameResponse.from_game_session(game)
+    except asyncio.TimeoutError:
+        logger.error("Game creation timed out")
+        raise HTTPException(status_code=504, detail="Game creation timed out")
     except Exception as e:
         logger.error(f"Failed to create game: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -412,9 +419,23 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
     await ws_manager.connect(websocket, game_id)
 
     try:
-        # Send initial game state
+        # Send initial game state directly to the new connection
         game_response = GameResponse.from_game_session(game)
-        await ws_manager.broadcast_game_state(game_id, game_response)
+        game_data = {
+            "type": "game_state",
+            "data": {
+                "game_id": game_response.game_id,
+                "status": game_response.status,
+                "player1_id": game_response.player1.id,
+                "player2_id": game_response.player2.id,
+                "current_turn": game_response.current_turn,
+                "winner": game_response.winner,
+                "board_display": game_response.board_display,
+                "legal_moves": [],
+                "created_at": game_response.created_at.isoformat(),
+            },
+        }
+        await websocket.send_json(game_data)
 
         # Keep connection alive and handle incoming messages
         while True:
@@ -625,6 +646,29 @@ async def api_health_check() -> Dict[str, Union[str, int]]:
         "status": "healthy",
         "active_games": await game_manager.get_active_game_count(),
         "connected_clients": ws_manager.get_connection_count(),
+    }
+
+
+# ==================== Test Endpoints for E2E Tests ====================
+
+
+@app.get("/test/external", response_model=None)
+async def test_external_page() -> Dict[str, str]:
+    """Mock external page for browser navigation tests."""
+    return {
+        "status": "success",
+        "message": "This is a mock external page for testing",
+        "page": "external",
+    }
+
+
+@app.get("/test/api", response_model=None)
+async def test_api_page() -> Dict[str, Union[str, Dict[str, str]]]:
+    """Mock API endpoint for browser navigation tests."""
+    return {
+        "status": "success",
+        "message": "This is a mock API endpoint for testing",
+        "data": {"timestamp": datetime.now().isoformat()},
     }
 
 

@@ -84,7 +84,7 @@ async def test_game_creation(e2e_urls: Dict[str, str]) -> None:
                     "player2_name": "TestPlayer2",
                     "player1_type": "human",
                     "player2_type": "machine",
-                    "settings": {"board_size": 9, "time_limit_seconds": 300},
+                    "settings": {"board_size": 9},
                 },
                 headers={"Content-Type": "application/json"},
             )

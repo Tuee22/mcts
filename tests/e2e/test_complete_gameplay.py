@@ -781,11 +781,16 @@ class TestCompleteGameplay:
 
         # Type-safe handling of page.evaluate result
         if isinstance(result, dict):
+            success_val = result.get("success", False)
+            game_id_val = result.get("game_id")
+            data_val = result.get("data")
+            error_val = result.get("error")
+
             typed_result = GameCreationResult(
-                success=result.get("success", False),
-                game_id=result.get("game_id"),
-                data=result.get("data"),
-                error=result.get("error"),
+                success=bool(success_val) if success_val is not None else False,
+                game_id=str(game_id_val) if isinstance(game_id_val, str) else None,
+                data=dict(data_val) if isinstance(data_val, dict) else None,
+                error=str(error_val) if isinstance(error_val, str) else None,
             )
 
             if typed_result["success"] and typed_result["game_id"]:

@@ -64,6 +64,7 @@ def run_command(
     description: str,
     cwd: Optional[str] = None,
     env: Optional[Dict[str, str]] = None,
+    timeout_seconds: Optional[int] = None,
 ) -> bool:
     """Run a command and handle output."""
     print(f"\n{'='*60}")
@@ -71,7 +72,13 @@ def run_command(
     print(f"Command: {' '.join(cmd)}")
     if cwd:
         print(f"Working directory: {cwd}")
+    if timeout_seconds:
+        print(f"Timeout: {timeout_seconds}s")
     print(f"{'='*60}")
+
+    # Add timeout if specified
+    if timeout_seconds:
+        cmd = ["timeout", str(timeout_seconds)] + cmd
 
     result = subprocess.run(cmd, capture_output=False, cwd=cwd, env=env)
     success = result.returncode == 0
@@ -249,7 +256,17 @@ def main() -> None:
                     ]
                 )
 
-            suite_success = run_command(cmd, suite["name"])
+            # Set reasonable timeouts for different test types
+            timeout_map = {
+                "Unit Tests - Core": 120,  # 2 minutes
+                "Unit Tests - API": 180,  # 3 minutes
+                "Integration Tests": 300,  # 5 minutes
+                "Utility & Fixture Tests": 60,  # 1 minute
+                "Benchmark Tests": 600,  # 10 minutes
+            }
+            timeout = timeout_map.get(suite["name"], 300)  # Default 5 minutes
+
+            suite_success = run_command(cmd, suite["name"], timeout_seconds=timeout)
             test_results[suite["name"]] = "PASSED" if suite_success else "FAILED"
             success = success and suite_success
 
@@ -275,7 +292,10 @@ def main() -> None:
                 frontend_cmd.append("--reporter=verbose")
 
             frontend_success = run_command(
-                frontend_cmd, "Frontend Tests", cwd=str(frontend_src_dir)
+                frontend_cmd,
+                "Frontend Tests",
+                cwd=str(frontend_src_dir),
+                timeout_seconds=300,
             )
             test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"
             success = success and frontend_success
@@ -312,7 +332,9 @@ def main() -> None:
             if args.verbose:
                 e2e_cmd.append("-s")
 
-            e2e_success = run_command(e2e_cmd, "E2E Tests", env=env)
+            e2e_success = run_command(
+                e2e_cmd, "E2E Tests", env=env, timeout_seconds=1200
+            )  # 20 minutes
             test_results["E2E Tests"] = "PASSED" if e2e_success else "FAILED"
             success = success and e2e_success
 

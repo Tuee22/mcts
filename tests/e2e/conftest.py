@@ -66,7 +66,14 @@ def e2e_config() -> E2EConfig:
 
 
 # Import async fixtures for Playwright
-from .async_fixtures import async_page, browser, context, e2e_urls  # noqa: F401
+from .async_fixtures import (
+    async_page,
+    browser,
+    context,
+    e2e_urls,
+    touch_context,
+    touch_page,
+)  # noqa: F401
 
 # Moved to async_fixtures.py
 # @pytest.fixture
@@ -153,11 +160,16 @@ async def create_game(
 
         # Type-safe handling of page.evaluate result
         if isinstance(result, dict):
+            success_val = result.get("success", False)
+            game_id_val = result.get("game_id")
+            data_val = result.get("data")
+            error_val = result.get("error")
+
             typed_result = GameCreationResult(
-                success=result.get("success", False),
-                game_id=result.get("game_id"),
-                data=result.get("data"),
-                error=result.get("error"),
+                success=bool(success_val) if success_val is not None else False,
+                game_id=str(game_id_val) if isinstance(game_id_val, str) else None,
+                data=dict(data_val) if isinstance(data_val, dict) else None,
+                error=str(error_val) if isinstance(error_val, str) else None,
             )
 
             if not typed_result["success"]:

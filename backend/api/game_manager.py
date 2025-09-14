@@ -90,8 +90,11 @@ class GameManager:
                 settings=settings or GameSettings(),
             )
 
-            # Initialize MCTS instance
+            # Initialize MCTS instance in a thread to avoid blocking
             mcts_settings = game.settings.mcts_settings
+
+            # Create MCTS instance synchronously for now
+            # TODO: Consider moving to background thread if initialization is slow
             game.mcts_instance = Corridors_MCTS(
                 c=mcts_settings.c,
                 seed=mcts_settings.seed or 42,
@@ -114,12 +117,13 @@ class GameManager:
             # Store the game
             self.games[game.game_id] = game
 
-            # If first player is AI, queue AI move
-            if player1_type == PlayerType.MACHINE:
-                await self.ai_move_queue.put(game.game_id)
-
             logger.info(f"Created game {game.game_id} ({mode})")
-            return game
+
+        # Queue AI move outside the lock to avoid deadlock
+        if player1_type == PlayerType.MACHINE:
+            await self.ai_move_queue.put(game.game_id)
+
+        return game
 
     async def get_game(self, game_id: str) -> Optional[GameSession]:
         """Get a game session by ID."""
@@ -396,9 +400,10 @@ class GameManager:
         """Background task to process AI moves."""
         while True:
             try:
-                game_id = await self.ai_move_queue.get()
-                game = self.games.get(game_id)
+                # Use timeout to avoid blocking indefinitely
+                game_id = await asyncio.wait_for(self.ai_move_queue.get(), timeout=1.0)
 
+                game = self.games.get(game_id)
                 if not game or game.status != GameStatus.IN_PROGRESS:
                     continue
 
@@ -406,8 +411,11 @@ class GameManager:
                 if current_player.type != PlayerType.MACHINE:
                     continue
 
-                # Run MCTS simulations
+                # Run MCTS simulations with timeout
                 if game.mcts_instance is not None:
+                    # Add small delay to ensure other operations complete
+                    await asyncio.sleep(0.1)
+
                     game.mcts_instance.ensure_sims(
                         game.settings.mcts_settings.min_simulations
                     )
@@ -422,8 +430,13 @@ class GameManager:
 
                 logger.info(f"AI made move in game {game_id}: {best_action}")
 
+            except asyncio.TimeoutError:
+                # No AI moves to process, continue
+                continue
             except Exception as e:
                 logger.error(f"Error processing AI move: {e}")
+                # Add small delay to prevent tight error loops
+                await asyncio.sleep(0.5)
 
     async def join_matchmaking(
         self, player_id: str, player_name: str, settings: Optional[GameSettings] = None

@@ -27,7 +27,7 @@ class MockWebSocket:
     """Mock WebSocket for testing that implements the WebSocket interface."""
 
     def __init__(self) -> None:
-        self.client_state: int = 1  # WebSocket state (e.g., CONNECTED)
+        self.client_state: int = 2  # WebSocket state (2 = CONNECTED)
         self._accept_mock = MagicMock()
         self._send_text_mock = MagicMock()
         self._send_json_mock = MagicMock()
@@ -119,12 +119,12 @@ class TestWebSocketManagerConnections:
         # Connect first client
         websocket1 = create_mock_websocket()
 
-        await ws_manager.connect(websocket1, "game1")
+        await asyncio.wait_for(ws_manager.connect(websocket1, "game1"), timeout=5.0)
 
         # Connect second client
         websocket2 = create_mock_websocket()
 
-        await ws_manager.connect(websocket2, "game1")
+        await asyncio.wait_for(ws_manager.connect(websocket2, "game1"), timeout=5.0)
 
         # First client should have received notification about second client connecting
         assert websocket1.mock_send_json.call_count >= 1

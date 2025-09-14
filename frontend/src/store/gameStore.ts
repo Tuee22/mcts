@@ -61,13 +61,14 @@ export const useGameStore = create<GameStore>((set) => ({
       move_history: [...state.gameState.move_history, move]
     } : null
   })),
-  reset: () => set({
+  reset: () => set((state) => ({
     gameId: null,
     gameState: null,
     gameSettings: defaultSettings,
-    isConnected: false,
     isLoading: false,
     error: null,
     selectedHistoryIndex: null,
-  }),
+    // Preserve connection state - don't disconnect when starting a new game
+    isConnected: state.isConnected,
+  })),
 }));

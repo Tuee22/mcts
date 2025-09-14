@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -128,7 +128,7 @@ class BoardState(BaseModel):
 class GameSession(BaseModel):
     """Complete game session data."""
 
-    game_id: str = str(uuid.uuid4())  # Will be overridden during creation
+    game_id: Annotated[str, Field(default_factory=lambda: str(uuid.uuid4()))]
     status: GameStatus = GameStatus.WAITING
     mode: GameMode
     player1: Player

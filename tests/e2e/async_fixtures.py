@@ -8,7 +8,7 @@ import pytest_asyncio
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def browser() -> AsyncGenerator[Browser, None]:
     """Create and yield a browser instance."""
     async with async_playwright() as p:
@@ -39,9 +39,34 @@ async def context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
 
 
 @pytest_asyncio.fixture
+async def touch_context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
+    """Create a new browser context with touch support for mobile tests."""
+    context = await browser.new_context(
+        viewport={"width": 375, "height": 667},  # Mobile viewport
+        ignore_https_errors=True,
+        has_touch=True,  # Enable touch support
+        is_mobile=True,
+        device_scale_factor=2,
+    )
+    yield context
+    await context.close()
+
+
+@pytest_asyncio.fixture
 async def async_page(context: BrowserContext) -> AsyncGenerator[Page, None]:
     """Create a new page for each test."""
     page = await context.new_page()
+    # Set reasonable timeouts
+    page.set_default_timeout(30000)
+    page.set_default_navigation_timeout(30000)
+    yield page
+    await page.close()
+
+
+@pytest_asyncio.fixture
+async def touch_page(touch_context: BrowserContext) -> AsyncGenerator[Page, None]:
+    """Create a new page with touch support for mobile tests."""
+    page = await touch_context.new_page()
     # Set reasonable timeouts
     page.set_default_timeout(30000)
     page.set_default_navigation_timeout(30000)
