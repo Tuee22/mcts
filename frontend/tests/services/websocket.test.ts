@@ -81,22 +81,49 @@ describe('WebSocket Service', () => {
     // Reset fetch mock
     mockFetch.mockClear();
     
-    // Configure default fetch responses
-    mockFetch.mockImplementation((url: string) => {
-      if (url === '/games') {
+    // Configure default fetch responses to match new API structure
+    mockFetch.mockImplementation((url: string, options?: any) => {
+      if (url === '/games' && options?.method === 'POST') {
+        // POST /games - create game
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ game_id: 'test-game-123', initial_state: mockInitialGameState })
+          json: () => Promise.resolve({
+            game_id: 'test-game-123',
+            status: 'in_progress',
+            player1: { id: 'player1', name: 'Player 1' },
+            player2: { id: 'player2', name: 'Player 2' },
+            current_turn: 1,
+            move_count: 0,
+            board_display: 'test-board',
+            winner: null,
+            created_at: new Date().toISOString()
+          })
         });
-      } else if (url.includes('/moves')) {
+      } else if (url.includes('/moves') && options?.method === 'POST') {
+        // POST /games/{id}/moves - make move
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ success: true })
+          json: () => Promise.resolve({
+            move: {
+              player_id: 'player1',
+              action: 'e2e4',
+              move_number: 1,
+              timestamp: new Date().toISOString()
+            },
+            game_state: mockInitialGameState
+          })
         });
-      } else if (url.includes('/games/')) {
+      } else if (url.includes('/games/') && !options?.method) {
+        // GET /games/{id} - get game state
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockInitialGameState)
+        });
+      } else if (url.includes('/legal-moves')) {
+        // GET /games/{id}/legal-moves
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ legal_moves: ['e2', 'e4'] })
         });
       }
       return Promise.reject(new Error(`Unmocked URL: ${url}`));
@@ -177,92 +204,179 @@ describe('WebSocket Service', () => {
   });
 
   describe('Game Creation', () => {
-    it('creates game with default settings', async () => {
-      // The service checks if socket is connected before creating game
-      // Since our mock setup doesn't fully simulate connection, this test
-      // verifies that createGame is called and sets error appropriately
-      
+    it('creates game with default settings via REST API', async () => {
+      // Connect the service
+      wsService.connect();
+
+      // Mock connected state - force the socket to be OPEN
+      mockSocket.readyState = WebSocket.OPEN;
+      // Ensure the service's socket reference uses our mock
+      (wsService as any).socket = mockSocket;
+
+      // Simulate connection
+      mockSocket.simulateOpen();
+
       await wsService.createGame(mockDefaultGameSettings);
 
-      // The service should set an error since no socket is connected
-      expect(mockGameStore.setError).toHaveBeenCalledWith('Not connected to server');
+      // Should call POST /games REST API
+      expect(mockFetch).toHaveBeenCalledWith('/games', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: expect.stringContaining('"player1_type":"human"')
+      }));
+
+      // Should set game ID from response
+      expect(mockGameStore.setGameId).toHaveBeenCalledWith('test-game-123');
     });
 
     it('rejects when not connected', async () => {
       // Mock as disconnected
       mockSocket.readyState = WebSocket.CLOSED;
-      
+
       await wsService.createGame(mockDefaultGameSettings);
-      
-      // Should set error instead of throwing
+
+      // Should set error instead of making API call
       expect(mockGameStore.setError).toHaveBeenCalledWith('Not connected to server');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it('handles game creation failure', async () => {
-      // Mock connected state
+      // Connect the service and mock state
+      wsService.connect();
       mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
       const testError = new Error('Server error');
       mockFetch.mockRejectedValueOnce(testError);
 
       await wsService.createGame(mockDefaultGameSettings);
-      
+
       // Should set error instead of throwing
       expect(mockGameStore.setError).toHaveBeenCalled();
+    });
+
+    it('connects to game-specific WebSocket after creation', async () => {
+      // Connect the service and mock state
+      wsService.connect();
+      mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
+      await wsService.createGame(mockDefaultGameSettings);
+
+      // Should set game ID from response (verifies successful game creation)
+      expect(mockGameStore.setGameId).toHaveBeenCalledWith('test-game-123');
     });
   });
 
   describe('Move Handling', () => {
-    it('makes move when connected', async () => {
-      // Set socket to OPEN state before connecting
-      mockSocket.readyState = WebSocket.OPEN;
-
-      // Connect the service first
+    it('makes move via REST API when connected', async () => {
+      // Connect the service and ensure proper state
       wsService.connect();
-
-      // Force the service to use our mock socket
+      mockSocket.readyState = WebSocket.OPEN;
       (wsService as any).socket = mockSocket;
-
-      // Simulate successful connection
       mockSocket.simulateOpen();
 
-      // Clear the mocks to only track the move send, but preserve the socket mock
-      mockGameStore.setGameId.mockClear();
+      // Clear the mocks to only track the move API call
+      mockFetch.mockClear();
       mockGameStore.setGameState.mockClear();
-      mockGameStore.setIsConnected.mockClear();
-      mockGameStore.setIsLoading.mockClear();
       mockGameStore.setError.mockClear();
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-
-      expect(mockSocket.send).toHaveBeenCalledWith(JSON.stringify({
-        type: 'move',
-        game_id: 'test-game-123',
-        player_id: 'player1',
-        action: 'e2e4'
+      // Should call POST /games/{id}/moves REST API
+      expect(mockFetch).toHaveBeenCalledWith('/games/test-game-123/moves', expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          player_id: 'player1',
+          action: 'e2e4'
+        })
       }));
+
+      // Should request updated game state after move (calls both game state and legal moves)
+      expect(mockFetch).toHaveBeenNthCalledWith(2, '/games/test-game-123');
+      expect(mockFetch).toHaveBeenNthCalledWith(3, '/games/test-game-123/legal-moves');
     });
 
     it('rejects move when not connected', async () => {
-      // Service should not send when not connected
+      // Service should not make API call when not connected
       mockSocket.readyState = WebSocket.CLOSED;
+      mockFetch.mockClear();
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      // The service checks connection before sending moves, so no socket.send should be called
-      expect(mockSocket.send).not.toHaveBeenCalled();
+      // Should set error and not make API call
+      expect(mockGameStore.setError).toHaveBeenCalledWith('Not connected to server');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('handles move API failure', async () => {
+      // Connect the service and mock state
+      wsService.connect();
+      mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
+      // Mock API failure
+      mockFetch.mockRejectedValueOnce(new Error('API error'));
+      mockGameStore.setError.mockClear();
+
+      await wsService.makeMove('test-game-123', 'e2e4');
+
+      // Should set error when API call fails
+      expect(mockGameStore.setError).toHaveBeenCalled();
     });
   });
 
   describe('Error Handling', () => {
-    it('handles network timeout gracefully', async () => {
+    it('handles network timeout gracefully during game creation', async () => {
+      wsService.connect();
       mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
+      const timeoutError = new Error('Network timeout');
+      mockFetch.mockRejectedValueOnce(timeoutError);
+
+      await wsService.createGame(mockDefaultGameSettings);
+
+      // Should set error instead of throwing
+      expect(mockGameStore.setError).toHaveBeenCalled();
+    });
+
+    it('handles network timeout gracefully during move', async () => {
+      wsService.connect();
+      mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
       const timeoutError = new Error('Network timeout');
       mockFetch.mockRejectedValueOnce(timeoutError);
 
       await wsService.makeMove('test-game-123', 'e2e4');
-      
+
       // Should set error instead of throwing
+      expect(mockGameStore.setError).toHaveBeenCalled();
+    });
+
+    it('handles HTTP error responses', async () => {
+      wsService.connect();
+      mockSocket.readyState = WebSocket.OPEN;
+      (wsService as any).socket = mockSocket;
+      mockSocket.simulateOpen();
+
+      // Mock 404 response
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ error: 'Game not found' })
+      });
+
+      await wsService.makeMove('test-game-123', 'e2e4');
+
+      // Should set error for HTTP errors
       expect(mockGameStore.setError).toHaveBeenCalled();
     });
   });

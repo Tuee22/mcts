@@ -372,21 +372,36 @@ class WebSocketService {
     }));
   }
 
-  makeMove(gameId: string, move: string) {
+  async makeMove(gameId: string, move: string) {
     try {
-      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      if (!this.isConnected()) {
         useGameStore.getState().setError('Not connected to server');
         return;
       }
 
-      this.socket.send(JSON.stringify({
-        type: 'move',
-        game_id: gameId,
-        player_id: 'player1', // For now, assuming player1 - would need proper player tracking
-        action: move
-      }));
+      // Make move via REST API
+      const response = await fetch(`/games/${gameId}/moves`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          player_id: 'player1', // For now, assuming player1 - would need proper player tracking
+          action: move
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const moveData = await response.json();
+
+      // Request updated game state after successful move
+      await this.requestGameState(gameId);
 
     } catch (error) {
+      console.error('Error making move:', error);
       useGameStore.getState().setError(`Failed to make move: ${error}`);
     }
   }

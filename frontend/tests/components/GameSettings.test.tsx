@@ -41,10 +41,14 @@ vi.mock('@/services/websocket', () => ({
   wsService: {
     connect: vi.fn(() => Promise.resolve()),
     disconnect: vi.fn(),
+    disconnectFromGame: vi.fn(),
     isConnected: vi.fn(() => true),
     createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
     makeMove: vi.fn(() => Promise.resolve()),
     getAIMove: vi.fn(() => Promise.resolve()),
+    joinGame: vi.fn(),
+    requestGameState: vi.fn(() => Promise.resolve()),
+    connectToGame: vi.fn(),
   }
 }));
 
@@ -69,7 +73,7 @@ describe('GameSettings Component', () => {
     });
   });
 
-  // Helper function to expand settings panel
+  // Helper function to expand settings panel (assumes component is already rendered with toggle button)
   const expandSettings = async () => {
     const user = createUser();
     const toggleButton = screen.getByRole('button', { name: /game settings/i });
@@ -77,45 +81,58 @@ describe('GameSettings Component', () => {
   };
 
   describe('Basic Rendering', () => {
-    it('renders game settings toggle button', () => {
+    it('renders game settings panel when no game is active', () => {
+      // When gameId is null, settings panel should be shown directly
       render(<GameSettings />);
-      
+
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('Game Mode')).toBeInTheDocument();
+    });
+
+    it('renders game settings toggle button when game is active', () => {
+      // Set gameId to show toggle button instead of panel
+      Object.assign(mockGameStore, { gameId: 'test-game-123' });
+
+      render(<GameSettings />);
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       expect(toggleButton).toBeInTheDocument();
       expect(toggleButton).toHaveTextContent('⚙️ Game Settings');
     });
 
     it('expands settings panel when clicked', async () => {
+      // Set gameId to show toggle button instead of panel
+      Object.assign(mockGameStore, { gameId: 'test-game-123' });
+
       render(<GameSettings />);
       const user = createUser();
-      
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       await user.click(toggleButton);
 
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
 
-    it('renders all game mode options when expanded', async () => {
+    it('renders all game mode options directly', () => {
+      // When gameId is null, settings panel shows directly (no need to expand)
       render(<GameSettings />);
-      await expandSettings();
 
       // Use test IDs for reliable element selection
       expect(screen.getByTestId('mode-human-vs-human')).toBeInTheDocument();
       expect(screen.getByTestId('mode-human-vs-ai')).toBeInTheDocument();
       expect(screen.getByTestId('mode-ai-vs-ai')).toBeInTheDocument();
-      
+
       // Check text content
       expect(screen.getByText('Human vs Human')).toBeInTheDocument();
       expect(screen.getByText('Human vs AI')).toBeInTheDocument();
       expect(screen.getByText('AI vs AI')).toBeInTheDocument();
     });
 
-    it('renders difficulty options when AI mode is selected', async () => {
+    it('renders difficulty options when AI mode is selected', () => {
       // Update mock store for AI mode
       mockGameStore.gameSettings = { ...mockDefaultGameSettings, mode: 'human_vs_ai' };
 
       render(<GameSettings />);
-      await expandSettings();
 
       expect(screen.getByText('Easy')).toBeInTheDocument();
       expect(screen.getByText('Medium')).toBeInTheDocument();
@@ -125,12 +142,11 @@ describe('GameSettings Component', () => {
   });
 
   describe('Game Mode Selection', () => {
-    it('highlights currently selected mode', async () => {
+    it('highlights currently selected mode', () => {
       // Set up store with specific mode
       mockGameStore.gameSettings = { ...mockDefaultGameSettings, mode: 'human_vs_ai' };
 
       render(<GameSettings />);
-      await expandSettings();
 
       const humanVsAIButton = screen.getByTestId('mode-human-vs-ai');
       expect(humanVsAIButton).toHaveClass('active');
@@ -138,7 +154,6 @@ describe('GameSettings Component', () => {
 
     it('changes mode when clicked', async () => {
       render(<GameSettings />);
-      await expandSettings();
       const user = createUser();
 
       const humanVsHumanButton = screen.getByTestId('mode-human-vs-human');
@@ -156,7 +171,6 @@ describe('GameSettings Component', () => {
 
     it('highlights currently selected difficulty', async () => {
       render(<GameSettings />);
-      await expandSettings();
 
       const mediumButton = screen.getByText('Medium');
       expect(mediumButton).toHaveClass('active');
@@ -164,7 +178,6 @@ describe('GameSettings Component', () => {
 
     it('changes difficulty when clicked', async () => {
       render(<GameSettings />);
-      await expandSettings();
       const user = createUser();
 
       const hardButton = screen.getByText('Hard');
@@ -179,16 +192,34 @@ describe('GameSettings Component', () => {
       mockGameStore.isConnected = false;
 
       render(<GameSettings />);
-      
+
+      // When disconnected and no gameId, shows connection warning and disabled controls
+      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
+      expect(screen.getByText('⚠️ Connection Required')).toBeInTheDocument();
+
+      // All buttons should be disabled
+      const humanVsHumanButton = screen.getByTestId('mode-human-vs-human');
+      const startGameButton = screen.getByTestId('start-game-button');
+      expect(humanVsHumanButton).toBeDisabled();
+      expect(startGameButton).toBeDisabled();
+      expect(startGameButton).toHaveTextContent('Disconnected');
+    });
+
+    it('disables toggle button when not connected and game is active', () => {
+      mockGameStore.isConnected = false;
+      mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
+
+      render(<GameSettings />);
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       expect(toggleButton).toBeDisabled();
+      expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
     });
 
     it('enables all controls when connected', async () => {
       mockGameStore.isConnected = true;
 
       render(<GameSettings />);
-      await expandSettings();
 
       const humanVsHumanButton = screen.getByTestId('mode-human-vs-human');
       expect(humanVsHumanButton).not.toBeDisabled();

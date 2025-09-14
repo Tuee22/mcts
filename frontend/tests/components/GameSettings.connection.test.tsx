@@ -38,10 +38,14 @@ vi.mock('@/store/gameStore', () => ({
 const mockWsService = vi.hoisted(() => ({
   connect: vi.fn(() => Promise.resolve()),
   disconnect: vi.fn(),
+  disconnectFromGame: vi.fn(),
   isConnected: vi.fn(() => true),
   createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
   makeMove: vi.fn(() => Promise.resolve()),
   getAIMove: vi.fn(() => Promise.resolve()),
+  joinGame: vi.fn(),
+  requestGameState: vi.fn(() => Promise.resolve()),
+  connectToGame: vi.fn(),
 }));
 
 vi.mock('@/services/websocket', () => ({
@@ -74,11 +78,12 @@ describe('GameSettings Connection Tests', () => {
 
   describe('Connection Loss During Settings Panel Usage', () => {
     it('should show connection warning when disconnected while panel is open', async () => {
-      // Start connected
+      // Start connected with active game to show toggle button
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
+
       const { rerender } = render(<GameSettings />);
-      
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       await user.click(toggleButton);
       
@@ -96,11 +101,12 @@ describe('GameSettings Connection Tests', () => {
     });
 
     it('should disable all controls when connection is lost', async () => {
-      // Start connected
+      // Start connected with active game to show toggle button
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
+
       const { rerender } = render(<GameSettings />);
-      
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
       await user.click(toggleButton);
       
