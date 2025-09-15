@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple, Union
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from corridors.corridors_mcts import Corridors_MCTS
+from corridors.async_mcts import MCTSRegistry
 
 from .models import (
     AnalysisResult,
@@ -41,6 +42,9 @@ class GameManager:
         ] = []
         self.ai_move_queue: asyncio.Queue[str] = asyncio.Queue()
         self._lock = asyncio.Lock()
+
+        # Async MCTS registry for better concurrency management
+        self.mcts_registry = MCTSRegistry()
 
     async def create_game(
         self,
@@ -90,22 +94,24 @@ class GameManager:
                 settings=settings or GameSettings(),
             )
 
-            # Initialize MCTS instance in a thread to avoid blocking
+            # Initialize async MCTS instance
             mcts_settings = game.settings.mcts_settings
 
-            # Create MCTS instance synchronously for now
-            # TODO: Consider moving to background thread if initialization is slow
-            game.mcts_instance = Corridors_MCTS(
+            # Create async MCTS instance for better concurrency
+            await self.mcts_registry.get_or_create(
+                game_id=game.game_id,
                 c=mcts_settings.c,
                 seed=mcts_settings.seed or 42,
-                min_simulations=mcts_settings.min_simulations,
-                max_simulations=mcts_settings.max_simulations,
                 use_rollout=mcts_settings.use_rollout,
                 eval_children=mcts_settings.eval_children,
                 use_puct=mcts_settings.use_puct,
                 use_probs=mcts_settings.use_probs,
                 decide_using_visits=mcts_settings.decide_using_visits,
             )
+
+            # Keep the sync instance for backward compatibility in GameSession
+            # but use async for actual operations
+            game.mcts_instance = None  # We'll access via registry
 
             # Set initial board state
             game.board_state = await self._get_board_state(game)
@@ -206,8 +212,9 @@ class GameManager:
 
             # Get evaluation if available
             eval_result = None
-            if game.mcts_instance is not None:
-                eval_result = game.mcts_instance.get_evaluation()
+            mcts = await self.mcts_registry.get(game_id)
+            if mcts is not None:
+                eval_result = await mcts.get_evaluation_async()
             if eval_result is not None:
                 move.evaluation = eval_result
 
@@ -275,8 +282,9 @@ class GameManager:
         if for_next_player:
             flip = not flip
 
-        if game.mcts_instance is not None:
-            sorted_actions = game.mcts_instance.get_sorted_actions(flip)
+        mcts = await self.mcts_registry.get(game.game_id)
+        if mcts is not None:
+            sorted_actions = await mcts.get_sorted_actions_async(flip)
             return [action[2] for action in sorted_actions]
         return []
 
@@ -285,16 +293,18 @@ class GameManager:
         game = self.games.get(game_id)
         if not game:
             return ""
-        if game.mcts_instance is not None:
-            display_result: str = game.mcts_instance.display(flip)
+        mcts = await self.mcts_registry.get(game_id)
+        if mcts is not None:
+            display_result: str = await mcts.display_async(flip)
             return display_result
         return ""
 
     async def _get_board_state(self, game: GameSession) -> BoardState:
         """Get current board state."""
         display = ""
-        if game.mcts_instance is not None:
-            display = game.mcts_instance.display(False)
+        mcts = await self.mcts_registry.get(game.game_id)
+        if mcts is not None:
+            display = await mcts.display_async(False)
 
         # Parse positions from display (simplified - would need actual parsing)
         # This is a placeholder - actual implementation would parse the board
@@ -316,16 +326,17 @@ class GameManager:
             return {}
 
         # Ensure minimum simulations
-        if game.mcts_instance is not None:
-            game.mcts_instance.ensure_sims(depth)
+        mcts = await self.mcts_registry.get(game_id)
+        if mcts is not None:
+            await mcts.ensure_sims_async(depth)
 
         current_player = game.get_current_player()
         flip = not current_player.is_hero
         sorted_actions = []
         eval_result = None
-        if game.mcts_instance is not None:
-            sorted_actions = game.mcts_instance.get_sorted_actions(flip)
-            eval_result = game.mcts_instance.get_evaluation()
+        if mcts is not None:
+            sorted_actions = await mcts.get_sorted_actions_async(flip)
+            eval_result = await mcts.get_evaluation_async()
 
         return {
             "evaluation": eval_result,
@@ -346,17 +357,18 @@ class GameManager:
 
         # Run simulations
         best_action = ""
-        if game.mcts_instance is not None:
-            game.mcts_instance.ensure_sims(simulations)
+        mcts = await self.mcts_registry.get(game_id)
+        if mcts is not None:
+            await mcts.ensure_sims_async(simulations)
             # Get best move
-            best_action = game.mcts_instance.choose_best_action(epsilon=0)
+            best_action = await mcts.choose_best_action_async(epsilon=0)
 
         # Get evaluation
         current_player = game.get_current_player()
         flip = not current_player.is_hero
         sorted_actions = []
-        if game.mcts_instance is not None:
-            sorted_actions = game.mcts_instance.get_sorted_actions(flip)
+        if mcts is not None:
+            sorted_actions = await mcts.get_sorted_actions_async(flip)
 
         # Find the best action in sorted list
         best_info = next((a for a in sorted_actions if a[2] == best_action), None)
@@ -372,6 +384,22 @@ class GameManager:
             }
 
         return {"action": best_action, "confidence": 0, "evaluation": 0}
+
+    async def cleanup(self) -> None:
+        """Clean up all resources."""
+        # Cleanup all MCTS instances
+        await self.mcts_registry.cleanup_all()
+
+        # Clear game data
+        self.games.clear()
+        self.matchmaking_queue.clear()
+
+        # Clear the AI move queue
+        while not self.ai_move_queue.empty():
+            try:
+                self.ai_move_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
 
     async def resign_game(self, game_id: str, player_id: str) -> int:
         """Handle player resignation."""
@@ -412,16 +440,27 @@ class GameManager:
                     continue
 
                 # Run MCTS simulations with timeout
-                if game.mcts_instance is not None:
+                mcts = await self.mcts_registry.get(game_id)
+                if mcts is not None:
                     # Add small delay to ensure other operations complete
                     await asyncio.sleep(0.1)
 
-                    game.mcts_instance.ensure_sims(
-                        game.settings.mcts_settings.min_simulations
-                    )
+                    try:
+                        # Use async simulations with timeout
+                        await asyncio.wait_for(
+                            mcts.ensure_sims_async(
+                                game.settings.mcts_settings.min_simulations
+                            ),
+                            timeout=5.0,  # 5 second timeout
+                        )
 
-                    # Choose best move
-                    best_action = game.mcts_instance.choose_best_action(epsilon=0)
+                        # Choose best move
+                        best_action = await mcts.choose_best_action_async(epsilon=0)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"AI move timeout for game {game_id}")
+                        # Cancel any running simulations
+                        mcts.cancel_simulations()
+                        continue
                 else:
                     continue
 
@@ -540,15 +579,3 @@ class GameManager:
             "losses": games_played - wins,
             "win_rate": wins / games_played if games_played > 0 else 0,
         }
-
-    async def cleanup(self) -> None:
-        """Cleanup resources."""
-        # Cancel any pending AI moves
-        while not self.ai_move_queue.empty():
-            self.ai_move_queue.get_nowait()
-
-        # Clean up games
-        for game in self.games.values():
-            if game.status == GameStatus.IN_PROGRESS:
-                game.status = GameStatus.CANCELLED
-                game.ended_at = datetime.now(timezone.utc)

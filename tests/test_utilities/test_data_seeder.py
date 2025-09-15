@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 
-from tests.fixtures.test_data_seeder import TestDataSeeder
+from tests.fixtures.data_seeder import TestDataSeeder
 
 
 class TestTestDataSeederSimplified:
@@ -27,7 +27,7 @@ class TestTestDataSeederSimplified:
     @pytest.mark.asyncio
     async def test_context_manager_lifecycle(self) -> None:
         """Test async context manager enter and exit."""
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as mock_client_class:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             assert isinstance(mock_client_class, Mock)
             mock_client_class.return_value = mock_client
@@ -50,7 +50,7 @@ class TestTestDataSeederSimplified:
         response.json.return_value = {"id": "game_0", "status": "created"}
         response.raise_for_status.return_value = None
 
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             setattr(mock_client.post, "side_effect", [response] * 5)
@@ -73,7 +73,7 @@ class TestTestDataSeederSimplified:
         move_response = MagicMock()
         move_response.raise_for_status.return_value = None
 
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             mock_client.post.side_effect = [
@@ -98,7 +98,7 @@ class TestTestDataSeederSimplified:
         response.status_code = 200
         response.raise_for_status.return_value = None
 
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             mock_client.delete.return_value = response
@@ -120,14 +120,14 @@ class TestTestDataSeederSimplified:
         response.json.return_value = {"status": "healthy", "version": "1.0.0"}
         response.raise_for_status.return_value = None
 
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             mock_client.get.return_value = response
             MockAsyncClient.return_value = mock_client
 
             with patch(
-                "tests.fixtures.test_data_seeder.HealthResponse"
+                "tests.fixtures.data_seeder.HealthResponse"
             ) as MockHealthResponse:
                 assert isinstance(MockHealthResponse, Mock)
                 expected_health = {"status": "healthy", "version": "1.0.0"}
@@ -158,14 +158,14 @@ class TestTestDataSeederSimplified:
         response.json.return_value = expected_response
         response.raise_for_status.return_value = None
 
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             mock_client.get.return_value = response
             MockAsyncClient.return_value = mock_client
 
             with patch(
-                "tests.fixtures.test_data_seeder.GameListResponse"
+                "tests.fixtures.data_seeder.GameListResponse"
             ) as MockGameListResponse:
                 assert isinstance(MockGameListResponse, Mock)
                 game_list_instance = MagicMock()
@@ -184,7 +184,7 @@ class TestTestDataSeederSimplified:
     @pytest.mark.asyncio
     async def test_error_propagation(self) -> None:
         """Test that HTTP errors are properly propagated."""
-        with patch("tests.fixtures.test_data_seeder.AsyncClient") as MockAsyncClient:
+        with patch("tests.fixtures.data_seeder.AsyncClient") as MockAsyncClient:
             assert isinstance(MockAsyncClient, Mock)
             mock_client = AsyncMock()
             mock_client.post.side_effect = httpx.HTTPError("Bad Request")

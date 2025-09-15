@@ -1,26 +1,17 @@
 import logging
 import sys
 from math import sqrt
-from typing import Dict, List, Optional, Protocol, Tuple, Type, Union
+from typing import Dict, List, Optional, Protocol, Tuple, Type, Union, TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from corridors._corridors_mcts import _corridors_mcts
 
 
 # Define a protocol for the C++ extension base class
 class MCTSProtocol(Protocol):
-    def __init__(
-        self,
-        c: float,
-        seed: int,
-        min_simulations: int,
-        max_simulations: int,
-        sim_increment: int,
-        use_rollout: bool,
-        eval_children: bool,
-        use_puct: bool,
-        use_probs: bool,
-        decide_using_visits: bool,
-    ) -> None:
+    def run_simulations(self, n: int) -> None:
         ...
 
     def make_move(self, action: str, flip: bool = False) -> None:
@@ -32,26 +23,47 @@ class MCTSProtocol(Protocol):
     def choose_best_action(self, epsilon: float = 0.0) -> str:
         ...
 
-    def ensure_sims(self, num_sims: int) -> None:
+    def get_evaluation(self) -> Optional[float]:
         ...
 
-    def get_evaluation(self) -> Optional[float]:
+    def get_visit_count(self) -> int:
         ...
 
     def display(self, flip: bool = False) -> str:
         ...
 
+    def reset_to_initial_state(self) -> None:
+        ...
+
+    def is_terminal(self) -> bool:
+        ...
+
 
 # Import the C++ extension class
-def _load_extension() -> Type[MCTSProtocol]:
+def _load_extension() -> Type["_corridors_mcts"]:
     """Load the C++ extension module."""
-    from corridors import _corridors_mcts as _ext_module
+    try:
+        from corridors import _corridors_mcts as _ext_module
 
-    return _ext_module._corridors_mcts
+        return _ext_module._corridors_mcts
+    except ImportError:
+        # During build or testing, the C++ extension might not be available
+        raise ImportError(
+            "C++ extension not found. Please build the extension first using: "
+            "cd backend/core && scons"
+        )
 
 
-# Load the extension at module level
-_corridors_mcts: Type[MCTSProtocol] = _load_extension()
+# Lazy loading of the extension - only load when actually needed
+_corridors_mcts_cached: Optional[Type["_corridors_mcts"]] = None
+
+
+def _get_extension() -> Type["_corridors_mcts"]:
+    """Get the C++ extension class, loading it if necessary."""
+    global _corridors_mcts_cached
+    if _corridors_mcts_cached is None:
+        _corridors_mcts_cached = _load_extension()
+    return _corridors_mcts_cached
 
 
 class Corridors_MCTS:
@@ -114,18 +126,22 @@ class Corridors_MCTS:
         decide_using_visits: bool = True,
     ) -> None:
         # Create the underlying C++ instance through composition
-        self._impl: MCTSProtocol = _corridors_mcts(
-            c,
-            seed,
-            min_simulations,
-            max_simulations,
-            1000,  # sim_increment - deprecated but still required by C++
-            use_rollout,
-            eval_children,
-            use_puct,
-            use_probs,
-            decide_using_visits,
+        # Note: min_simulations and max_simulations are no longer used by C++
+        # but kept for backward compatibility
+        extension_class = _get_extension()
+        self._impl: "_corridors_mcts" = extension_class(
+            c=c,
+            seed=seed,
+            use_rollout=use_rollout,
+            eval_children=eval_children,
+            use_puct=use_puct,
+            use_probs=use_probs,
+            decide_using_visits=decide_using_visits,
         )
+
+        # Store simulation parameters for compatibility
+        self._min_simulations = min_simulations
+        self._max_simulations = max_simulations
 
     def __json__(self) -> Dict[str, str]:
         name_attr: str = getattr(self, "name", "unnamed")
@@ -166,7 +182,10 @@ class Corridors_MCTS:
     def ensure_sims(self, sims: int) -> None:
         """blocking function that holds until at
         least 'sims' simulations have been performed"""
-        self._impl.ensure_sims(sims)
+        current_visits = self._impl.get_visit_count()
+        if current_visits < sims:
+            needed_sims = sims - current_visits
+            self._impl.run_simulations(needed_sims)
 
     def get_evaluation(self) -> Optional[float]:
         """Returns -1, 1, or None, depending on whether
@@ -187,8 +206,8 @@ def display_sorted_actions(
 
 
 def computer_self_play(
-    p1: MCTSProtocol,
-    p2: Optional[MCTSProtocol] = None,
+    p1: Union[MCTSProtocol, "Corridors_MCTS"],
+    p2: Optional[Union[MCTSProtocol, "Corridors_MCTS"]] = None,
     stop_on_eval: bool = False,
 ) -> None:
     """Pass one or two instances of corridors_mcts to perform self-play.
@@ -241,7 +260,7 @@ def computer_self_play(
 
 
 def human_computer_play(
-    mcts: MCTSProtocol,
+    mcts: Union[MCTSProtocol, "Corridors_MCTS"],
     human_plays_first: bool = True,
     hide_humans_moves: bool = True,
 ) -> None:

@@ -13,7 +13,7 @@ from httpx import AsyncClient
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
-from tests.fixtures.test_data_seeder import TestDataSeeder
+from tests.fixtures.data_seeder import TestDataSeeder
 
 
 @pytest.mark.integration

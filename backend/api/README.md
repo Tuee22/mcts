@@ -133,7 +133,6 @@ Message types:
 ### Prerequisites
 - Python 3.12+
 - C++ compiler with C++11 support
-- Boost libraries (python, numpy)
 
 ### Installation
 

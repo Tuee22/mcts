@@ -177,7 +177,7 @@ docker compose exec mcts pytest tests/e2e/ -m e2e
 Tests use deterministic data seeding for consistency:
 
 ```python
-from tests.fixtures.test_data_seeder import TestDataSeeder
+from tests.fixtures.data_seeder import TestDataSeeder
 
 # Seed backend with test data
 async with TestDataSeeder("http://localhost:8001") as seeder:

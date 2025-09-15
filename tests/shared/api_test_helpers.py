@@ -209,7 +209,7 @@ class TestScenarioRunner:
     ) -> Dict[str, object]:
         """Run a complete game creation scenario."""
         # Set up expected API response
-        from .test_fixtures_factory import TestFixturesFactory
+        from .fixtures_factory import TestFixturesFactory
 
         game_response = TestFixturesFactory.create_game_response(
             game_id=expected_game_id
@@ -232,7 +232,7 @@ class TestScenarioRunner:
         self, game_id: str, player_id: str, action: str
     ) -> Dict[str, object]:
         """Run a complete move making scenario."""
-        from .test_fixtures_factory import TestFixturesFactory
+        from .fixtures_factory import TestFixturesFactory
 
         move_response = TestFixturesFactory.create_move_response(
             player_id=player_id, action=action
@@ -313,7 +313,7 @@ def with_game_setup(
             test_env = create_test_environment()
 
             # Set up game creation response
-            from .test_fixtures_factory import TestFixturesFactory
+            from .fixtures_factory import TestFixturesFactory
 
             game_response = TestFixturesFactory.create_game_response(game_id=game_id)
             test_env["api_client"].set_response(

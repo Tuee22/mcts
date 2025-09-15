@@ -463,8 +463,8 @@ Corridors is a two-player board game where players race to reach the opposite si
 ### C++ Core (`backend/core/`)
 - **`mcts.hpp`**: Generic template-based MCTS implementation
 - **`board.h/.cpp`**: Corridors game logic and board representation
-- **`corridors_threaded_api.h/.cpp`**: Thread-safe wrapper for Python
-- **`_corridors_mcts.cpp`**: Boost.Python bindings
+- **`corridors_api.h/.cpp`**: Synchronous API wrapper for Python
+- **`_corridors_mcts_pybind.cpp`**: pybind11 bindings
 
 ### Python Interface (`backend/python/corridors/`)
 - **`corridors_mcts.py`**: Main Python API with game management
@@ -509,7 +509,7 @@ Corridors is a two-player board game where players race to reach the opposite si
 ## Troubleshooting
 
 **Build Issues:**
-- Ensure Boost libraries are installed with Python support
+- Ensure pybind11 is available for Python bindings
 - Check Python version compatibility (requires 3.12+)
 - Verify SCons is available (`pip install scons`)
 

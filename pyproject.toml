@@ -62,16 +62,16 @@ api-dev = "backend.api.server:dev"
 test-all = "tests.utils.run_unified_tests:main"
 
 # Granular test runners by test category
-test-unit = "tests.utils.test_subsets:run_unit_tests"
-test-integration = "tests.utils.test_subsets:run_integration_tests"
-test-benchmarks = "tests.utils.test_subsets:run_benchmark_tests"
-test-python = "tests.utils.test_subsets:run_python_tests"
+test-unit = "tests.utils.subset_runners:run_unit_tests"
+test-integration = "tests.utils.subset_runners:run_integration_tests"
+test-benchmarks = "tests.utils.subset_runners:run_benchmark_tests"
+test-python = "tests.utils.subset_runners:run_python_tests"
 test-frontend = "tests.utils.run_frontend_tests:main"
-test-e2e = "tests.utils.test_subsets:run_e2e_tests"
+test-e2e = "tests.utils.subset_runners:run_e2e_tests"
 
 # Convenience runners for speed
-test-fast = "tests.utils.test_subsets:run_fast_tests"
-test-quick = "tests.utils.test_subsets:run_quick_tests"
+test-fast = "tests.utils.subset_runners:run_fast_tests"
+test-quick = "tests.utils.subset_runners:run_quick_tests"
 
 # Type safety checker
 check-type-safety = "tools.check_type_safety:main"

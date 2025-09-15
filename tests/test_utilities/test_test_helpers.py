@@ -6,7 +6,7 @@ import pytest
 from typing import Dict, List, Tuple, Union
 from unittest.mock import MagicMock
 
-from tests.utils.test_helpers import (
+from tests.utils.helpers import (
     assert_valid_game_response,
     assert_valid_move_response,
     assert_websocket_message_format,

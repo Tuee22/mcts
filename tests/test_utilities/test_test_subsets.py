@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.utils.test_subsets import (
+from tests.utils.subset_runners import (
     run_benchmark_tests,
     run_e2e_tests,
     run_fast_tests,
@@ -147,7 +147,7 @@ class TestUnitTestRunner:
         """Test that run_unit_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_unit_tests()
 
             mock_run.assert_called_once_with(
@@ -164,7 +164,7 @@ class TestIntegrationTestRunner:
         """Test that run_integration_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_integration_tests()
 
             mock_run.assert_called_once_with(
@@ -179,7 +179,7 @@ class TestBenchmarkTestRunner:
         """Test that run_benchmark_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_benchmark_tests()
 
             mock_run.assert_called_once_with(
@@ -194,7 +194,7 @@ class TestPythonTestRunner:
         """Test that run_python_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_python_tests()
 
             mock_run.assert_called_once_with(
@@ -282,7 +282,7 @@ class TestE2ETestRunner:
         """Test that run_e2e_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_e2e_tests()
 
             mock_run.assert_called_once_with("e2e", ["tests/e2e/"], "End-to-End Tests")
@@ -295,7 +295,7 @@ class TestFastTestRunner:
         """Test that run_fast_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_fast_tests()
 
             mock_run.assert_called_once_with(
@@ -312,7 +312,7 @@ class TestQuickTestRunner:
         """Test that run_quick_tests calls pytest with correct parameters."""
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_quick_tests()
 
             mock_run.assert_called_once_with(
@@ -361,7 +361,7 @@ class TestTestSubsetIntegration:
 
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             # Test python tests include comprehensive paths
             run_python_tests()
             python_call = mock_run.call_args
@@ -412,7 +412,7 @@ class TestTestSubsetIntegration:
 
         mock_run = MagicMock()
 
-        with patch("tests.utils.test_subsets.run_pytest_subset", mock_run):
+        with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             # Collect all paths from all runners
             for runner in [
                 run_unit_tests,

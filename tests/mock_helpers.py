@@ -185,6 +185,18 @@ class MockCorridorsMCTS(MCTSProtocol):
         """Get action statistics."""
         return self.action_stats
 
+    def get_visit_count(self) -> int:
+        """Get total visit count from sorted actions."""
+        return sum(visits for visits, _, _ in self.sorted_actions)
+
+    def reset_to_initial_state(self) -> None:
+        """Reset to initial state - alias for reset."""
+        self.reset()
+
+    def run_simulations(self, n: int) -> None:
+        """Run n simulations - record the request."""
+        self.ensure_sims_calls.append(n)
+
     # Helper methods for assertions
     def assert_move_made(self, action: str, flip: bool = False) -> None:
         """Assert a specific move was made."""

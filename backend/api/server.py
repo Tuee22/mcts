@@ -36,6 +36,7 @@ from .models import (
     PlayerType,
 )
 from .websocket_manager import WebSocketManager
+from .websocket_unified import unified_ws_manager
 from .websocket_models import PongMessage, WebSocketMessage, parse_websocket_message
 
 logging.basicConfig(level=logging.INFO)
@@ -62,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Cleanup
     await game_manager.cleanup()
     await ws_manager.disconnect_all()
+    await unified_ws_manager.cleanup()
 
 
 app = FastAPI(
@@ -97,6 +99,48 @@ setup_static_files()
 
 # CORS configuration - removed for single-server architecture
 # All requests come from same origin, no CORS needed
+
+
+# ==================== WebSocket Endpoints ====================
+
+
+@app.websocket("/ws")
+async def websocket_unified_endpoint(websocket: WebSocket) -> None:
+    """
+    Unified WebSocket endpoint for all game communication.
+
+    Replaces the previous dual-endpoint system (/ws and /games/{id}/ws)
+    with a single endpoint using message-based routing.
+    """
+    connection_id = None
+    try:
+        # Connect to the unified WebSocket manager
+        connection_id = await unified_ws_manager.connect(websocket)
+
+        # Handle incoming messages
+        while True:
+            # Receive JSON message from client
+            raw_data = await websocket.receive_json()
+
+            # Ensure raw_data is a dict before processing
+            if not isinstance(raw_data, dict):
+                logger.warning("Received non-dict message, skipping")
+                continue
+
+            # Process the message through the unified manager
+            response = await unified_ws_manager.handle_message(connection_id, raw_data)
+
+            # Send response if one was generated
+            if response:
+                await unified_ws_manager._send_to_connection(connection_id, response)
+
+    except WebSocketDisconnect:
+        if connection_id:
+            await unified_ws_manager.disconnect(connection_id)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        if connection_id:
+            await unified_ws_manager.disconnect(connection_id)
 
 
 # ==================== Game Management Endpoints ====================

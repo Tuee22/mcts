@@ -153,8 +153,8 @@ docker compose exec mcts bash -c "black . && isort . && mypy --strict ."
 **C++ Backend (`backend/core/`)**
 - `mcts.hpp`: Generic MCTS template implementation with UCT/PUCT support
 - `board.h/.cpp`: Corridors game board representation and logic
-- `corridors_threaded_api.h/.cpp`: Thread-safe API wrapper for Python bindings
-- `_corridors_mcts.cpp`: Boost.Python bindings module
+- `corridors_api.h/.cpp`: Synchronous API wrapper for Python bindings
+- `_corridors_mcts_pybind.cpp`: pybind11 bindings module
 
 **Python Frontend (`backend/python/corridors/`)**
 - `corridors_mcts.py`: Main Python interface with `Corridors_MCTS` class
@@ -168,7 +168,7 @@ docker compose exec mcts bash -c "black . && isort . && mypy --strict ."
 
 **Template-based MCTS**: The C++ MCTS implementation uses templates to work with any game that implements the required interface (legal moves, evaluation, terminal detection).
 
-**Threaded Simulation**: The `corridors_threaded_api` runs MCTS simulations continuously in background threads, allowing real-time interaction.
+**Async Simulation**: The `AsyncCorridorsMCTS` wrapper runs MCTS simulations using asyncio ThreadPoolExecutor, providing cancellation support and proper async/await integration.
 
 **Hybrid Build System**: Uses SCons for C++ compilation and Poetry for Python dependency management. Docker provides consistent cross-platform environments.
 
@@ -193,7 +193,7 @@ For any game to work with the MCTS template, it must implement:
 
 ## Build Notes
 
-- C++ code requires Boost libraries (python, numpy) and C++11 support
+- C++ code requires pybind11 for Python bindings and C++11 support
 - SCons build system supports multiple configurations (debug, profile, sanitize)
 - Docker containers provide GCC-13, Python 3.12, and all required dependencies
 - Poetry manages Python dependencies with strict version pinning for reproducibility
