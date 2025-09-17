@@ -13,14 +13,15 @@ sanitize = bool(ARGUMENTS.get('sanitize', 0))
 # determine which files to build based on test flag
 all_source_files = Glob('*.cpp')
 exclude_from_test = ['_corridors_mcts_pybind.cpp', '_corridors_mcts.cpp']
-exclude_from_prod = ['test.cpp', '_corridors_mcts.cpp']  # Exclude old boost version
+exclude_from_prod = ['test.cpp', '_corridors_mcts.cpp']  # Exclude Boost Python version, use pybind11 only
 
 if test:
     exclude = exclude_from_test
     source_files = [f for f in all_source_files if str(f) not in exclude]
 else:
-    # For production, use pybind11 version
-    source_files = [f for f in all_source_files if str(f) not in exclude_from_prod and str(f) != '_corridors_mcts.cpp']
+    # For production, build pybind11 module only
+    # Include all implementation files but build them as a single pybind11 module
+    source_files = [f for f in all_source_files if str(f) not in exclude_from_prod]
 
 # Python include and library configuration
 python_includes = []
@@ -51,10 +52,11 @@ if not test:
 compiler_always_flags = [
     '-Wno-deprecated-declarations',
     '-std=c++17',  # Required for pybind11
-    '-fPIC'
+    '-fPIC',
+    '-Wall'
 ]
 
-linker_always_flags = []
+linker_always_flags = ['-shared'] if not test else []
 optimization_maybe_flag = [] if debug else ['-O3']
 debug_profile_maybe_flag = ['-pg'] if profile else ['-g'] if (test or debug) else []
 fsanitize_maybe_flag = ['-fsanitize=address'] if sanitize else []
@@ -82,8 +84,10 @@ else:
     target_name = project_name
     extra_args = {
         'SHLIBPREFIX': '',
+        'SHLIBSUFFIX': '.so',  # Always use .so for Python modules, even on macOS
         'CPPPATH': python_includes,
-        'LINKFLAGS': python_libs
+        'LIBS': [lib.replace('-l', '') for lib in python_libs if lib.startswith('-l')],
+        'LIBPATH': [lib.replace('-L', '') for lib in python_libs if lib.startswith('-L')]
     }
 
 if test:

@@ -12,10 +12,7 @@ ARG VARIANT
 ARG TARGETARCH
 ARG DEBIAN_FRONTEND=noninteractive
 
-# User arguments for development
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-ARG USERNAME=mcts
+# Container runs as root for simplicity and cross-platform compatibility
 
 # Fast-fail: forbid CUDA on non-amd64
 RUN set -eux; if [ "$VARIANT" = "cuda" ] && [ "$TARGETARCH" != "amd64" ]; then \
@@ -79,11 +76,7 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 # Upgrade pip and install base tools
 RUN python3 -m pip install --upgrade pip wheel setuptools poetry
 
-# Create user with matching UID/GID for development
-RUN groupadd -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
-    && useradd -u ${USER_ID} -g ${GROUP_ID} -m -s /bin/bash ${USERNAME} 2>/dev/null || true \
-    && mkdir -p /home/${USERNAME} \
-    && chown -R ${USER_ID}:${GROUP_ID} /app /home/${USERNAME}
+# Container runs as root - no user creation needed
 
 # Copy dependency files first for better layer caching
 COPY pyproject.toml /app/
@@ -111,6 +104,16 @@ RUN npm install --no-audit --no-fund && npm run build
 
 # Build C++ backend during image construction
 WORKDIR /app/backend/core
+
+# Verify user permissions and clean any conflicting directories
+RUN echo "=== Permission Check ===" && id && whoami && \
+    echo "=== App Directory Ownership ===" && ls -la /app/ && \
+    echo "=== Corridors Directory Before Cleanup ===" && ls -la /app/backend/python/corridors/ && \
+    echo "=== Removing any conflicting _corridors_mcts.so directory ===" && \
+    rm -rf /app/backend/python/corridors/_corridors_mcts.so && \
+    echo "=== Corridors Directory After Cleanup ===" && ls -la /app/backend/python/corridors/
+
+# Build C++ extension
 RUN scons
 
 # Verify builds completed successfully
@@ -118,17 +121,11 @@ WORKDIR /app
 RUN ls -la /app/frontend/build/index.html && echo "✅ Frontend build completed"
 RUN ls -la /app/backend/python/corridors/_corridors_mcts.so && echo "✅ Backend build completed"
 
-# Fix ownership of all built files
-RUN chown -R ${USER_ID}:${GROUP_ID} /app
-
-# Switch to user for runtime
-USER ${USER_ID}:${GROUP_ID}
-
-# Install Playwright browsers as the user (dependencies already installed as root)
+# Install Playwright browsers as root (dependencies already installed as root)
 RUN poetry run playwright install
 
 # Verify Playwright browsers are installed correctly
-RUN ls -la ~/.cache/ms-playwright && echo "✅ Playwright browsers installed for user"
+RUN ls -la /root/.cache/ms-playwright && echo "✅ Playwright browsers installed for root"
 
 # Expose only the single server port
 EXPOSE 8000

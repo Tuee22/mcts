@@ -75,27 +75,6 @@ from .async_fixtures import (
     touch_page,
 )  # noqa: F401
 
-# Moved to async_fixtures.py
-# @pytest.fixture
-# def e2e_urls(
-#     e2e_config: E2EConfig,
-#     frontend_e2e_server: Optional[subprocess.Popen[bytes]],
-# ) -> Dict[str, str]:
-#     """Provide URLs for E2E tests."""
-#     return {
-#         "frontend": e2e_config["frontend_url"],
-#         "backend": e2e_config["backend_url"],
-#         "ws": e2e_config["ws_url"],
-#     }
-
-
-# Note: pytest hook disabled to avoid Any types in strict mode
-# @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-# def pytest_runtest_makereport(item: object, call: object) -> Generator[None, None, None]:
-#     """Make test results available to fixtures."""
-#     outcome = yield
-#     # Hook would access dynamic attributes that return Any types
-
 
 @pytest.fixture
 async def wait_for_connection(
