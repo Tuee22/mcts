@@ -121,9 +121,43 @@ WORKDIR /app
 RUN ls -la /app/frontend/build/index.html && echo "✅ Frontend build completed"
 RUN ls -la /app/backend/python/corridors/_corridors_mcts.so && echo "✅ Backend build completed"
 
-# Install Playwright browsers as root (dependencies already installed as root)
-RUN poetry run playwright install
+# ──────────────────────────────────────────────────────────────────────────────
+# In CUDA builds (FROM nvidia/cuda:... images), the base image automatically
+# configures NVIDIA's official CUDA APT repository inside /etc/apt/sources.list.d
+# and /etc/apt/trusted.gpg.d. This repo is only needed if you plan to install
+# *additional* CUDA packages (e.g., cudnn, nccl, tensorrt, toolkit components)
+# at build time via `apt-get install ...`.
+#
+# For our use case:
+#   - The CUDA runtime libraries are already baked into the base image.
+#   - We are *not* installing any additional CUDA packages via apt.
+#   - The host NVIDIA driver is provided at runtime by the NVIDIA Container Toolkit.
+#
+# Problem:
+#   - Playwright’s `install-deps` command internally calls `apt-get update`.
+#   - When `apt-get update` hits NVIDIA’s repo, builds can fail due to transient
+#     mirror inconsistencies (hash/size mismatches in Packages.gz).
+#   - This introduces unnecessary fragility into CI/CD pipelines and local builds.
+#
+# Solution:
+#   - For CUDA builds, we proactively *remove* the CUDA repo definitions and GPG
+#     keys before running `playwright install-deps`.
+#   - This ensures `apt-get update` only queries Ubuntu + NodeSource repos,
+#     avoiding flaky NVIDIA mirrors entirely.
+#   - If in the future you need to install CUDA packages via apt, simply remove
+#     this block and re-enable the repo, or add it back explicitly.
+#
+# Multi-arch safety:
+#   - The condition checks `$VARIANT`. On CPU/ARM builds (Ubuntu base image),
+#     no CUDA repo exists → the `rm -f` is a no-op.
+#   - On CUDA builds, the repo files are removed.
+# ──────────────────────────────────────────────────────────────────────────────
+RUN if [ "$VARIANT" = "cuda" ]; then \
+      rm -f /etc/apt/sources.list.d/cuda*.list /etc/apt/trusted.gpg.d/nvidia*.gpg || true; \
+    fi
 
+# Official Playwright command to install system dependencies
+RUN poetry run playwright install-deps
 # Verify Playwright browsers are installed correctly
 RUN ls -la /root/.cache/ms-playwright && echo "✅ Playwright browsers installed for root"
 

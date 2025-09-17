@@ -97,8 +97,8 @@ if test:
         **extra_args
     )
 else:
-    # Build extension directly into the corridors package directory
-    target_path = '../python/corridors/' + target_name
+    # Build extension into the centralized build directory
+    target_path = '../build/' + target_name
     result = build_method(
         target=target_path,
         source=source_files,

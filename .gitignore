@@ -37,6 +37,9 @@ var/
 .installed.cfg
 *.egg
 
+# Backend build artifacts
+backend/build/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt

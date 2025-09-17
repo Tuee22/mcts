@@ -1,5 +1,6 @@
 volumes:
   frontend_build:
+  backend_build:
   playwright_browsers:
   frontend_node_modules:
   frontend_test_node_modules:
@@ -38,6 +39,10 @@ services:
       - type: volume
         source: frontend_build
         target: /app/frontend/build
+      # Preserve backend build artifacts
+      - type: volume
+        source: backend_build
+        target: /app/backend/build
       # Preserve Playwright browser installations
       - type: volume
         source: playwright_browsers
