@@ -19,11 +19,18 @@ This project uses the @no-git-commits agent policy. You may stage changes with `
 
 ## **Build Artifacts Policy**
 
-**ZERO TOLERANCE: Never commit or copy any build artifacts, lock files, or generated content into git or Docker.**
+**ZERO TOLERANCE: Never commit or copy any build artifacts, lock files, or generated content into git.**
 
-- **NO LOCK FILES**: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock` are never committed
-- **NO BUILD OUTPUTS**: `build/`, `dist/`, `.next/`, `out/`, `node_modules/` are never committed  
-- **NO GENERATED FILES**: Coverage reports, logs, cache directories are never committed
+### Volume-Based Architecture
+- **Build artifacts stay in Docker volumes**: `backend_build`, `frontend_build`
+- **Host filesystem remains clean**: No `.so`, `build/`, or `node_modules/` on host
+- **Hot reload via container**: `docker compose exec mcts scons` or `npm run build`
+- **Separation of concerns**: Source files (bind mount) vs artifacts (volumes)
+
+### Excluded from Git and Docker Context
+- **NO LOCK FILES**: `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`
+- **NO BUILD OUTPUTS**: `build/`, `dist/`, `.next/`, `out/`, `node_modules/`, `*.so`
+- **NO GENERATED FILES**: Coverage reports, logs, cache directories
 - **VERSIONING STRATEGY**: All dependencies use `>=X.Y.Z <X+1.0.0` pattern to prevent breaking changes
 - **CLEAN BUILDS**: Docker builds generate fresh lock files for deterministic, reproducible environments
 
@@ -59,8 +66,11 @@ docker compose build --no-cache
 
 # Managing build artifacts
 docker compose exec mcts rm -rf /app/frontend/build  # Force frontend rebuild
-docker compose exec mcts rm -rf /app/backend/core/*.so  # Force C++ rebuild
+docker compose exec mcts rm -rf /app/backend/build/*.so  # Force C++ rebuild
 docker compose restart mcts  # Restart to trigger rebuilds
+
+# Hot reload (development)
+docker compose exec mcts cd /app/backend/core && scons  # Rebuild C++ extension in volume
 ```
 
 ### Building C++ Components

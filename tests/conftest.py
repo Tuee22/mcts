@@ -10,13 +10,8 @@ from typing import Dict, List, Optional, Tuple, TypedDict
 import numpy as np
 import pytest
 
-# Always use the corridors module - stubs should handle the typing
-try:
-    from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+# Import the corridors async module - required for all tests
+from corridors import AsyncCorridorsMCTS, ConcurrencyViolationError
 
 
 class MCTSParams(TypedDict):
@@ -171,11 +166,12 @@ class MCTSTestHelper:
     """Helper class for MCTS testing utilities."""
 
     @staticmethod
-    def create_mcts_instance(params: MCTSParams) -> "Corridors_MCTS":
-        """Create MCTS instance with given parameters."""
-        if not CORRIDORS_AVAILABLE:
-            raise ImportError("Corridors C++ module not available")
-        return Corridors_MCTS(**params)
+    def create_mcts_instance(params: MCTSParams) -> AsyncCorridorsMCTS:
+        """Create async MCTS instance with given parameters."""
+        # Add default sim_increment parameter for async constructor
+        async_params = params.copy()
+        async_params['sim_increment'] = 50  # Default increment
+        return AsyncCorridorsMCTS(**async_params)
 
     @staticmethod
     def validate_action_format(action: str) -> bool:

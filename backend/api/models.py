@@ -1,9 +1,6 @@
-from typing import TYPE_CHECKING, Annotated, Dict, List, Literal, Optional, Union
+from typing import Annotated, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-if TYPE_CHECKING:
-    from corridors.corridors_mcts import Corridors_MCTS
 
 import uuid
 from datetime import datetime, timezone
@@ -144,9 +141,8 @@ class GameSession(BaseModel):
     ended_at: Optional[datetime] = None
     winner: Optional[int] = None  # 1 or 2
     termination_reason: Optional[str] = None
-    mcts_instance: Optional["Corridors_MCTS"] = None  # Internal MCTS object
 
-    model_config = ConfigDict(use_enum_values=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(use_enum_values=True)
 
     def is_player(self, player_id: str) -> bool:
         """Check if player_id belongs to this game."""

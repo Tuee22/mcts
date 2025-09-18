@@ -33,7 +33,7 @@ except ImportError as e:
     else:
         raise ImportError(f"C++ extension not found at {so_file_new} or {dylib_file_new}. Did you run 'scons' in backend/core/?")
 
-# Import Python wrapper after C++ extension is available
-from .corridors_mcts import Corridors_MCTS
+# Import async Python wrapper after C++ extension is available
+from .async_mcts import AsyncCorridorsMCTS, MCTSRegistry, ConcurrencyViolationError
 
-__all__ = ["Corridors_MCTS", "_corridors_mcts"]
+__all__ = ["AsyncCorridorsMCTS", "MCTSRegistry", "ConcurrencyViolationError", "_corridors_mcts"]

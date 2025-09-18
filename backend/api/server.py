@@ -18,11 +18,12 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from .game_manager import GameManager
+from corridors.async_mcts import ConcurrencyViolationError
 from .models import (
     GameCreateRequest,
     GameListResponse,
@@ -72,6 +73,30 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(ConcurrencyViolationError)
+async def concurrency_violation_handler(request: Request, exc: ConcurrencyViolationError) -> JSONResponse:
+    """
+    Global exception handler for race conditions - LOUD FAILURE.
+    
+    This ensures that any race condition detected at any level
+    (async_mcts, registry, or API) results in a loud server error
+    that crashes the request and gets logged prominently.
+    """
+    error_msg = f"RACE CONDITION DETECTED: {exc}"
+    logger.error(f"🚨 CONCURRENCY VIOLATION 🚨 Request: {request.method} {request.url} | Error: {error_msg}")
+    
+    # Return 500 Internal Server Error with detailed message for debugging
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "detail": "Race condition detected - concurrent access to game state",
+            "message": str(exc),
+            "type": "ConcurrencyViolationError"
+        }
+    )
 
 # Create API router for /api-prefixed endpoints (health only)
 api_router = APIRouter(prefix="/api")

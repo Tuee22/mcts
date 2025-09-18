@@ -8,8 +8,7 @@ from typing import Dict, List, Optional, Tuple, Union
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from corridors.corridors_mcts import Corridors_MCTS
-from corridors.async_mcts import MCTSRegistry
+from corridors.async_mcts import MCTSRegistry, ConcurrencyViolationError
 
 from .models import (
     AnalysisResult,
@@ -33,7 +32,12 @@ logger = logging.getLogger(__name__)
 
 
 class GameManager:
-    """Manages all game sessions and MCTS instances."""
+    """
+    Manages all game sessions and MCTS instances with race condition protection.
+    
+    Uses per-game locks to ensure atomic operations and prevent C++ instance
+    corruption from concurrent API requests.
+    """
 
     def __init__(self) -> None:
         self.games: Dict[str, GameSession] = {}
@@ -41,10 +45,22 @@ class GameManager:
             Dict[str, Union[str, Optional[GameSettings], datetime]]
         ] = []
         self.ai_move_queue: asyncio.Queue[str] = asyncio.Queue()
-        self._lock = asyncio.Lock()
+        
+        # Global lock for games dict operations  
+        self._global_lock = asyncio.Lock()
+        
+        # Per-game locks for API-level serialization
+        self._game_locks: Dict[str, asyncio.Lock] = {}
 
         # Async MCTS registry for better concurrency management
         self.mcts_registry = MCTSRegistry()
+
+    async def _get_game_lock(self, game_id: str) -> asyncio.Lock:
+        """Get or create per-game lock for serialization."""
+        async with self._global_lock:
+            if game_id not in self._game_locks:
+                self._game_locks[game_id] = asyncio.Lock()
+            return self._game_locks[game_id]
 
     async def create_game(
         self,
@@ -97,11 +113,14 @@ class GameManager:
             # Initialize async MCTS instance
             mcts_settings = game.settings.mcts_settings
 
-            # Create async MCTS instance for better concurrency
+            # Create async MCTS instance for race-condition-free concurrency
             await self.mcts_registry.get_or_create(
                 game_id=game.game_id,
                 c=mcts_settings.c,
                 seed=mcts_settings.seed or 42,
+                min_simulations=mcts_settings.min_simulations,
+                max_simulations=mcts_settings.max_simulations,
+                sim_increment=50,  # Default increment
                 use_rollout=mcts_settings.use_rollout,
                 eval_children=mcts_settings.eval_children,
                 use_puct=mcts_settings.use_puct,
@@ -109,9 +128,7 @@ class GameManager:
                 decide_using_visits=mcts_settings.decide_using_visits,
             )
 
-            # Keep the sync instance for backward compatibility in GameSession
-            # but use async for actual operations
-            game.mcts_instance = None  # We'll access via registry
+            # Use only async registry for thread safety - no sync instances
 
             # Set initial board state
             game.board_state = await self._get_board_state(game)
@@ -177,8 +194,11 @@ class GameManager:
     async def make_move(
         self, game_id: str, player_id: str, action: str
     ) -> MoveResponse:
-        """Make a move in the game."""
-        async with self._lock:
+        """Make a move in the game with race condition protection."""
+        # Get per-game lock for atomic operations
+        game_lock = await self._get_game_lock(game_id)
+        
+        async with game_lock:
             game = self.games.get(game_id)
             if not game:
                 raise ValueError("Game not found")
@@ -198,10 +218,12 @@ class GameManager:
             if action not in legal_moves:
                 raise ValueError(f"Illegal move: {action}")
 
-            # Apply the move
+            # Apply the move to MCTS instance
             flip = not current_player.is_hero
-            if game.mcts_instance is not None:
-                game.mcts_instance.make_move(action, flip)
+            mcts = await self.mcts_registry.get(game_id)
+            if mcts is not None:
+                # Let ConcurrencyViolationError bubble up for loud failure
+                await mcts.make_move_async(action, flip)
 
             # Create move record
             move = Move(
@@ -391,7 +413,10 @@ class GameManager:
         await self.mcts_registry.cleanup_all()
 
         # Clear game data
-        self.games.clear()
+        async with self._global_lock:
+            self.games.clear()
+            self._game_locks.clear()
+        
         self.matchmaking_queue.clear()
 
         # Clear the AI move queue
@@ -403,7 +428,8 @@ class GameManager:
 
     async def resign_game(self, game_id: str, player_id: str) -> int:
         """Handle player resignation."""
-        async with self._lock:
+        game_lock = await self._get_game_lock(game_id)
+        async with game_lock:
             game = self.games.get(game_id)
             if not game:
                 raise ValueError("Game not found")

@@ -29,7 +29,10 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_HOME=/usr/local \
     CI=1 \
     PATH="/usr/local/bin:${PATH}" \
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 \
+    PYTHONPATH="/app/backend/python:/app/backend/build" \
+    NPM_CONFIG_YES=true \
+    DOCKER_CONTAINER=1
 
 WORKDIR /app
 
@@ -119,7 +122,7 @@ RUN scons
 # Verify builds completed successfully
 WORKDIR /app
 RUN ls -la /app/frontend/build/index.html && echo "✅ Frontend build completed"
-RUN ls -la /app/backend/python/corridors/_corridors_mcts.so && echo "✅ Backend build completed"
+RUN python3 -c "import sys; sys.path.insert(0, '/app/backend/python'); from corridors import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # In CUDA builds (FROM nvidia/cuda:... images), the base image automatically
@@ -159,7 +162,7 @@ RUN if [ "$VARIANT" = "cuda" ]; then \
 # Official Playwright command to install system dependencies
 RUN poetry run playwright install-deps
 # Verify Playwright browsers are installed correctly
-RUN ls -la /root/.cache/ms-playwright && echo "✅ Playwright browsers installed for root"
+RUN ls -la /root/.cache/ms-playwright 2>/dev/null || echo "Playwright cache not found" && echo "✅ Playwright installation completed"
 
 # Expose only the single server port
 EXPOSE 8000

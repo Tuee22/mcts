@@ -1,5 +1,5 @@
 """Type stubs for corridors package."""
 
-from .corridors_mcts import Corridors_MCTS
+from .async_mcts import AsyncCorridorsMCTS, MCTSRegistry, ConcurrencyViolationError
 
-__all__ = ["Corridors_MCTS"]
+__all__ = ["AsyncCorridorsMCTS", "MCTSRegistry", "ConcurrencyViolationError"]

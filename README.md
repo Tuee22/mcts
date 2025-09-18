@@ -64,6 +64,34 @@ docker compose exec mcts nvcc --version
 
 Note: The development environment automatically rebuilds the C++ extension on container start to ensure compatibility with the runtime architecture.
 
+### Verifying C++ Extension Build
+
+The Docker image includes pre-built C++ extensions. To verify the build succeeded:
+
+```bash
+# Test without bind mounts (uses only artifacts baked into image)
+docker run --rm mcts:cpu python3 -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
+# Expected output: Extension loaded: /app/backend/build/_corridors_mcts.so
+
+# With docker compose (includes bind mounts and volumes)
+docker compose exec mcts python3 -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
+```
+
+### Build Architecture
+
+The Docker setup uses a clean separation between source files and build artifacts:
+
+- **Source files**: Bind mounted from host to `/app/` for live development
+- **Build artifacts**: Stored in named Docker volumes, never on host filesystem
+  - `backend_build` volume: C++ extension (`_corridors_mcts.so`)
+  - `frontend_build` volume: React production build
+
+This architecture ensures:
+- No build artifacts contaminate the host filesystem
+- Hot reload works via `docker compose exec mcts scons` (updates volume)
+- Container comes pre-built with all necessary binaries
+- Clean git repository (artifacts excluded via `.dockerignore` and `.gitignore`)
+
 ### Running Tests
 
 **All unit tests:**
@@ -220,6 +248,14 @@ For detailed frontend documentation, see [frontend/README.md](frontend/README.md
 
 ### Building C++ Components
 
+**Note**: When using Docker, build artifacts are stored in the `backend_build` volume at `/app/backend/build/`. The host filesystem remains clean of all build artifacts.
+
+For hot reload during development:
+```bash
+docker compose exec mcts cd /app/backend/core && scons
+```
+
+For local development (without Docker):
 ```bash
 cd backend/core
 
@@ -238,6 +274,8 @@ scons profile=1
 # Sanitized build (AddressSanitizer)
 scons sanitize=1
 ```
+
+The C++ extension (`_corridors_mcts.so`) is built to `backend/build/` directory.
 
 ### Running Tests
 
@@ -526,6 +564,12 @@ Corridors is a two-player board game where players race to reach the opposite si
 - Verify C++ module was built successfully (`_corridors_mcts.so`)
 - Check PYTHONPATH includes the backend/python/ directory
 - Run `poetry install` to ensure all dependencies are present
+
+**C++ Extension Issues:**
+- Verify extension built: `docker run --rm mcts:cpu python3 -c "from corridors import _corridors_mcts"`
+- Check build location: `docker compose exec mcts ls -la /app/backend/build/`
+- Rebuild in container: `docker compose exec mcts cd /app/backend/core && scons`
+- Build artifacts are in Docker volumes, not on host filesystem
 
 ## License
 
