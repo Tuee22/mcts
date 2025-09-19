@@ -1,6 +1,6 @@
 """Type stubs for FastAPI core functionality."""
 
-from typing import Callable, Dict, List, Optional, TypeVar, Union
+from typing import Callable, Dict, List, Optional, Type, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -79,6 +79,9 @@ class FastAPI:
         tags: Optional[List[str]] = None,
         **kwargs: object,
     ) -> None: ...
+    def exception_handler(
+        self, exc_class_or_status_code: Union[int, Type[Exception]]
+    ) -> Callable[[T], T]: ...
 
 class BackgroundTasks:
     """Background task handler."""
@@ -92,6 +95,10 @@ class Request:
 
     @property
     def headers(self) -> Dict[str, str]: ...
+    @property
+    def method(self) -> str: ...
+    @property
+    def url(self) -> object: ...
     @property
     def query_params(self) -> Dict[str, str]: ...
     async def json(self) -> object: ...

@@ -36,17 +36,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-try:
-    from corridors.corridors_mcts import (
-        Corridors_MCTS,
-        computer_self_play,
-        display_sorted_actions,
-        human_computer_play,
-    )
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+from corridors.corridors_mcts import (
+    Corridors_MCTS,
+    display_sorted_actions,
+    computer_self_play,
+    human_computer_play,
+)
+from typing import List, Tuple, Optional
 
 
 @integration
@@ -183,7 +179,7 @@ class TestCompleteGameScenarios:
             # Check if the game is actually terminal
             # Don't rely on evaluation alone - check if there are legal moves remaining
             # and use the C++ terminal detection
-            if hasattr(mcts._impl, 'is_terminal') and mcts._impl.is_terminal():
+            if mcts.is_terminal():
                 evaluation = mcts.get_evaluation()
                 if evaluation is not None:
                     winner = "Hero" if evaluation > 0 else "Villain"
@@ -191,8 +187,12 @@ class TestCompleteGameScenarios:
                         winner = "Villain" if winner == "Hero" else "Hero"
                 break
 
-        assert len(move_sequence) > 5, f"Game ended too quickly after {len(move_sequence)} moves"
-        assert len(move_sequence) < max_moves, f"Game didn't complete within {max_moves} moves (got {len(move_sequence)} moves)"
+        assert (
+            len(move_sequence) > 5
+        ), f"Game ended too quickly after {len(move_sequence)} moves"
+        assert (
+            len(move_sequence) < max_moves
+        ), f"Game didn't complete within {max_moves} moves (got {len(move_sequence)} moves)"
 
         # Verify game progression makes sense
         for i, move_data in enumerate(move_sequence):

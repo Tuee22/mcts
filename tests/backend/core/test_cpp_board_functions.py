@@ -39,12 +39,7 @@ import pytest
 
 from tests.conftest import MCTSParams
 
-try:
-    from corridors.corridors_mcts import Corridors_MCTS
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+from corridors.corridors_mcts import Corridors_MCTS
 
 
 @cpp

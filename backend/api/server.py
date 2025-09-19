@@ -22,9 +22,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from .game_manager import GameManager
+from backend.api.game_manager import GameManager
 from corridors.async_mcts import ConcurrencyViolationError
-from .models import (
+from backend.api.models import (
     GameCreateRequest,
     GameListResponse,
     GameResponse,
@@ -36,9 +36,9 @@ from .models import (
     Player,
     PlayerType,
 )
-from .websocket_manager import WebSocketManager
-from .websocket_unified import unified_ws_manager
-from .websocket_models import PongMessage, WebSocketMessage, parse_websocket_message
+from backend.api.websocket_manager import WebSocketManager
+from backend.api.websocket_unified import unified_ws_manager
+from backend.api.websocket_models import PongMessage, WebSocketMessage, parse_websocket_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -76,17 +76,21 @@ app = FastAPI(
 
 
 @app.exception_handler(ConcurrencyViolationError)
-async def concurrency_violation_handler(request: Request, exc: ConcurrencyViolationError) -> JSONResponse:
+async def concurrency_violation_handler(
+    request: Request, exc: ConcurrencyViolationError
+) -> JSONResponse:
     """
     Global exception handler for race conditions - LOUD FAILURE.
-    
+
     This ensures that any race condition detected at any level
     (async_mcts, registry, or API) results in a loud server error
     that crashes the request and gets logged prominently.
     """
     error_msg = f"RACE CONDITION DETECTED: {exc}"
-    logger.error(f"🚨 CONCURRENCY VIOLATION 🚨 Request: {request.method} {request.url} | Error: {error_msg}")
-    
+    logger.error(
+        f"🚨 CONCURRENCY VIOLATION 🚨 Request: {request.method} {request.url} | Error: {error_msg}"
+    )
+
     # Return 500 Internal Server Error with detailed message for debugging
     return JSONResponse(
         status_code=500,
@@ -94,9 +98,10 @@ async def concurrency_violation_handler(request: Request, exc: ConcurrencyViolat
             "error": "Internal Server Error",
             "detail": "Race condition detected - concurrent access to game state",
             "message": str(exc),
-            "type": "ConcurrencyViolationError"
-        }
+            "type": "ConcurrencyViolationError",
+        },
     )
+
 
 # Create API router for /api-prefixed endpoints (health only)
 api_router = APIRouter(prefix="/api")
@@ -679,7 +684,7 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
 
     try:
         # Send connection confirmation
-        from .websocket_models import ConnectMessage
+        from backend.api.websocket_models import ConnectMessage
 
         connect_response = ConnectMessage(type="connect")
         await websocket.send_json(connect_response.model_dump())

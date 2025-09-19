@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from corridors.async_mcts import MCTSRegistry, ConcurrencyViolationError
 
-from .models import (
+from backend.api.models import (
     AnalysisResult,
     BoardState,
     GameMode,
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class GameManager:
     """
     Manages all game sessions and MCTS instances with race condition protection.
-    
+
     Uses per-game locks to ensure atomic operations and prevent C++ instance
     corruption from concurrent API requests.
     """
@@ -45,10 +45,10 @@ class GameManager:
             Dict[str, Union[str, Optional[GameSettings], datetime]]
         ] = []
         self.ai_move_queue: asyncio.Queue[str] = asyncio.Queue()
-        
-        # Global lock for games dict operations  
+
+        # Global lock for games dict operations
         self._global_lock = asyncio.Lock()
-        
+
         # Per-game locks for API-level serialization
         self._game_locks: Dict[str, asyncio.Lock] = {}
 
@@ -73,7 +73,13 @@ class GameManager:
         settings: Optional[GameSettings] = None,
     ) -> GameSession:
         """Create a new game session."""
-        async with self._lock:
+        # Noisy concurrency check - crash on lock contention
+        if self._global_lock.locked():
+            raise ConcurrencyViolationError(
+                "GameManager lock contention detected in create_game - "
+                "multiple concurrent operations on games dictionary"
+            )
+        async with self._global_lock:
             # Determine game mode
             if player1_type == PlayerType.HUMAN and player2_type == PlayerType.HUMAN:
                 mode = GameMode.PVP
@@ -181,7 +187,13 @@ class GameManager:
 
     async def delete_game(self, game_id: str) -> bool:
         """Delete a game session."""
-        async with self._lock:
+        # Noisy concurrency check - crash on lock contention
+        if self._global_lock.locked():
+            raise ConcurrencyViolationError(
+                "GameManager lock contention detected in delete_game - "
+                "multiple concurrent operations on games dictionary"
+            )
+        async with self._global_lock:
             if game_id in self.games:
                 game = self.games[game_id]
                 game.status = GameStatus.CANCELLED
@@ -197,7 +209,7 @@ class GameManager:
         """Make a move in the game with race condition protection."""
         # Get per-game lock for atomic operations
         game_lock = await self._get_game_lock(game_id)
-        
+
         async with game_lock:
             game = self.games.get(game_id)
             if not game:
@@ -416,7 +428,7 @@ class GameManager:
         async with self._global_lock:
             self.games.clear()
             self._game_locks.clear()
-        
+
         self.matchmaking_queue.clear()
 
         # Clear the AI move queue
@@ -507,7 +519,13 @@ class GameManager:
         self, player_id: str, player_name: str, settings: Optional[GameSettings] = None
     ) -> Optional[GameSession]:
         """Join matchmaking queue."""
-        async with self._lock:
+        # Noisy concurrency check - crash on lock contention
+        if self._global_lock.locked():
+            raise ConcurrencyViolationError(
+                "GameManager lock contention detected in join_matchmaking - "
+                "multiple concurrent operations on games dictionary"
+            )
+        async with self._global_lock:
             # Check if already in queue
             if any(p["player_id"] == player_id for p in self.matchmaking_queue):
                 return None
@@ -552,7 +570,13 @@ class GameManager:
 
     async def leave_matchmaking(self, player_id: str) -> bool:
         """Leave matchmaking queue."""
-        async with self._lock:
+        # Noisy concurrency check - crash on lock contention
+        if self._global_lock.locked():
+            raise ConcurrencyViolationError(
+                "GameManager lock contention detected in leave_matchmaking - "
+                "multiple concurrent operations on games dictionary"
+            )
+        async with self._global_lock:
             self.matchmaking_queue = [
                 p for p in self.matchmaking_queue if p["player_id"] != player_id
             ]

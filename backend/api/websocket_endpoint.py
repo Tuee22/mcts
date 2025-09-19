@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from .websocket_unified import unified_ws_manager, WSMessage, WSResponse
+from backend.api.websocket_unified import unified_ws_manager, WSMessage, WSResponse
 
 logger = logging.getLogger(__name__)
 

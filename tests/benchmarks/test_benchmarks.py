@@ -5,7 +5,7 @@ These tests focus purely on wall-clock timing with statistical analysis.
 Run with: pytest tests/test_benchmarks.py --benchmark-only
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pytest
 from _pytest.config import Config
@@ -16,11 +16,13 @@ from corridors import AsyncCorridorsMCTS
 import asyncio
 
 
-def display_sorted_actions(actions: List[Tuple[int, float, str]], list_size: int = None) -> str:
+def display_sorted_actions(
+    actions: List[Tuple[int, float, str]], list_size: Optional[int] = None
+) -> str:
     """Format sorted actions for display."""
     if list_size is not None:
         actions = actions[:list_size]
-    
+
     result = []
     for visits, equity, action in actions:
         result.append(f"{action}: {visits} visits, {equity:.4f} equity")
@@ -46,7 +48,7 @@ class TestMCTSBenchmarks:
             eval_children=False,
             use_puct=False,
             use_probs=False,
-            decide_using_visits=True
+            decide_using_visits=True,
         )
 
         async def run_simulations() -> List[Tuple[int, float, str]]:
@@ -54,7 +56,7 @@ class TestMCTSBenchmarks:
             return await mcts.get_sorted_actions_async(flip=True)
 
         # Run async function in benchmark
-        def run_benchmark():
+        def run_benchmark() -> List[Tuple[int, float, str]]:
             return asyncio.run(run_simulations())
 
         actions = benchmark(run_benchmark)
@@ -67,11 +69,18 @@ class TestMCTSBenchmarks:
     def test_action_retrieval_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark action retrieval speed."""
         mcts = AsyncCorridorsMCTS(
-            c=1.4, seed=42, min_simulations=1000, max_simulations=1000,
-            sim_increment=50, use_rollout=True, eval_children=False,
-            use_puct=False, use_probs=False, decide_using_visits=True
+            c=1.4,
+            seed=42,
+            min_simulations=1000,
+            max_simulations=1000,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
         )
-        
+
         # Pre-compute simulations
         asyncio.run(mcts.ensure_sims_async(1000))
 
@@ -84,9 +93,16 @@ class TestMCTSBenchmarks:
     def test_display_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark board display generation."""
         mcts = AsyncCorridorsMCTS(
-            c=1.4, seed=42, min_simulations=500, max_simulations=500,
-            sim_increment=50, use_rollout=True, eval_children=False,
-            use_puct=False, use_probs=False, decide_using_visits=True
+            c=1.4,
+            seed=42,
+            min_simulations=500,
+            max_simulations=500,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
         )
         asyncio.run(mcts.ensure_sims_async(500))
 
@@ -102,9 +118,16 @@ class TestMCTSBenchmarks:
 
         def execute_moves() -> int:
             mcts = AsyncCorridorsMCTS(
-                c=1.4, seed=123, min_simulations=100, max_simulations=100,
-                sim_increment=50, use_rollout=True, eval_children=False,
-                use_puct=False, use_probs=False, decide_using_visits=True
+                c=1.4,
+                seed=123,
+                min_simulations=100,
+                max_simulations=100,
+                sim_increment=50,
+                use_rollout=True,
+                eval_children=False,
+                use_puct=False,
+                use_probs=False,
+                decide_using_visits=True,
             )
             asyncio.run(mcts.ensure_sims_async(100))
 
@@ -138,7 +161,7 @@ class TestMCTSBenchmarks:
                 eval_children=False,
                 use_puct=False,
                 use_probs=False,
-                decide_using_visits=True
+                decide_using_visits=True,
             )
             asyncio.run(mcts.ensure_sims_async(500))
             return asyncio.run(mcts.get_sorted_actions_async(flip=True))
@@ -151,14 +174,28 @@ class TestMCTSBenchmarks:
 
         def play_complete_game() -> int:
             p1 = AsyncCorridorsMCTS(
-                c=1.4, seed=111, min_simulations=200, max_simulations=200,
-                sim_increment=50, use_rollout=True, eval_children=False,
-                use_puct=False, use_probs=False, decide_using_visits=True
+                c=1.4,
+                seed=111,
+                min_simulations=200,
+                max_simulations=200,
+                sim_increment=50,
+                use_rollout=True,
+                eval_children=False,
+                use_puct=False,
+                use_probs=False,
+                decide_using_visits=True,
             )
             p2 = AsyncCorridorsMCTS(
-                c=1.4, seed=222, min_simulations=200, max_simulations=200,
-                sim_increment=50, use_rollout=True, eval_children=False,
-                use_puct=False, use_probs=False, decide_using_visits=True
+                c=1.4,
+                seed=222,
+                min_simulations=200,
+                max_simulations=200,
+                sim_increment=50,
+                use_rollout=True,
+                eval_children=False,
+                use_puct=False,
+                use_probs=False,
+                decide_using_visits=True,
             )
 
             asyncio.run(p1.ensure_sims_async(200))
@@ -171,14 +208,20 @@ class TestMCTSBenchmarks:
                 current_player = p1 if is_hero_turn else p2
                 other_player = p2 if is_hero_turn else p1
 
-                actions = asyncio.run(current_player.get_sorted_actions_async(flip=is_hero_turn))
+                actions = asyncio.run(
+                    current_player.get_sorted_actions_async(flip=is_hero_turn)
+                )
                 if not actions:
                     break
 
                 # Make move
                 best_action = actions[0][2]
-                asyncio.run(current_player.make_move_async(best_action, flip=is_hero_turn))
-                asyncio.run(other_player.make_move_async(best_action, flip=is_hero_turn))
+                asyncio.run(
+                    current_player.make_move_async(best_action, flip=is_hero_turn)
+                )
+                asyncio.run(
+                    other_player.make_move_async(best_action, flip=is_hero_turn)
+                )
 
                 moves_made += 1
 
@@ -219,7 +262,9 @@ class TestMCTSBenchmarks:
             for i in range(5):
                 if actions:
                     asyncio.run(mcts.make_move_async(actions[0][2], flip=(i % 2 == 0)))
-                    actions = asyncio.run(mcts.get_sorted_actions_async(flip=(i % 2 == 1)))
+                    actions = asyncio.run(
+                        mcts.get_sorted_actions_async(flip=(i % 2 == 1))
+                    )
                     moves_made += 1
                 else:
                     break
@@ -236,7 +281,19 @@ class TestMCTSBenchmarks:
             import io
             import sys
 
-            from corridors.corridors_mcts import computer_self_play
+            # computer_self_play was removed in async refactor
+            # Create a mock implementation for benchmarking
+            def computer_self_play(
+                mcts: "AsyncCorridorsMCTS", display: bool = False
+            ) -> int:
+                # Simple self-play simulation for benchmarking
+                moves = 0
+                while not asyncio.run(mcts.is_terminal_async()):
+                    asyncio.run(mcts.ensure_sims_async(100))
+                    action = asyncio.run(mcts.choose_best_action_async())
+                    asyncio.run(mcts.make_move_async(action))
+                    moves += 1
+                return moves
 
             # Capture output to avoid printing during benchmark
             old_stdout = sys.stdout
@@ -244,18 +301,34 @@ class TestMCTSBenchmarks:
 
             try:
                 p1 = AsyncCorridorsMCTS(
-                    c=1.4, seed=333, min_simulations=100, max_simulations=100,
-                    sim_increment=50, use_rollout=True, eval_children=False,
-                    use_puct=False, use_probs=False, decide_using_visits=True
+                    c=1.4,
+                    seed=333,
+                    min_simulations=100,
+                    max_simulations=100,
+                    sim_increment=50,
+                    use_rollout=True,
+                    eval_children=False,
+                    use_puct=False,
+                    use_probs=False,
+                    decide_using_visits=True,
                 )
                 p2 = AsyncCorridorsMCTS(
-                    c=1.4, seed=444, min_simulations=100, max_simulations=100,
-                    sim_increment=50, use_rollout=True, eval_children=False,
-                    use_puct=False, use_probs=False, decide_using_visits=True
+                    c=1.4,
+                    seed=444,
+                    min_simulations=100,
+                    max_simulations=100,
+                    sim_increment=50,
+                    use_rollout=True,
+                    eval_children=False,
+                    use_puct=False,
+                    use_probs=False,
+                    decide_using_visits=True,
                 )
 
                 # Track game state before and after
-                initial_actions = len(asyncio.run(p1.get_sorted_actions_async(flip=True)))
+                initial_actions = len(
+                    asyncio.run(p1.get_sorted_actions_async(flip=True))
+                )
 
                 # Run abbreviated self-play (limit moves for benchmark)
                 moves_made = 0
@@ -268,14 +341,20 @@ class TestMCTSBenchmarks:
                     current_player = p1 if is_hero_turn else p2
                     other_player = p2 if is_hero_turn else p1
 
-                    actions = asyncio.run(current_player.get_sorted_actions_async(flip=is_hero_turn))
+                    actions = asyncio.run(
+                        current_player.get_sorted_actions_async(flip=is_hero_turn)
+                    )
                     if not actions:
                         break
 
                     # Make best move
                     best_action = actions[0][2]
-                    asyncio.run(current_player.make_move_async(best_action, flip=is_hero_turn))
-                    asyncio.run(other_player.make_move_async(best_action, flip=is_hero_turn))
+                    asyncio.run(
+                        current_player.make_move_async(best_action, flip=is_hero_turn)
+                    )
+                    asyncio.run(
+                        other_player.make_move_async(best_action, flip=is_hero_turn)
+                    )
                     moves_made += 1
 
                     # Check for game end
@@ -324,8 +403,12 @@ class TestMCTSBenchmarks:
                 if actions:
                     asyncio.run(mcts.make_move_async(actions[0][2], flip=(i % 2 == 0)))
                     # Force more simulations after move
-                    asyncio.run(mcts.ensure_sims_async(sim_count // 4))  # Additional sims
-                    actions = asyncio.run(mcts.get_sorted_actions_async(flip=(i % 2 == 1)))
+                    asyncio.run(
+                        mcts.ensure_sims_async(sim_count // 4)
+                    )  # Additional sims
+                    actions = asyncio.run(
+                        mcts.get_sorted_actions_async(flip=(i % 2 == 1))
+                    )
                     rollout_moves += 1
                 else:
                     break

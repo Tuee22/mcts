@@ -4,8 +4,8 @@ Corridors Game API
 A FastAPI-based REST API for the Corridors board game with MCTS AI support.
 """
 
-from .game_manager import GameManager
-from .models import (
+from backend.api.game_manager import GameManager
+from backend.api.models import (
     GameCreateRequest,
     GameMode,
     GameResponse,
@@ -14,8 +14,8 @@ from .models import (
     MoveResponse,
     PlayerType,
 )
-from .server import app
-from .websocket_manager import WebSocketManager
+from backend.api.server import app
+from backend.api.websocket_manager import WebSocketManager
 
 __version__ = "1.0.0"
 

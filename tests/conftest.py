@@ -21,6 +21,7 @@ class MCTSParams(TypedDict):
     seed: int
     min_simulations: int
     max_simulations: int
+    sim_increment: int
     use_rollout: bool
     eval_children: bool
     use_puct: bool
@@ -51,6 +52,7 @@ def basic_mcts_params() -> MCTSParams:
         "seed": 42,
         "min_simulations": 100,
         "max_simulations": 1000,
+        "sim_increment": 50,
         "use_rollout": True,
         "eval_children": False,
         "use_puct": False,
@@ -67,6 +69,7 @@ def fast_mcts_params() -> MCTSParams:
         "seed": 123,
         "min_simulations": 10,
         "max_simulations": 50,
+        "sim_increment": 25,
         "use_rollout": True,
         "eval_children": False,
         "use_puct": False,
@@ -83,6 +86,7 @@ def puct_mcts_params() -> MCTSParams:
         "seed": 456,
         "min_simulations": 100,
         "max_simulations": 500,
+        "sim_increment": 50,
         "use_rollout": False,
         "eval_children": True,
         "use_puct": True,
@@ -170,7 +174,7 @@ class MCTSTestHelper:
         """Create async MCTS instance with given parameters."""
         # Add default sim_increment parameter for async constructor
         async_params = params.copy()
-        async_params['sim_increment'] = 50  # Default increment
+        async_params["sim_increment"] = 50  # Default increment
         return AsyncCorridorsMCTS(**async_params)
 
     @staticmethod

@@ -10,40 +10,52 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from math import sqrt
-from typing import Dict, List, Optional, Tuple, Type, Protocol, Union
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Protocol,
+    Union,
+    Callable,
+    TypeVar,
+    Awaitable,
+    ParamSpec,
+)
 from types import TracebackType
 import functools
 
-from corridors import _corridors_mcts as _ext_module
+from corridors import _corridors_mcts
+
+# Type variables for decorator typing
+T = TypeVar("T")
+P = ParamSpec("P")
 
 
 class ConcurrencyViolationError(Exception):
     """
     Raised when concurrent access to C++ MCTS instance is detected.
-    
+
     This exception indicates a race condition that could corrupt game state
     or cause undefined behavior in the C++ MCTS engine.
     """
+
     pass
 
 
-def atomic_mcts_operation(operation_name: str):
-    """
-    Decorator for atomic C++ MCTS operations with race condition detection.
-    
-    Ensures only one operation can access the C++ instance at a time,
-    failing loudly if concurrent access is attempted.
-    """
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            await self._acquire_operation_lock(operation_name)
-            try:
-                return await func(self, *args, **kwargs)
-            finally:
-                await self._release_operation_lock()
-        return wrapper
-    return decorator
+# Note: Removed atomic_mcts_operation decorator to simplify typing
+# The locking logic is now implemented directly in each async method
+
+
+class MCTSLockProtocol(Protocol):
+    """Protocol for objects that have MCTS operation locking methods."""
+
+    async def _acquire_operation_lock(self, operation_name: str) -> None:
+        ...
+
+    async def _release_operation_lock(self) -> None:
+        ...
 
 
 class MCTSProtocol(Protocol):
@@ -100,12 +112,9 @@ class AsyncCorridorsMCTS:
         max_workers: int = 1,
     ) -> None:
         # Create C++ instance with correct pybind11 signature
-        self._impl: MCTSProtocol = _ext_module._corridors_mcts(
+        self._impl: MCTSProtocol = _corridors_mcts._corridors_mcts(
             c,
             seed,
-            min_simulations,
-            max_simulations,
-            sim_increment,
             use_rollout,
             eval_children,
             use_puct,
@@ -113,19 +122,24 @@ class AsyncCorridorsMCTS:
             decide_using_visits,
         )
 
+        # Store simulation parameters separately
+        self.min_simulations = min_simulations
+        self.max_simulations = max_simulations
+        self.sim_increment = sim_increment
+
         # Thread pool for async operations
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
-        
+
         # Cancellation support
         self._cancel_flag = threading.Event()
         self._current_task: Optional[
             Union[asyncio.Task[int], asyncio.Future[int]]
         ] = None
-        
+
         # General async lock for internal coordination
         self._lock = asyncio.Lock()
         self._closed = False
-        
+
         # Race condition protection
         self._operation_in_progress = False
         self._operation_lock = asyncio.Lock()
@@ -148,18 +162,10 @@ class AsyncCorridorsMCTS:
     async def _acquire_operation_lock(self, operation_name: str) -> None:
         """
         Acquire exclusive operation lock with fail-fast semantics.
-        
+
         Raises ConcurrencyViolationError if another operation is in progress.
         """
-        # Fast fail-first check (non-blocking)
-        if self._operation_in_progress:
-            elapsed = time.time() - (self._operation_start_time or 0)
-            raise ConcurrencyViolationError(
-                f"RACE CONDITION DETECTED: Attempted '{operation_name}' while "
-                f"'{self._current_operation}' already in progress for {elapsed:.3f}s"
-            )
-        
-        # Acquire lock and double-check
+        # Acquire lock and check atomically
         async with self._operation_lock:
             if self._operation_in_progress:
                 elapsed = time.time() - (self._operation_start_time or 0)
@@ -167,7 +173,7 @@ class AsyncCorridorsMCTS:
                     f"RACE CONDITION DETECTED: '{operation_name}' blocked by "
                     f"'{self._current_operation}' running for {elapsed:.3f}s"
                 )
-            
+
             # Atomically mark operation as in progress
             self._operation_in_progress = True
             self._current_operation = operation_name
@@ -179,7 +185,6 @@ class AsyncCorridorsMCTS:
         self._current_operation = None
         self._operation_start_time = None
 
-    @atomic_mcts_operation("run_simulations")
     async def run_simulations_async(
         self, n: int, timeout: Optional[float] = None
     ) -> int:
@@ -188,78 +193,86 @@ class AsyncCorridorsMCTS:
 
         Returns the actual number of simulations completed.
         """
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+        await self._acquire_operation_lock("run_simulations")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
-        if n <= 0:
-            return 0
+            if n <= 0:
+                return 0
+        except Exception:
+            await self._release_operation_lock()
+            raise
 
-        async with self._lock:
-            # Cancel any existing simulation task
-            if self._current_task and not self._current_task.done():
-                self._cancel_flag.set()
-                try:
-                    await asyncio.wait_for(self._current_task, timeout=1.0)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    pass
-
-            # Reset cancellation flag
-            self._cancel_flag.clear()
-
-            # Create simulation function with cancellation support
-            def _run_with_cancellation() -> int:
-                simulations_completed = 0
-                batch_size = min(100, n)  # Process in batches to check cancellation
-
-                while simulations_completed < n:
-                    if self._cancel_flag.is_set():
-                        break
-
-                    current_batch = min(batch_size, n - simulations_completed)
+        try:
+            async with self._lock:
+                # Cancel any existing simulation task
+                if self._current_task and not self._current_task.done():
+                    self._cancel_flag.set()
                     try:
-                        self._impl.run_simulations(current_batch)
-                        simulations_completed += current_batch
-                    except Exception:
-                        # If simulation fails, stop processing
-                        break
+                        await asyncio.wait_for(self._current_task, timeout=1.0)
+                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                        pass
 
-                return simulations_completed
+                # Reset cancellation flag
+                self._cancel_flag.clear()
 
-            # Run simulations in executor
-            loop = asyncio.get_event_loop()
-            current_future = loop.run_in_executor(
-                self._executor, _run_with_cancellation
-            )
-            self._current_task = current_future
+                # Create simulation function with cancellation support
+                def _run_with_cancellation() -> int:
+                    simulations_completed = 0
+                    batch_size = min(100, n)  # Process in batches to check cancellation
 
-            try:
-                if timeout:
-                    simulations_done = await asyncio.wait_for(
-                        current_future, timeout=timeout
-                    )
-                else:
-                    simulations_done = await current_future
+                    while simulations_completed < n:
+                        if self._cancel_flag.is_set():
+                            break
 
-                return simulations_done
+                        current_batch = min(batch_size, n - simulations_completed)
+                        try:
+                            self._impl.run_simulations(current_batch)
+                            simulations_completed += current_batch
+                        except Exception:
+                            # If simulation fails, stop processing
+                            break
 
-            except asyncio.TimeoutError:
-                # Cancel the simulation
-                self._cancel_flag.set()
-                # Wait briefly for cancellation to take effect
+                    return simulations_completed
+
+                # Run simulations in executor
+                loop = asyncio.get_event_loop()
+                current_future = loop.run_in_executor(
+                    self._executor, _run_with_cancellation
+                )
+                self._current_task = current_future
+
                 try:
-                    simulations_done = await asyncio.wait_for(
-                        current_future, timeout=1.0
-                    )
+                    if timeout:
+                        simulations_done = await asyncio.wait_for(
+                            current_future, timeout=timeout
+                        )
+                    else:
+                        simulations_done = await current_future
+
                     return simulations_done
+
                 except asyncio.TimeoutError:
-                    return 0  # Couldn't even cancel cleanly
+                    # Cancel the simulation
+                    self._cancel_flag.set()
+                    # Wait briefly for cancellation to take effect
+                    try:
+                        simulations_done = await asyncio.wait_for(
+                            current_future, timeout=1.0
+                        )
+                        return simulations_done
+                    except asyncio.TimeoutError:
+                        return 0  # Couldn't even cancel cleanly
 
-            except asyncio.CancelledError:
-                self._cancel_flag.set()
-                raise
+                except asyncio.CancelledError:
+                    self._cancel_flag.set()
+                    raise
 
-            finally:
-                self._current_task = None
+                finally:
+                    self._current_task = None
+        finally:
+            await self._release_operation_lock()
 
     async def ensure_sims_async(
         self, target_sims: int, timeout: Optional[float] = None
@@ -269,109 +282,135 @@ class AsyncCorridorsMCTS:
 
         Returns the total simulation count after completion.
         """
-        current_sims = await self.get_visit_count_async()
+        current_sims: int = await self.get_visit_count_async()
 
         if current_sims >= target_sims:
             return current_sims
 
         needed_sims = target_sims - current_sims
-        completed_sims = await self.run_simulations_async(needed_sims, timeout)
+        completed_sims: int = await self.run_simulations_async(needed_sims, timeout)
 
         return current_sims + completed_sims
 
-    @atomic_mcts_operation("make_move")
     async def make_move_async(self, action: str, flip: bool = False) -> None:
         """Make a move asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+        await self._acquire_operation_lock("make_move")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
-        async with self._lock:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                self._executor, lambda: self._impl.make_move(action, flip)
-            )
+            async with self._lock:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    self._executor, lambda: self._impl.make_move(action, flip)
+                )
+        finally:
+            await self._release_operation_lock()
 
-    @atomic_mcts_operation("get_sorted_actions")
     async def get_sorted_actions_async(
         self, flip: bool = False
     ) -> List[Tuple[int, float, str]]:
         """Get sorted actions asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor, lambda: self._impl.get_sorted_actions(flip)
-        )
-
-    @atomic_mcts_operation("choose_best_action")
-    async def choose_best_action_async(self, epsilon: float = 0.0) -> str:
-        """Choose best action asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor, lambda: self._impl.choose_best_action(epsilon)
-        )
-
-    @atomic_mcts_operation("get_evaluation")
-    async def get_evaluation_async(self) -> Optional[float]:
-        """Get evaluation asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, self._impl.get_evaluation)
-
-    @atomic_mcts_operation("get_visit_count")
-    async def get_visit_count_async(self) -> int:
-        """Get visit count asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, self._impl.get_visit_count)
-
-    @atomic_mcts_operation("display")
-    async def display_async(self, flip: bool = False) -> str:
-        """Get board display asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            self._executor, lambda: self._impl.display(flip)
-        )
-
-    @atomic_mcts_operation("is_terminal")
-    async def is_terminal_async(self) -> bool:
-        """Check if position is terminal asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, self._impl.is_terminal)
-
-    @atomic_mcts_operation("reset")
-    async def reset_async(self) -> None:
-        """Reset to initial state asynchronously."""
-        if self._closed:
-            raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
-        async with self._lock:
-            # Cancel any running simulations
-            if self._current_task and not self._current_task.done():
-                self._cancel_flag.set()
-                try:
-                    await asyncio.wait_for(self._current_task, timeout=1.0)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    pass
+        await self._acquire_operation_lock("get_sorted_actions")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                self._executor, self._impl.reset_to_initial_state
+            return await loop.run_in_executor(
+                self._executor, lambda: self._impl.get_sorted_actions(flip)
             )
+        finally:
+            await self._release_operation_lock()
+
+    async def choose_best_action_async(self, epsilon: float = 0.0) -> str:
+        """Choose best action asynchronously."""
+        await self._acquire_operation_lock("choose_best_action")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                self._executor, lambda: self._impl.choose_best_action(epsilon)
+            )
+        finally:
+            await self._release_operation_lock()
+
+    async def get_evaluation_async(self) -> Optional[float]:
+        """Get evaluation asynchronously."""
+        await self._acquire_operation_lock("get_evaluation")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(self._executor, self._impl.get_evaluation)
+        finally:
+            await self._release_operation_lock()
+
+    async def get_visit_count_async(self) -> int:
+        """Get visit count asynchronously."""
+        await self._acquire_operation_lock("get_visit_count")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                self._executor, self._impl.get_visit_count
+            )
+        finally:
+            await self._release_operation_lock()
+
+    async def display_async(self, flip: bool = False) -> str:
+        """Get board display asynchronously."""
+        await self._acquire_operation_lock("display")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(
+                self._executor, lambda: self._impl.display(flip)
+            )
+        finally:
+            await self._release_operation_lock()
+
+    async def is_terminal_async(self) -> bool:
+        """Check if position is terminal asynchronously."""
+        await self._acquire_operation_lock("is_terminal")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(self._executor, self._impl.is_terminal)
+        finally:
+            await self._release_operation_lock()
+
+    async def reset_async(self) -> None:
+        """Reset to initial state asynchronously."""
+        await self._acquire_operation_lock("reset")
+        try:
+            if self._closed:
+                raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+            async with self._lock:
+                # Cancel any running simulations
+                if self._current_task and not self._current_task.done():
+                    self._cancel_flag.set()
+                    try:
+                        await asyncio.wait_for(self._current_task, timeout=1.0)
+                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                        pass
+
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    self._executor, self._impl.reset_to_initial_state
+                )
+        finally:
+            await self._release_operation_lock()
 
     def cancel_simulations(self) -> None:
         """Cancel any currently running simulations."""
@@ -417,21 +456,23 @@ class MCTSRegistry:
         self._registry_lock = asyncio.Lock()  # Protects registry dict operations
         self._instance_locks: Dict[str, asyncio.Lock] = {}  # Per-instance API locks
 
-    async def get_with_lock(self, game_id: str) -> Tuple[AsyncCorridorsMCTS, asyncio.Lock]:
+    async def get_with_lock(
+        self, game_id: str
+    ) -> Tuple[AsyncCorridorsMCTS, asyncio.Lock]:
         """
         Get instance with its dedicated lock for atomic operations.
-        
+
         Returns tuple of (mcts_instance, lock) for atomic API operations.
         Raises ValueError if game_id not found.
         """
         async with self._registry_lock:
             if game_id not in self._instances:
                 raise ValueError(f"Game {game_id} not found in registry")
-            
+
             # Ensure per-instance lock exists
             if game_id not in self._instance_locks:
                 self._instance_locks[game_id] = asyncio.Lock()
-            
+
             return self._instances[game_id], self._instance_locks[game_id]
 
     async def get_or_create(
@@ -464,7 +505,7 @@ class MCTSRegistry:
                     use_probs=use_probs,
                     decide_using_visits=decide_using_visits,
                 )
-                
+
                 # Create corresponding API lock
                 self._instance_locks[game_id] = asyncio.Lock()
 
@@ -481,7 +522,7 @@ class MCTSRegistry:
             instance = self._instances.pop(game_id, None)
             # Also cleanup the per-instance lock
             self._instance_locks.pop(game_id, None)
-            
+
             if instance:
                 await instance.cleanup()
 

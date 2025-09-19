@@ -11,7 +11,7 @@ These tests focus on Python-side functionality:
 
 import io
 import sys
-from typing import Dict, Generator, List, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,17 +20,12 @@ from tests.conftest import MCTSParams
 from tests.mock_helpers import MockCorridorsMCTS
 from tests.pytest_marks import display, integration, parametrize, python, unit
 
-try:
-    from corridors.corridors_mcts import (
-        Corridors_MCTS,
-        computer_self_play,
-        display_sorted_actions,
-        human_computer_play,
-    )
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+from corridors.corridors_mcts import (
+    Corridors_MCTS,
+    display_sorted_actions,
+    computer_self_play,
+    human_computer_play,
+)
 
 
 @python
@@ -164,8 +159,6 @@ class TestComputerSelfPlay:
 
     def test_computer_self_play_setup(self) -> None:
         """Test that computer_self_play can be called without errors in setup."""
-        if not CORRIDORS_AVAILABLE:
-            return
         # Mock the MCTS instances to avoid actual computation
         mock_p1 = MockCorridorsMCTS(
             sorted_actions=[],  # Empty = game over
@@ -181,8 +174,6 @@ class TestComputerSelfPlay:
 
     def test_computer_self_play_single_move(self) -> None:
         """Test computer self-play with single move before game ends."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_p1 = MockCorridorsMCTS(
             sorted_actions=[(100, 0.6, "*(4,1)")],
             board_display="Mock board 1",
@@ -203,8 +194,6 @@ class TestComputerSelfPlay:
 
     def test_computer_self_play_same_instance(self) -> None:
         """Test computer self-play using same instance for both players."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_instance = MockCorridorsMCTS(
             sorted_actions=[],  # Game over immediately
             board_display="Mock board",
@@ -218,8 +207,6 @@ class TestComputerSelfPlay:
 
     def test_computer_self_play_stop_on_eval(self) -> None:
         """Test computer self-play with stop_on_eval=True."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_p1 = MockCorridorsMCTS(
             sorted_actions=[(100, 0.6, "*(4,8)")],  # Winning move
             board_display="Mock winning board",
@@ -254,8 +241,6 @@ class TestHumanComputerPlay:
         self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play when game ends immediately."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_mcts = MockCorridorsMCTS(
             sorted_actions=[],  # Game over immediately
             board_display="Game over board",
@@ -271,8 +256,6 @@ class TestHumanComputerPlay:
         self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play with one move."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_mcts = MockCorridorsMCTS(
             sorted_actions_sequence=[
                 [(100, 0.6, "*(4,1)"), (50, 0.4, "*(3,0)")],  # Human's options
@@ -292,8 +275,6 @@ class TestHumanComputerPlay:
         self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play with invalid move first."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_mcts = MockCorridorsMCTS(
             sorted_actions_sequence=[
                 [(100, 0.6, "*(4,1)")],  # Valid moves
@@ -321,8 +302,6 @@ class TestHumanComputerPlay:
         self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test human-computer play with computer going first."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_mcts = MockCorridorsMCTS(
             sorted_actions_sequence=[
                 [(100, 0.6, "*(4,1)")],  # Computer's options
@@ -342,8 +321,6 @@ class TestHumanComputerPlay:
         self, mock_print: MagicMock, mock_input: MagicMock
     ) -> None:
         """Test that human moves are properly hidden when requested."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_mcts = MockCorridorsMCTS(
             sorted_actions_sequence=[
                 [(10, 0.5, "*(1,1)"), (5, 0.3, "H(1,1)")],  # Human turn
@@ -372,8 +349,6 @@ class TestCorridorsMCTSPythonMethods:
 
     def test_json_serialization(self, fast_mcts_params: MCTSParams) -> None:
         """Test __json__ method for serialization."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mcts = Corridors_MCTS(**fast_mcts_params)
         json_repr = mcts.__json__()
 
@@ -384,8 +359,6 @@ class TestCorridorsMCTSPythonMethods:
 
     def test_json_serialization_with_name(self, fast_mcts_params: MCTSParams) -> None:
         """Test __json__ method with custom name attribute."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mcts = Corridors_MCTS(**fast_mcts_params)
         # Use setattr to dynamically add name attribute
         setattr(mcts, "name", "test_mcts")
@@ -395,8 +368,6 @@ class TestCorridorsMCTSPythonMethods:
 
     def test_get_evaluation_none_handling(self, fast_mcts_params: MCTSParams) -> None:
         """Test that get_evaluation properly handles None values."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
         # Test that get_evaluation returns proper types
@@ -405,8 +376,6 @@ class TestCorridorsMCTSPythonMethods:
 
     def test_method_delegation(self, fast_mcts_params: MCTSParams) -> None:
         """Test that methods properly delegate to parent class."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mcts = Corridors_MCTS(**fast_mcts_params)
 
         # These should not raise exceptions and should return expected types
@@ -432,8 +401,6 @@ def test_mcts_parameter_combinations(
     c: float, seed: int, min_sims: int, max_sims: int
 ) -> None:
     """Test MCTS with various parameter combinations."""
-    if not CORRIDORS_AVAILABLE:
-        return
     mcts = Corridors_MCTS(
         c=c,
         seed=seed,
@@ -463,18 +430,8 @@ class TestErrorHandling:
 
     def test_function_imports(self) -> None:
         """Test that all expected functions can be imported."""
-        if not CORRIDORS_AVAILABLE:
-            return
         # These imports should work
-        from corridors.corridors_mcts import (
-            Corridors_MCTS,
-            computer_self_play,
-            display_sorted_actions,
-            human_computer_play,
-        )
+        from corridors.corridors_mcts import Corridors_MCTS
 
         # Basic type checks
         assert callable(Corridors_MCTS)
-        assert callable(display_sorted_actions)
-        assert callable(computer_self_play)
-        assert callable(human_computer_play)

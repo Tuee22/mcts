@@ -38,17 +38,13 @@ import pytest
 
 from tests.mock_helpers import MockCorridorsMCTS
 
-try:
-    from corridors.corridors_mcts import (
-        Corridors_MCTS,
-        computer_self_play,
-        display_sorted_actions,
-        human_computer_play,
-    )
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+from corridors.corridors_mcts import (
+    Corridors_MCTS,
+    display_sorted_actions,
+    computer_self_play,
+    human_computer_play,
+)
+from typing import List, Tuple, Optional
 
 
 @edge_cases
@@ -225,8 +221,6 @@ class TestGameFlowEdgeCases:
     @patch("builtins.print")
     def test_computer_self_play_immediate_end(self, mock_print: MagicMock) -> None:
         """Test self-play when game ends immediately."""
-        if not CORRIDORS_AVAILABLE:
-            return
         mock_p1 = MockCorridorsMCTS(
             sorted_actions=[],  # No moves available
             board_display="Game over",
@@ -242,8 +236,6 @@ class TestGameFlowEdgeCases:
         self, mock_print: MagicMock
     ) -> None:
         """Test self-play with proper player alternation."""
-        if not CORRIDORS_AVAILABLE:
-            return
         call_count = [0]  # Mutable counter
 
         def get_actions_p1(flip: bool) -> List[Tuple[int, float, str]]:

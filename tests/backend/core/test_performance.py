@@ -38,12 +38,8 @@ from unittest.mock import patch
 
 import pytest
 
-try:
-    from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
-
-    CORRIDORS_AVAILABLE = True
-except ImportError:
-    CORRIDORS_AVAILABLE = False
+from corridors.corridors_mcts import Corridors_MCTS, display_sorted_actions
+from typing import List, Tuple, Optional
 
 
 @slow

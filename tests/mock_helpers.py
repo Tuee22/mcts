@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Protocol, Tuple, Union
 
-from corridors.corridors_mcts import MCTSProtocol
+from corridors.async_mcts import MCTSProtocol
 
 
 class CorridorsMCTSInterface(Protocol):
