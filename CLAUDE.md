@@ -164,7 +164,7 @@ docker compose exec mcts bash -c "black . && isort . && mypy --strict ."
 - `mcts.hpp`: Generic MCTS template implementation with UCT/PUCT support
 - `board.h/.cpp`: Corridors game board representation and logic
 - `corridors_api.h/.cpp`: Synchronous API wrapper for Python bindings
-- `_corridors_mcts_pybind.cpp`: pybind11 bindings module
+- `_corridors_mcts.cpp`: pybind11 bindings module
 
 **Python Frontend (`backend/python/corridors/`)**
 - `corridors_mcts.py`: Main Python interface with `Corridors_MCTS` class

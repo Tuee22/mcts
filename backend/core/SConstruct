@@ -12,8 +12,8 @@ sanitize = bool(ARGUMENTS.get('sanitize', 0))
 
 # determine which files to build based on test flag
 all_source_files = Glob('*.cpp')
-exclude_from_test = ['_corridors_mcts_pybind.cpp', '_corridors_mcts.cpp']
-exclude_from_prod = ['test.cpp', '_corridors_mcts.cpp']  # Exclude Boost Python version, use pybind11 only
+exclude_from_test = ['_corridors_mcts.cpp']
+exclude_from_prod = ['test.cpp']  # Use pybind11 version only
 
 if test:
     exclude = exclude_from_test

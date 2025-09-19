@@ -79,7 +79,7 @@ callgrind*
 gmon.out
 
 # Core dump files
-core
+/core
 core.*
 *.core
 core.[0-9]*

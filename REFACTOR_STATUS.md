@@ -5,7 +5,7 @@
 ### Phase 1: C++ Threading Removal
 - **✅ Removed threading infrastructure**: Deleted `mcts_threaded.hpp`, `corridors_threaded_api.h/cpp`
 - **✅ Created synchronous C++ API**: New `corridors_api.h/cpp` with clean, thread-free interface
-- **✅ Updated Python bindings**: Migrated to pybind11 (`_corridors_mcts_pybind.cpp`)
+- **✅ Updated Python bindings**: Migrated to pybind11 (`_corridors_mcts.cpp`)
 - **✅ Fixed build system**: Updated SCons configuration and created fallback build script
 - **✅ Verified functionality**: Both C++ module and Python wrapper work correctly
 
