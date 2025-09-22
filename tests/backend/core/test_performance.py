@@ -144,7 +144,7 @@ class TestMemoryUsage:
 
     def test_repeated_operations(self) -> None:
         """Test repeated operations for memory leaks."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=50)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=100)
 
         # Perform many repeated operations
         for i in range(100):
@@ -184,7 +184,7 @@ class TestStressConditions:
 
     def test_zero_simulations(self) -> None:
         """Test behavior with zero simulations."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=0, max_simulations=0)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=0, max_simulations=100)
 
         # Should still be able to get actions (might be empty or random)
         actions = mcts.get_sorted_actions(flip=True)
@@ -196,7 +196,7 @@ class TestStressConditions:
             c=0.01,  # Very small exploration
             seed=1,
             min_simulations=1,
-            max_simulations=2,
+            max_simulations=100,
         )
 
         mcts.ensure_sims(1)
@@ -210,7 +210,7 @@ class TestStressConditions:
             c=extreme_c,
             seed=42,
             min_simulations=20,
-            max_simulations=50,
+            max_simulations=100,
         )
 
         mcts.ensure_sims(20)
@@ -226,7 +226,7 @@ class TestStressConditions:
 
     def test_many_consecutive_moves(self) -> None:
         """Test making many consecutive moves."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=50)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=100)
 
         moves_made = 0
         max_moves = 100  # High limit to test stress

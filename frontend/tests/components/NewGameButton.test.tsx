@@ -49,6 +49,7 @@ vi.mock('@/services/websocket', () => ({
   wsService: {
     connect: vi.fn(() => Promise.resolve()),
     disconnect: vi.fn(),
+    disconnectFromGame: vi.fn(),
     isConnected: vi.fn(() => true),
     createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
     makeMove: vi.fn(() => Promise.resolve()),

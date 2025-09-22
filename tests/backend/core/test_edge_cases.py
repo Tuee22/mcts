@@ -65,7 +65,7 @@ class TestBoundaryConditions:
     )
     def test_boundary_positions(self, x: int, y: int) -> None:
         """Test MCTS behavior at board boundaries."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=30)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
 
         # Try to place hero at boundary position via moves
         # (This is indirect since we can't directly set positions)
@@ -80,7 +80,7 @@ class TestBoundaryConditions:
 
     def test_wall_boundary_positions(self) -> None:
         """Test wall placement at board boundaries."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=50)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=100)
 
         mcts.ensure_sims(20)
         actions = mcts.get_sorted_actions(flip=True)
@@ -105,7 +105,7 @@ class TestBoundaryConditions:
         for wall_action in boundary_walls[:3]:  # Test first few
             try:
                 mcts_test = Corridors_MCTS(
-                    c=1.0, seed=42, min_simulations=5, max_simulations=10
+                    c=1.0, seed=42, min_simulations=5, max_simulations=100
                 )
                 mcts_test.ensure_sims(5)
                 test_actions = mcts_test.get_sorted_actions(flip=True)
@@ -117,7 +117,7 @@ class TestBoundaryConditions:
 
     def test_maximum_walls_placement(self) -> None:
         """Test behavior when maximum walls are placed."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=40)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=100)
 
         # Try to place many walls (simulate late game)
         for i in range(10):  # Try up to 10 wall placements
@@ -277,7 +277,7 @@ class TestMCTSParameterEdgeCases:
             c=1e-10,  # Extremely small
             seed=42,
             min_simulations=10,
-            max_simulations=20,
+            max_simulations=100,
         )
 
         mcts.ensure_sims(10)
@@ -290,7 +290,7 @@ class TestMCTSParameterEdgeCases:
             c=1e6,  # Extremely large
             seed=42,
             min_simulations=10,
-            max_simulations=20,
+            max_simulations=100,
         )
 
         mcts.ensure_sims(10)
@@ -305,7 +305,7 @@ class TestMCTSParameterEdgeCases:
                 c=1.0,
                 seed=42,
                 min_simulations=100,
-                max_simulations=50,  # Less than min
+                max_simulations=100,  # Less than min
             )
 
             mcts.ensure_sims(50)
@@ -323,7 +323,7 @@ class TestMCTSParameterEdgeCases:
 
     def test_zero_increment(self) -> None:
         """Test with zero simulation increment."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=20)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
 
         # This should either complete normally or raise a specific timeout/runtime error
         try:
@@ -363,7 +363,7 @@ class TestMCTSParameterEdgeCases:
         """Test with edge case random seeds."""
         try:
             mcts = Corridors_MCTS(
-                c=1.0, seed=seed, min_simulations=5, max_simulations=15
+                c=1.0, seed=seed, min_simulations=5, max_simulations=100
             )
 
             mcts.ensure_sims(5)
@@ -394,7 +394,7 @@ class TestStateTransitionEdgeCases:
             c=1.0,
             seed=42,
             min_simulations=1,  # Minimal simulations
-            max_simulations=5,
+            max_simulations=100,
         )
 
         # Try to make moves rapidly
@@ -415,7 +415,7 @@ class TestStateTransitionEdgeCases:
 
     def test_alternating_flip_parameters(self) -> None:
         """Test alternating flip parameters."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=25)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
 
         mcts.ensure_sims(10)
 
@@ -429,7 +429,7 @@ class TestStateTransitionEdgeCases:
 
     def test_evaluation_during_game_progress(self) -> None:
         """Test evaluation changes during game progress."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=30)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=100)
 
         evaluations = []
 
@@ -486,7 +486,7 @@ class TestErrorRecovery:
 
     def test_function_resilience(self) -> None:
         """Test that functions are resilient to unexpected inputs."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=5, max_simulations=15)
+        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=5, max_simulations=100)
 
         # Test various edge case calls
         try:

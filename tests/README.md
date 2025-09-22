@@ -1,8 +1,48 @@
-# Testing Guide for MCTS Project
+# MCTS Testing Guide
 
-This document explains the comprehensive testing strategy for the MCTS project, covering unit, integration, and end-to-end tests designed to catch disconnection and connection issues early.
+This comprehensive guide covers all testing aspects for the MCTS project, including unit, integration, end-to-end tests, and async testing best practices.
 
-## Test Pyramid Overview
+## 📚 Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Test Architecture](#test-architecture)
+3. [Async Testing Best Practices](#async-testing-best-practices)
+4. [Test Execution Guide](#test-execution-guide)
+5. [Test Categories & Coverage](#test-categories--coverage)
+6. [Environment Configuration](#environment-configuration)
+7. [Debugging & Troubleshooting](#debugging--troubleshooting)
+8. [Writing Tests](#writing-tests)
+9. [CI/CD Integration](#cicd-integration)
+
+---
+
+## Quick Start
+
+**IMPORTANT**: All tests MUST be run inside Docker containers per project requirements.
+
+### Essential Commands
+
+```bash
+# Start Docker services first
+cd docker && docker compose up -d
+
+# Run complete test suite
+docker compose exec mcts poetry run test-all
+
+# Run specific test categories
+docker compose exec mcts poetry run test-runner unit        # Unit tests
+docker compose exec mcts poetry run test-runner integration  # Integration tests
+docker compose exec mcts poetry run test-runner e2e          # End-to-end tests
+docker compose exec mcts poetry run test-runner quick        # Fast tests only
+
+# Frontend tests
+docker compose exec mcts cd /app/frontend && npm run test
+```
+
+
+---
+
+## Test Architecture
 
 The MCTS project follows a comprehensive three-layer test pyramid:
 
@@ -20,141 +60,250 @@ The MCTS project follows a comprehensive three-layer test pyramid:
 | **Integration** | pytest + real HTTP/WebSocket | API contracts, CORS, DB integration | Cross-service validation |  
 | **E2E** | Playwright (Python) | Full user journeys | Real browser scenarios |
 
-## Running Tests Locally
+---
 
-### Prerequisites
+## Async Testing Best Practices
 
-```bash
-# Install Python dependencies
-poetry install --with dev
+### ✅ Writing Async Tests
 
-# Install frontend dependencies  
-cd frontend && npm install
+- [ ] Write tests as `async def` functions
+- [ ] Use `@pytest.mark.asyncio` to let pytest run them
+- [ ] Directly `await` the async functions you are testing
 
-# Install Playwright browsers
-poetry run playwright install chromium
-
-# Build C++ components
-cd backend/core && poetry run scons
+```python
+@pytest.mark.asyncio
+async def test_websocket_connection():
+    async with websockets.connect(uri) as ws:
+        message = await ws.recv()
+        assert json.loads(message)["type"] == "connect"
 ```
 
-### Setting up Convenient Aliases (Optional)
+### ✅ Async Fixtures
 
-For frequently used commands, you can add these aliases to your shell configuration:
+- [ ] Define async fixtures with `async def`
+- [ ] Use `async with` in fixtures for proper resource cleanup
 
-```bash
-# Add to ~/.bashrc or ~/.zshrc
-alias mcts-test-all='docker compose exec mcts poetry run test-runner all'
-alias mcts-test-unit='docker compose exec mcts poetry run test-runner unit'
-alias mcts-test-quick='docker compose exec mcts poetry run test-runner quick'
-alias mcts-test-e2e='docker compose exec mcts poetry run test-runner e2e'
+```python
+@pytest_asyncio.fixture
+async def async_client() -> AsyncGenerator[AsyncClient, None]:
+    async with AsyncClient(base_url="http://localhost:8000") as client:
+        yield client
 ```
 
-### Quick Test Commands
+### ✅ Timeouts & Stability
 
-All test commands must be run inside the Docker container as per project requirements:
+- [ ] Wrap awaits in `asyncio.wait_for()` when hangs are possible
+- [ ] Use synchronization primitives instead of arbitrary `sleep()`
+
+```python
+# Good - explicit timeout
+message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
+
+# Bad - arbitrary sleep
+await asyncio.sleep(2)  # Don't do this for "stability"
+
+# Good - event-based synchronization
+event = asyncio.Event()
+await asyncio.wait_for(event.wait(), timeout=10.0)
+```
+
+### ✅ Background Tasks
+
+- [ ] Ensure background tasks are awaited or canceled before test ends
+- [ ] Clean up lingering tasks to prevent leaks between tests
+
+```python
+@pytest.mark.asyncio
+async def test_with_background_task():
+    task = asyncio.create_task(background_operation())
+    try:
+        # Test code here
+        await test_operation()
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+```
+
+### ✅ Mocking Async Dependencies
+
+- [ ] Use `unittest.mock.AsyncMock` when mocking async functions
+- [ ] Patch async functions consistently with `AsyncMock`
+
+```python
+from unittest.mock import AsyncMock
+
+@pytest.mark.asyncio
+async def test_with_mock():
+    mock_client = AsyncMock()
+    mock_client.fetch_data.return_value = {"status": "ok"}
+    
+    result = await service_using_client(mock_client)
+    assert result["status"] == "ok"
+```
+
+### ❌ Things to Avoid
+
+- [ ] **DO NOT** call `asyncio.run()` inside async tests (pytest manages the event loop)
+- [ ] **DO NOT** leave tasks running across tests
+- [ ] **DO NOT** add `sleep()` for "stability" - use explicit sync mechanisms
+
+### Sync Wrappers
+
+Only create synchronous wrappers if:
+- Your library **exposes a sync API** that wraps async code, or  
+- You must integrate into a **sync-only system** (legacy hooks, external APIs)
+- Keep wrappers minimal and only at the boundary
+
+---
+
+## Test Execution Guide
+
+### Using Poetry Test Runner
+
+The test runner (`poetry run test-runner`) provides these commands:
 
 ```bash
-# Run all tests (unit + integration + e2e)
-docker compose exec mcts poetry run test-runner all
+# Complete test suites
+docker compose exec mcts poetry run test-runner all          # Everything
+docker compose exec mcts poetry run test-runner unit         # Unit tests
+docker compose exec mcts poetry run test-runner integration   # Integration
+docker compose exec mcts poetry run test-runner e2e          # End-to-end
 
-# Run specific test suites
-docker compose exec mcts poetry run test-runner unit        # Unit tests only
-docker compose exec mcts poetry run test-runner integration  # Integration tests
-docker compose exec mcts poetry run test-runner e2e          # End-to-end tests
+# Quick feedback
 docker compose exec mcts poetry run test-runner quick        # Fast tests only
+docker compose exec mcts poetry run test-runner connection   # Connection tests
 
-# Test connection scenarios specifically
-docker compose exec mcts poetry run test-runner connection
+# Specific test types
+docker compose exec mcts poetry run test-runner websocket    # WebSocket tests
+docker compose exec mcts poetry run test-runner cors         # CORS tests
+docker compose exec mcts poetry run test-runner performance  # Benchmarks
 
-# Run with options
-docker compose exec mcts poetry run test-runner unit -v --no-slow    # Verbose, skip slow
-docker compose exec mcts poetry run test-runner e2e --headed --video  # Visual debugging
-docker compose exec mcts poetry run test-runner all --coverage        # With coverage
-
-# Custom test execution
-docker compose exec mcts poetry run test-runner run tests/e2e/ -k "connection" -v
+# With options
+docker compose exec mcts poetry run test-runner unit -v --no-slow
+docker compose exec mcts poetry run test-runner e2e --headed --video
+docker compose exec mcts poetry run test-runner all --coverage
 ```
 
-### Alternative: Direct pytest commands
-
-```bash
-# Unit tests only (fast)
-docker compose exec mcts pytest -m "unit and not slow"
-cd frontend && npm run test:unit
-
-# Integration tests (with real services)
-docker compose exec mcts pytest tests/integration/ -m integration
-
-# E2E tests (full browser) - run from E2E directory
-docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
-
-# All tests
-docker compose exec mcts pytest tests/
-```
-
-### Detailed Test Commands
-
-#### Backend Tests
+### Direct pytest Commands
 
 ```bash
 # Unit tests by category
-poetry run pytest tests/backend/core/ -m "unit"          # C++ bindings
-poetry run pytest tests/backend/api/ -m "unit"           # FastAPI logic
+docker compose exec mcts pytest tests/backend/core/ -m "unit"
+docker compose exec mcts pytest tests/backend/api/ -m "unit"
 
-# Integration tests by category  
-poetry run pytest tests/integration/ -m "websocket"      # WebSocket connections
-poetry run pytest tests/integration/ -m "cors"           # CORS configuration
-poetry run pytest tests/integration/ -m "connection"     # Connection handling
+# Integration tests by category
+docker compose exec mcts pytest tests/integration/ -m "websocket"
+docker compose exec mcts pytest tests/integration/ -m "cors"
+docker compose exec mcts pytest tests/integration/ -m "connection"
 
-# Performance tests
-poetry run pytest tests/ -m "performance" --benchmark-only
+# E2E tests (run from e2e directory)
+docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
+
+# Performance benchmarks
+docker compose exec mcts pytest tests/ -m "performance" --benchmark-only
 ```
 
-#### Frontend Tests
+### Frontend Testing
+
 
 ```bash
-cd frontend
+# Run frontend tests (inside container)
+docker compose exec mcts cd /app/frontend && npm run test          # Interactive
+docker compose exec mcts cd /app/frontend && npm run test:run      # Run once
+docker compose exec mcts cd /app/frontend && npm run test:ui       # Web UI
+docker compose exec mcts cd /app/frontend && npm run test:coverage # Coverage
 
-# Unit tests
-npm run test:unit                    # Component tests
-npm run test:unit -- --coverage     # With coverage
-
-# Integration tests  
-npm run test:integration            # Component interactions
+# Direct vitest commands (vitest installed globally in container)
+docker compose exec mcts cd /app/frontend && vitest run           # Run once
+docker compose exec mcts cd /app/frontend && vitest --ui          # Web UI
+docker compose exec mcts cd /app/frontend && vitest --coverage    # Coverage
 ```
 
-#### E2E Tests
+---
 
-```bash
-# Quick connection tests (run from e2e directory)
-docker compose exec mcts bash -c "cd tests/e2e && pytest test_connection_scenarios.py -v"
+## Test Categories & Coverage
 
-# Network failure scenarios (run from e2e directory)
-docker compose exec mcts bash -c "cd tests/e2e && pytest test_network_failures.py -v"
+### 🧪 Unit Tests
+- **Location**: `tests/backend/core/`, `tests/backend/api/`
+- **Speed**: Fast (~10-30 seconds)
+- **Key Files**:
+  - `test_cpp_board_functions.py` - C++ board implementation
+  - `test_python_functions.py` - Python wrapper tests
+  - `test_models.py` - Pydantic model validation
+  - `test_error_paths.py` - Error handling
 
-# All E2E with video recording (run from e2e directory)
-docker compose exec mcts bash -c "cd tests/e2e && E2E_VIDEO=on pytest -m e2e -v"
+### 🔗 Integration Tests
+- **Location**: `tests/integration/`
+- **Speed**: Medium (~30-60 seconds)
+- **Key Files**:
+  - `test_websocket_connection.py` - WebSocket protocol
+  - `test_api_configuration.py` - FastAPI configuration
+  - `test_cors_configuration.py` - Cross-origin handling
+  - `test_network_failures.py` - Network resilience
+
+### ⚡ Benchmark Tests
+- **Location**: `tests/benchmarks/`
+- **Speed**: Slow (~60+ seconds)
+- **Key Files**:
+  - `test_benchmarks.py` - MCTS algorithm performance
+
+### ⚛️ Frontend Tests
+- **Location**: `tests/frontend/`, `frontend/src/`
+- **Speed**: Medium (~20-45 seconds)
+- **Key Files**:
+  - `GameBoard.test.tsx` - Game board component
+  - `GameSettings.test.tsx` - Settings interface
+  - `gameStore.test.ts` - State management
+  - `websocket.test.ts` - Frontend WebSocket client
+
+### 🌐 End-to-End Tests
+- **Location**: `tests/e2e/`
+- **Speed**: Slowest (~90+ seconds)
+- **Key Files**:
+  - `test_connection_scenarios.py` - Connection patterns
+  - `test_network_failures_fixed.py` - Network resilience
+  - `test_browser_compatibility.py` - Cross-browser
+
+### Test Markers
+
+```python
+@pytest.mark.unit         # Unit tests
+@pytest.mark.integration  # Integration tests
+@pytest.mark.benchmark    # Performance benchmarks
+@pytest.mark.e2e         # End-to-end tests
+@pytest.mark.slow        # Long-running tests
+@pytest.mark.asyncio     # Async tests
+@pytest.mark.websocket   # WebSocket tests
+@pytest.mark.cors        # CORS tests
 ```
 
-## Test Environment Configuration
+### Coverage Targets
+
+| Component | Target Coverage | Current |
+|-----------|----------------|---------|
+| Backend API | 85% | TBD |
+| WebSocket handlers | 90% | TBD |
+| Frontend components | 80% | TBD |
+| Integration flows | 70% | TBD |
+
+---
+
+## Environment Configuration
 
 ### E2E Test Configuration
 
-E2E tests use Playwright with configuration located at `tests/e2e/playwright.config.py`. This configuration file includes:
+E2E tests use Playwright with configuration at `tests/e2e/playwright.config.py`.
 
-- Browser settings (Chromium, Firefox, WebKit)
-- Test timeouts and retry policies  
-- Video recording and screenshot settings
-- Web server startup configuration for backend and frontend
-
-**Important**: E2E tests must be run from the `tests/e2e/` directory to properly locate the configuration:
+**Important**: E2E tests must be run from the `tests/e2e/` directory:
 
 ```bash
-# Correct way to run E2E tests
+# Correct way
 docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
 
-# Incorrect - will not find playwright.config.py
+# Incorrect - won't find playwright.config.py
 docker compose exec mcts pytest tests/e2e/ -m e2e
 ```
 
@@ -170,56 +319,26 @@ docker compose exec mcts pytest tests/e2e/ -m e2e
 | `E2E_TRACE` | Playwright tracing | `retain-on-failure` | E2E |
 | `MCTS_API_HOST` | Integration test API host | `127.0.0.1` | Integration |
 | `MCTS_API_PORT` | Integration test API port | `8001` | Integration |
-| `REACT_APP_WS_URL` | Frontend WebSocket URL | `ws://localhost:8000/ws` | Frontend |
 
 ### Test Data Seeding
 
-Tests use deterministic data seeding for consistency:
+Tests use deterministic data seeding:
 
 ```python
 from tests.fixtures.data_seeder import TestDataSeeder
 
-# Seed backend with test data
 async with TestDataSeeder("http://localhost:8001") as seeder:
     games = await seeder.seed_test_games(count=5)
     error_game = await seeder.create_error_scenario_game("blocked_move")
 ```
 
-## Key Test Scenarios
+---
 
-### Connection Scenarios (E2E)
-
-These tests catch the "disconnection" issues mentioned in requirements:
-
-- ✅ **Successful connection on app load**
-- ✅ **Backend unreachable shows disconnection UI**
-- ✅ **Connection recovery after backend restart**
-- ✅ **Wrong API URL configuration handling**
-- ✅ **Network interruption during gameplay**
-- ✅ **CORS-blocked request detection**
-- ✅ **Multiple tabs connection handling**
-
-### Network Failure Scenarios
-
-- ✅ **WebSocket connection timeout**
-- ✅ **Partial message delivery**
-- ✅ **Protocol violations**
-- ✅ **High latency conditions**
-- ✅ **Rapid connect/disconnect cycles**
-- ✅ **Message queuing during disconnects**
-
-### API Configuration Tests
-
-- ✅ **CORS headers validation**
-- ✅ **Environment variable configuration**
-- ✅ **Error response format consistency**
-- ✅ **Concurrent request handling**
-
-## Debugging Test Failures
+## Debugging & Troubleshooting
 
 ### E2E Test Failures
 
-When E2E tests fail, artifacts are saved to help debugging:
+Artifacts are saved to help debugging:
 
 ```bash
 # Screenshots on failure
@@ -228,37 +347,28 @@ tests/e2e/screenshots/{test_name}.png
 # Videos (if enabled)
 tests/e2e/videos/{test_name}/
 
-# Playwright traces (interactive debugging)
+# Playwright traces
 tests/e2e/traces/{test_name}.zip
 
-# View trace in Playwright inspector
+# View trace interactively
 poetry run playwright show-trace tests/e2e/traces/{test_name}.zip
 ```
 
-### Common Failure Patterns
+### Common Issues
 
-#### "Connection Timeout" Errors
+#### Connection Timeout Errors
 
-**Symptoms**: Tests fail with timeout connecting to services
-
-**Solutions**:
 ```bash
-# Check if services are running
-curl http://localhost:8001/health     # Backend health
-curl http://localhost:3001            # Frontend availability
+# Check services
+curl http://localhost:8001/health
+cd docker && docker compose ps
 
 # Increase timeouts for slower systems
 E2E_TIMEOUT=60000 poetry run pytest tests/e2e/ -v
-
-# Check Docker services
-cd docker && docker compose ps
 ```
 
-#### "WebSocket Connection Refused" Errors  
+#### WebSocket Connection Refused
 
-**Symptoms**: WebSocket tests fail with connection refused
-
-**Solutions**:
 ```bash
 # Verify WebSocket URL
 curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
@@ -268,22 +378,15 @@ curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
 curl -H "Origin: http://localhost:3001" \
      http://localhost:8001/health
 
-# Use different ports for parallel test runs
+# Use different ports for parallel runs
 MCTS_API_PORT=8003 poetry run pytest tests/integration/ -v
 ```
 
-#### "Element Not Found" in E2E Tests
+#### Element Not Found in E2E
 
-**Symptoms**: E2E tests can't find UI elements
-
-**Solutions**:
 ```bash
-# Check if data-testid attributes are present
-poetry run pytest tests/e2e/ -v -s --headed  # Run with browser visible
-
-# Verify frontend build includes test attributes
-cd frontend && npm run build
-grep -r "data-testid" build/static/js/
+# Run with browser visible
+poetry run pytest tests/e2e/ -v -s --headed
 
 # Use explicit waits
 await page.wait_for_selector('[data-testid="connection-status"]', timeout=10000)
@@ -298,49 +401,69 @@ poetry run pytest -m "not slow" -v
 # Profile test execution
 poetry run pytest --durations=10 tests/
 
-# Run tests in parallel (be careful with shared resources)
+# Run tests in parallel (careful with shared resources)
 poetry run pytest -n auto tests/backend/
 ```
 
-## CI/CD Integration
+### Port Conflicts
 
-The CI pipeline runs tests in stages:
+```bash
+# Check what's using test ports
+lsof -i :8001 -i :3001 -i :8002 -i :3002
 
-1. **Unit Tests** (fast feedback ~5 min)
-2. **Integration Tests** (service validation ~10 min)  
-3. **E2E Tests** (full scenarios ~15 min)
-4. **Performance Tests** (nightly only ~30 min)
-
-### CI Environment Variables
-
-Set these in your CI system:
-
-```yaml
-env:
-  E2E_HEADLESS: true
-  E2E_VIDEO: retain-on-failure  
-  E2E_TRACE: retain-on-failure
-  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+# Kill processes
+pkill -f "uvicorn.*8001"
+pkill -f "serve.*3001"
 ```
 
-### Artifact Collection
+### Docker Issues
 
-CI automatically collects:
-- Coverage reports (XML/HTML)
-- E2E screenshots/videos on failure
-- Playwright traces for debugging
-- Performance benchmark results
+```bash
+# Reset Docker environment
+cd docker
+docker compose down -v
+docker compose build --no-cache
+docker compose up -d
 
-## Test Coverage Targets
+# Check logs
+docker compose logs mcts
+```
 
-| Component | Target Coverage | Current |
-|-----------|----------------|---------|
-| Backend API | 85% | TBD |
-| WebSocket handlers | 90% | TBD |
-| Frontend components | 80% | TBD |
-| Integration flows | 70% | TBD |
+### Clean Test Environment
 
-## Writing New Tests
+```bash
+# Full reset
+rm -rf tests/e2e/screenshots/* tests/e2e/videos/* tests/e2e/traces/*
+pkill -f pytest
+pkill -f uvicorn
+pkill -f serve
+```
+
+---
+
+## Writing Tests
+
+### Adding Async Tests
+
+```python
+import pytest
+import asyncio
+from httpx import AsyncClient
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_async_api_endpoint():
+    async with AsyncClient(base_url="http://localhost:8001") as client:
+        response = await client.post("/api/endpoint", json={"data": "test"})
+        assert response.status_code == 200
+        
+        # Use wait_for for operations that might hang
+        result = await asyncio.wait_for(
+            client.get("/api/slow-endpoint"),
+            timeout=10.0
+        )
+        assert result.status_code == 200
+```
 
 ### Adding E2E Tests
 
@@ -358,16 +481,17 @@ async def test_new_connection_scenario(page: Page, e2e_urls):
     await expect(page.locator('[data-testid="connection-text"]')).to_have_text("Connected")
     
     # Test your scenario
-    # ...
+    await page.click('[data-testid="start-game"]')
+    await expect(page.locator('[data-testid="game-board"]')).to_be_visible()
 
-# Note: E2E tests should be run from the tests/e2e directory:
+# Run from e2e directory:
 # docker compose exec mcts bash -c "cd tests/e2e && pytest test_new_feature.py -v"
 ```
 
 ### Adding Integration Tests
 
 ```python
-# tests/integration/test_new_api.py
+# tests/integration/test_new_integration.py
 import pytest
 from httpx import AsyncClient
 
@@ -384,13 +508,12 @@ async def test_new_api_endpoint(backend_server, test_config):
 ### Test Data Fixtures
 
 ```python
-# Use existing fixtures for consistency
 from tests.fixtures.game_data import TestGameData
 
 def test_with_game_data():
     game_config = TestGameData.get_game_config("quick_human_vs_ai")
     moves = TestGameData.get_move_sequence("opening_moves")
-    # ...
+    # Test implementation
 ```
 
 ## Flakiness Prevention
@@ -405,8 +528,6 @@ def test_with_game_data():
 
 ### Quarantine Tests
 
-Mark flaky tests for investigation:
-
 ```python
 @pytest.mark.quarantine
 @pytest.mark.skip(reason="Flaky - investigating connection issues")
@@ -415,47 +536,60 @@ def test_flaky_scenario():
 ```
 
 Run quarantined tests separately:
+
 ```bash
 poetry run pytest -m quarantine -v
 ```
 
-## Troubleshooting
+---
 
-### Port Conflicts
+## CI/CD Integration
 
-```bash
-# Check what's using your test ports
-lsof -i :8001 -i :3001 -i :8002 -i :3002
+The CI pipeline runs tests in stages:
 
-# Kill processes using test ports
-pkill -f "uvicorn.*8001"
-pkill -f "serve.*3001"
+1. **Unit Tests** (fast feedback ~5 min)
+2. **Integration Tests** (service validation ~10 min)  
+3. **E2E Tests** (full scenarios ~15 min)
+4. **Performance Tests** (nightly only ~30 min)
+
+### CI Environment Variables
+
+```yaml
+env:
+  E2E_HEADLESS: true
+  E2E_VIDEO: retain-on-failure  
+  E2E_TRACE: retain-on-failure
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 ```
 
-### Docker Issues
+### Artifact Collection
 
-```bash
-# Reset Docker environment
-cd docker
-docker compose down -v
-docker compose build --no-cache
-docker compose up -d
+CI automatically collects:
+- Coverage reports (XML/HTML)
+- E2E screenshots/videos on failure
+- Playwright traces for debugging
+- Performance benchmark results
 
-# Check Docker logs
-docker compose logs mcts
+## Test Execution Summary
+
+When you run `poetry run test-all`, you get a comprehensive summary:
+
 ```
+📊 TEST EXECUTION SUMMARY
+================================================================================
+🎉 All executed tests passed!
 
-### Clean Test Environment
+📋 Test Suite Results:
+  ✅ Unit Tests - Core: PASSED
+  ✅ Unit Tests - API: PASSED  
+  ✅ Integration Tests: PASSED
+  ✅ Utility & Fixture Tests: PASSED
+  ✅ Benchmark Tests: PASSED
+  ✅ Frontend Tests: PASSED
+  ✅ E2E Tests: PASSED
 
-```bash
-# Full reset
-make clean-test-env
-
-# Manual cleanup
-rm -rf tests/e2e/screenshots/* tests/e2e/videos/* tests/e2e/traces/*
-pkill -f pytest
-pkill -f uvicorn
-pkill -f serve
+📊 Summary: 7 passed, 0 failed, 0 skipped (of 7 suites)
+================================================================================
 ```
 
 ## Contributing Guidelines
@@ -466,10 +600,5 @@ pkill -f serve
 4. **Add appropriate markers** (`@pytest.mark.integration`, etc.)
 5. **Test failure scenarios** - don't just test happy paths
 6. **Consider flakiness** - use explicit waits and stable selectors
+7. **Follow async best practices** - review the checklist above
 
-## Resources
-
-- [Pytest Documentation](https://docs.pytest.org/)
-- [Playwright Python Documentation](https://playwright.dev/python/)
-- [FastAPI Testing](https://fastapi.tiangolo.com/tutorial/testing/)
-- [Testing WebSockets](https://websockets.readthedocs.io/en/stable/topics/testing.html)

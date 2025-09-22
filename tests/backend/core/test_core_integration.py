@@ -284,7 +284,7 @@ class TestCPythonIntegration:
 
     def test_move_execution_consistency(self) -> None:
         """Test that moves are executed consistently between calls."""
-        mcts = Corridors_MCTS(c=1.0, seed=111, min_simulations=30, max_simulations=60)
+        mcts = Corridors_MCTS(c=1.0, seed=111, min_simulations=30, max_simulations=100)
 
         mcts.ensure_sims(30)
 
@@ -312,7 +312,7 @@ class TestCPythonIntegration:
 
     def test_evaluation_function_integration(self) -> None:
         """Test evaluation function returns consistent types."""
-        mcts = Corridors_MCTS(c=1.0, seed=222, min_simulations=40, max_simulations=80)
+        mcts = Corridors_MCTS(c=1.0, seed=222, min_simulations=40, max_simulations=100)
 
         # Test evaluation at different stages
         initial_eval = mcts.get_evaluation()
@@ -548,7 +548,7 @@ class TestDisplayIntegration:
             # Action should be executable (test first few)
             try:
                 test_mcts = Corridors_MCTS(
-                    c=1.0, seed=555, min_simulations=10, max_simulations=20
+                    c=1.0, seed=555, min_simulations=10, max_simulations=100
                 )
                 test_mcts.ensure_sims(10)
                 test_actions = test_mcts.get_sorted_actions(flip=True)

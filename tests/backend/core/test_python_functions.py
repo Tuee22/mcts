@@ -392,9 +392,9 @@ class TestCorridorsMCTSPythonMethods:
 @parametrize(
     "c,seed,min_sims,max_sims",
     [
-        (0.5, 1, 5, 10),
-        (1.0, 42, 10, 20),
-        (2.0, 123, 20, 50),
+        (0.5, 1, 5, 100),
+        (1.0, 42, 10, 100),
+        (2.0, 123, 20, 100),
     ],
 )
 def test_mcts_parameter_combinations(

@@ -68,7 +68,7 @@ def fast_mcts_params() -> MCTSParams:
         "c": sqrt(0.5),
         "seed": 123,
         "min_simulations": 10,
-        "max_simulations": 50,
+        "max_simulations": 100,
         "sim_increment": 25,
         "use_rollout": True,
         "eval_children": False,

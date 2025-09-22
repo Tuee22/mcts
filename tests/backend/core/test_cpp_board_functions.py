@@ -64,14 +64,14 @@ class TestCorridorsMCTSBasicFunctionality:
     def test_mcts_initialization_c_values(self, c_value: float) -> None:
         """Test MCTS initialization with different exploration parameters."""
         mcts = Corridors_MCTS(
-            c=c_value, seed=42, min_simulations=10, max_simulations=50
+            c=c_value, seed=42, min_simulations=10, max_simulations=100
         )
         assert mcts is not None
 
     @parametrize("seed", [1, 42, 123, 999, 12345])
     def test_mcts_initialization_seeds(self, seed: int) -> None:
         """Test MCTS initialization with different random seeds."""
-        mcts = Corridors_MCTS(seed=seed, min_simulations=10, max_simulations=50)
+        mcts = Corridors_MCTS(seed=seed, min_simulations=10, max_simulations=100)
         assert mcts is not None
 
     @parametrize(
@@ -91,7 +91,7 @@ class TestCorridorsMCTSBasicFunctionality:
             c=1.0,
             seed=42,
             min_simulations=10,
-            max_simulations=50,
+            max_simulations=100,
             use_rollout=use_rollout,
             eval_children=eval_children,
             use_puct=use_puct,
