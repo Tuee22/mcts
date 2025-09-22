@@ -143,7 +143,7 @@ async def run_positional_only_game() -> None:
         list(map(print, move_summaries))
 
 
-async def main():
+async def main() -> None:
     """Main execution function."""
     await run_positional_only_game()
 

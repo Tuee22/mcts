@@ -1,23 +1,8 @@
 from tests.pytest_marks import (
-    api,
-    asyncio as asyncio_mark,
-    benchmark,
-    board,
-    cpp,
-    display,
-    edge_cases,
-    endpoints,
-    game_manager,
-    integration,
-    mcts,
-    models,
     parametrize,
     performance,
-    python,
     slow,
     stress,
-    unit,
-    websocket,
 )
 
 """
@@ -31,14 +16,10 @@ These tests verify performance characteristics and handle edge cases:
 - Algorithm efficiency
 """
 
-import asyncio
 import gc
 import time
-from typing import Dict, List, Tuple, Optional
-from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
 from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
@@ -255,92 +236,116 @@ class TestStressConditions:
     Each method should use @pytest.mark.asyncio, async def, and async context managers.
     """
 
-    def test_zero_simulations(self) -> None:
+    @pytest.mark.asyncio
+    async def test_zero_simulations(self) -> None:
         """Test behavior with zero simulations."""
         config = MCTSConfig(c=1.0, seed=42, min_simulations=0, max_simulations=100)
-        mcts = AsyncCorridorsMCTS(config)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Should still be able to get actions (might be empty or random)
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
-        # Should still be able to get actions (might be empty or random)
-        actions = await mcts.get_sorted_actions_async(flip=True)
-        assert isinstance(actions, list)
-
-    def test_minimal_parameters(self) -> None:
+    @pytest.mark.asyncio
+    async def test_minimal_parameters(self) -> None:
         """Test with minimal parameter values."""
         config = MCTSConfig(
             c=0.01,  # Very small exploration
             seed=1,
             min_simulations=1,
             max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
         )
-        mcts = AsyncCorridorsMCTS(config)
-
-        await mcts.ensure_sims_async(1)
-        actions = await mcts.get_sorted_actions_async(flip=True)
-        assert isinstance(actions, list)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(1)
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
     @parametrize("extreme_c", [0.0001, 100.0, 1000.0])
-    def test_extreme_exploration_values(self, extreme_c: float) -> None:
+    @pytest.mark.asyncio
+    async def test_extreme_exploration_values(self, extreme_c: float) -> None:
         """Test with extreme exploration parameter values."""
         config = MCTSConfig(
             c=extreme_c,
             seed=42,
             min_simulations=20,
             max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
         )
-        mcts = AsyncCorridorsMCTS(config)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(20)
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
-        await mcts.ensure_sims_async(20)
-        actions = await mcts.get_sorted_actions_async(flip=True)
-        assert isinstance(actions, list)
+            # Should still produce reasonable output
+            if actions:
+                visits, equity, action_str = actions[0]
+                assert isinstance(visits, int)
+                assert isinstance(equity, (int, float))
+                assert isinstance(action_str, str)
 
-        # Should still produce reasonable output
-        if actions:
-            visits, equity, action_str = actions[0]
-            assert isinstance(visits, int)
-            assert isinstance(equity, (int, float))
-            assert isinstance(action_str, str)
-
-    def test_many_consecutive_moves(self) -> None:
+    @pytest.mark.asyncio
+    async def test_many_consecutive_moves(self) -> None:
         """Test making many consecutive moves."""
-        config = MCTSConfig(c=1.0, seed=42, min_simulations=20, max_simulations=100)
-        mcts = AsyncCorridorsMCTS(config)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=20,
+            max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            moves_made = 0
+            max_moves = 100  # High limit to test stress
 
-        moves_made = 0
-        max_moves = 100  # High limit to test stress
+            try:
+                for i in range(max_moves):
+                    await mcts.ensure_sims_async(20)
+                    actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
 
-        try:
-            for i in range(max_moves):
-                await mcts.ensure_sims_async(20)
-                actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
+                    if not actions:
+                        break  # Game ended
 
-                if not actions:
-                    break  # Game ended
+                    # Make a move (not necessarily the best to prolong game)
+                    move_index = min(i % len(actions), len(actions) - 1)
+                    move = actions[move_index][2]
+                    await mcts.make_move_async(move, flip=(i % 2 == 0))
+                    moves_made += 1
 
-                # Make a move (not necessarily the best to prolong game)
-                move_index = min(i % len(actions), len(actions) - 1)
-                move = actions[move_index][2]
-                await mcts.make_move_async(move, flip=(i % 2 == 0))
-                moves_made += 1
+                    # Check for terminal state periodically
+                    if i % 10 == 0:
+                        evaluation = await mcts.get_evaluation_async()
+                        if evaluation is not None and abs(evaluation) >= 1.0:
+                            break
 
-                # Check for terminal state periodically
-                if i % 10 == 0:
-                    evaluation = await mcts.get_evaluation_async()
-                    if evaluation is not None and abs(evaluation) >= 1.0:
-                        break
+            except Exception:
+                # If we hit an error, at least some moves should have been made
+                assert moves_made > 0
+                raise
 
-        except Exception as e:
-            # If we hit an error, at least some moves should have been made
             assert moves_made > 0
-            raise
-
-        assert moves_made > 0
 
 
 @performance
 class TestAlgorithmVariants:
     """Test different algorithm variants for performance."""
 
-    def test_uct_vs_puct(self) -> None:
+    @pytest.mark.asyncio
+    async def test_uct_vs_puct(self) -> None:
         """Compare UCT vs PUCT algorithms."""
         # Use direct constructor call for type safety
         config = MCTSConfig(
@@ -348,69 +353,91 @@ class TestAlgorithmVariants:
             seed=42,
             min_simulations=100,
             max_simulations=200,
+            sim_increment=50,
             use_rollout=True,
             eval_children=False,
             use_puct=False,
             use_probs=False,
             decide_using_visits=True,
         )
-        mcts_uct = AsyncCorridorsMCTS(config)
+        async with AsyncCorridorsMCTS(config) as mcts_uct:
+            start_time = time.time()
+            await mcts_uct.ensure_sims_async(100)
+            time_uct = time.time() - start_time
 
-        start_time = time.time()
-        await mcts_uct.ensure_sims_async(100)
-        time_uct = time.time() - start_time
+            # UCT should complete in reasonable time
+            assert time_uct < 60.0
 
-        # UCT should complete in reasonable time
-        assert time_uct < 60.0
-
-        actions = await mcts_uct.get_sorted_actions_async(flip=True)
-        assert len(actions) > 0
+            actions = await mcts_uct.get_sorted_actions_async(flip=True)
+            assert len(actions) > 0
 
 
 @performance
 class TestConcurrencySimulation:
     """Simulate concurrent-like usage patterns."""
 
-    def test_interleaved_operations(self) -> None:
+    @pytest.mark.asyncio
+    async def test_interleaved_operations(self) -> None:
         """Test interleaving different operations."""
-        config = MCTSConfig(c=1.0, seed=42, min_simulations=50, max_simulations=100)
-        mcts = AsyncCorridorsMCTS(config)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=50,
+            max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Interleave operations as might happen in a GUI or web app
+            for i in range(20):
+                if i % 4 == 0:
+                    await mcts.ensure_sims_async(50 + i)
+                elif i % 4 == 1:
+                    actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
+                    assert isinstance(actions, list)
+                elif i % 4 == 2:
+                    display = await mcts.display_async(flip=(i % 2 == 0))
+                    assert isinstance(display, str)
+                else:
+                    evaluation = await mcts.get_evaluation_async()
+                    assert evaluation is None or isinstance(evaluation, (int, float))
 
-        # Interleave operations as might happen in a GUI or web app
-        for i in range(20):
-            if i % 4 == 0:
-                await mcts.ensure_sims_async(50 + i)
-            elif i % 4 == 1:
+    @pytest.mark.asyncio
+    async def test_rapid_state_queries(self) -> None:
+        """Test rapid successive queries of game state."""
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=100,
+            max_simulations=200,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(100)
+
+            start_time = time.time()
+
+            # Many rapid queries
+            for i in range(100):
                 actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
-                assert isinstance(actions, list)
-            elif i % 4 == 2:
                 display = await mcts.display_async(flip=(i % 2 == 0))
-                assert isinstance(display, str)
-            else:
                 evaluation = await mcts.get_evaluation_async()
+
+                # Basic type checks
+                assert isinstance(actions, list)
+                assert isinstance(display, str)
                 assert evaluation is None or isinstance(evaluation, (int, float))
 
-    def test_rapid_state_queries(self) -> None:
-        """Test rapid successive queries of game state."""
-        config = MCTSConfig(c=1.0, seed=42, min_simulations=100, max_simulations=200)
-        mcts = AsyncCorridorsMCTS(config)
+            elapsed = time.time() - start_time
 
-        await mcts.ensure_sims_async(100)
-
-        start_time = time.time()
-
-        # Many rapid queries
-        for i in range(100):
-            actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
-            display = await mcts.display_async(flip=(i % 2 == 0))
-            evaluation = await mcts.get_evaluation_async()
-
-            # Basic type checks
-            assert isinstance(actions, list)
-            assert isinstance(display, str)
-            assert evaluation is None or isinstance(evaluation, (int, float))
-
-        elapsed = time.time() - start_time
-
-        # Queries should be fast (no heavy computation)
-        assert elapsed < 5.0  # 5 seconds for 100 queries
+            # Queries should be fast (no heavy computation)
+            assert elapsed < 5.0  # 5 seconds for 100 queries

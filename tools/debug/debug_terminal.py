@@ -3,7 +3,7 @@
 
 import asyncio
 from dataclasses import dataclass
-from typing import Callable, Optional, List, Tuple
+from typing import Awaitable, Callable, Optional, List, Tuple
 from functools import partial
 
 from corridors import AsyncCorridorsMCTS
@@ -46,7 +46,7 @@ async def ensure_and_get_actions(
 async def create_test_result(
     description: str,
     mcts: AsyncCorridorsMCTS,
-    action_getter: Callable[[], Tuple[Tuple[int, float, str], ...]],
+    action_getter: Callable[[], Awaitable[Tuple[Tuple[int, float, str], ...]]],
 ) -> TestResult:
     """Pure function to create test results."""
     actions = await action_getter()

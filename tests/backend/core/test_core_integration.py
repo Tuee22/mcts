@@ -1,23 +1,10 @@
 from tests.pytest_marks import (
-    api,
-    asyncio,
-    benchmark,
-    board,
     cpp,
     display,
-    edge_cases,
-    endpoints,
-    game_manager,
     integration,
-    mcts,
-    models,
     parametrize,
     performance,
-    python,
     slow,
-    stress,
-    unit,
-    websocket,
 )
 
 """
@@ -30,13 +17,10 @@ These tests verify that all components work together correctly:
 - System behavior under realistic conditions
 """
 
-import asyncio
 import time
-from typing import Dict, List, Tuple, Optional
-from unittest.mock import Mock, patch
+from typing import Dict, List, Tuple
 
 import pytest
-import pytest_asyncio
 
 from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig

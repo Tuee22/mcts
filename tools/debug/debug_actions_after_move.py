@@ -6,7 +6,7 @@ from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
 
-async def main():
+async def main() -> None:
     """Debug actions available after making moves."""
     config = MCTSConfig(
         c=2.0,

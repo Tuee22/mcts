@@ -1,23 +1,9 @@
 from tests.pytest_marks import (
-    api,
-    asyncio as asyncio_mark,
-    benchmark,
-    board,
     cpp,
-    display,
     edge_cases,
-    endpoints,
-    game_manager,
     integration,
-    mcts,
-    models,
     parametrize,
-    performance,
     python,
-    slow,
-    stress,
-    unit,
-    websocket,
 )
 
 """
@@ -30,13 +16,10 @@ These tests cover unusual conditions and corner cases:
 - Algorithm edge conditions
 """
 
-import asyncio
-import sys
-from typing import Dict, List, Tuple, Optional
-from unittest.mock import MagicMock, Mock, patch
+from typing import List, Tuple, Optional
+from unittest.mock import MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 from tests.mock_helpers import MockCorridorsMCTS
 
@@ -49,11 +32,22 @@ def display_sorted_actions(
     actions: List[Tuple[int, float, str]], list_size: Optional[int] = None
 ) -> str:
     """Format sorted actions for display."""
-    limited_actions = actions[:list_size] if list_size is not None else actions
-    return "\n".join(
-        f"{action}: {visits} visits, {equity:.4f} equity"
-        for visits, equity, action in limited_actions
-    )
+    if not actions:
+        return "Total Visits: 0\n"
+
+    # Handle negative or zero list_size as showing all
+    if list_size is not None and list_size <= 0:
+        limited_actions = actions
+    else:
+        limited_actions = actions[:list_size] if list_size is not None else actions
+
+    total_visits = sum(visits for visits, _, _ in actions)
+
+    result = f"Total Visits: {total_visits}\n"
+    for visits, equity, action in limited_actions:
+        result += f"Visit count: {visits}, Action: {action}, Equity: {equity:.4f}\n"
+
+    return result.rstrip()
 
 
 def computer_self_play(*args: object, **kwargs: object) -> None:

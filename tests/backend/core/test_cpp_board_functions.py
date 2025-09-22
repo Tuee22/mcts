@@ -1,23 +1,10 @@
 from tests.pytest_marks import (
-    api,
-    asyncio as asyncio_mark,
-    benchmark,
     board,
     cpp,
-    display,
-    edge_cases,
-    endpoints,
-    game_manager,
     integration,
     mcts,
-    models,
     parametrize,
-    performance,
-    python,
     slow,
-    stress,
-    unit,
-    websocket,
 )
 
 """
@@ -32,12 +19,8 @@ These tests verify the core board logic implemented in C++:
 - Hash generation
 """
 
-import asyncio
-from typing import Dict, List, Tuple
-from unittest.mock import Mock
 
 import pytest
-import pytest_asyncio
 
 from tests.conftest import MCTSParams
 
@@ -274,7 +257,7 @@ class TestMCTSActions:
             # Verify it matches the top sorted action
             actions = await mcts.get_sorted_actions_async(flip=True)
             if actions:
-                expected_best = actions[0][2]
+                actions[0][2]
                 # Note: might not match exactly due to flip parameter differences
 
     @parametrize("epsilon", [0.0, 0.1, 0.5, 1.0])
@@ -306,7 +289,7 @@ class TestMoveValidation:
 
             # Get initial actions
             actions = await mcts.get_sorted_actions_async(flip=True)
-            initial_count = len(actions)
+            len(actions)
 
             if actions:
                 # Make a move

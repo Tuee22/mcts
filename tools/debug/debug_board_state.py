@@ -39,7 +39,7 @@ async def print_board_analysis(name: str, mcts: AsyncCorridorsMCTS) -> None:
     print()
 
 
-async def main():
+async def main() -> None:
     """Debug board state after various moves."""
     # Test the problematic sequence
     config1 = MCTSConfig(

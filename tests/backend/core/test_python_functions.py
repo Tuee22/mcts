@@ -9,17 +9,11 @@ These tests focus on Python-side functionality:
 - Utility functions
 """
 
-import asyncio
-import io
-import sys
-from typing import Dict, Generator, List, Optional, Tuple
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import List, Optional, Tuple
 
 import pytest
-import pytest_asyncio
 
 from tests.conftest import MCTSParams
-from tests.mock_helpers import MockCorridorsMCTS
 from tests.pytest_marks import display, integration, parametrize, python, unit
 
 
@@ -37,8 +31,11 @@ def display_sorted_actions(
     # Calculate total visits
     total_visits = sum(action[0] for action in actions)
 
-    # Limit actions if requested
-    limited_actions = actions[:list_size] if list_size is not None else actions
+    # Limit actions if requested - treat 0 as showing all actions
+    if list_size is not None and list_size > 0:
+        limited_actions = actions[:list_size]
+    else:
+        limited_actions = actions
 
     # Format output
     lines = [f"Total Visits: {total_visits}"]

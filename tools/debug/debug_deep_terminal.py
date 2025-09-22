@@ -6,7 +6,7 @@ from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
 
-async def main():
+async def main() -> None:
     """Debug deep terminal evaluation issues."""
     # Let's debug exactly what happens when we make the problematic wall move
     config = MCTSConfig(

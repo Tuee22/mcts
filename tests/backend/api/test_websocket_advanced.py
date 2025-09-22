@@ -4,23 +4,20 @@ Advanced WebSocket manager tests to cover remaining uncovered lines.
 
 import asyncio
 from typing import List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from fastapi import WebSocket
 
 from backend.api.api_types import OutgoingWebSocketMessage, WebSocketProtocol
 from backend.api.models import (
     GameMode,
     GameResponse,
-    GameSession,
     GameStatus,
     MoveResponse,
     Player,
     PlayerType,
 )
 from backend.api.websocket_manager import WebSocketManager
-from tests.pytest_marks import websocket
 
 
 class MockWebSocket:

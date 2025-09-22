@@ -1,25 +1,3 @@
-from tests.pytest_marks import (
-    api,
-    asyncio,
-    benchmark,
-    board,
-    cpp,
-    display,
-    edge_cases,
-    endpoints,
-    game_manager,
-    integration,
-    mcts,
-    models,
-    parametrize,
-    performance,
-    python,
-    slow,
-    stress,
-    unit,
-    websocket,
-)
-
 """
 Tests for API models and validation.
 """
@@ -30,7 +8,6 @@ from pydantic import ValidationError
 
 from backend.api.models import (
     AnalysisResult,
-    BoardState,
     GameCreateRequest,
     GameMode,
     GameResponse,

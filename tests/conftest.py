@@ -28,6 +28,7 @@ class MCTSParams(TypedDict):
     use_puct: bool
     use_probs: bool
     decide_using_visits: bool
+    max_workers: int
 
 
 class BoardState(TypedDict):
@@ -59,6 +60,7 @@ def basic_mcts_params() -> MCTSParams:
         "use_puct": False,
         "use_probs": False,
         "decide_using_visits": True,
+        "max_workers": 1,
     }
 
 
@@ -76,6 +78,7 @@ def fast_mcts_params() -> MCTSParams:
         "use_puct": False,
         "use_probs": False,
         "decide_using_visits": True,
+        "max_workers": 1,
     }
 
 
@@ -93,6 +96,7 @@ def puct_mcts_params() -> MCTSParams:
         "use_puct": True,
         "use_probs": True,
         "decide_using_visits": False,
+        "max_workers": 1,
     }
 
 

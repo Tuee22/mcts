@@ -6,7 +6,7 @@ from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
 
-async def main():
+async def main() -> None:
     """Debug evaluation issue with async MCTS."""
     # Reproduce the exact same setup as the failing test
     config = MCTSConfig(

@@ -6,7 +6,7 @@ from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
 
-async def main():
+async def main() -> None:
     """Debug root node vs child visits discrepancy."""
     # Unfortunately, I don't have a direct way to get root visits from Python bindings
     # But I can infer the issue from the pattern

@@ -134,7 +134,7 @@ async def run_test(description: str, flip_mode: FlipMode) -> None:
         print(f"\nGame lasted {len(moves)} moves with {description.lower()}")
 
 
-async def main():
+async def main() -> None:
     """Main execution function."""
     tests = [
         ("TESTING WITHOUT FLIP", FlipMode.NEVER),

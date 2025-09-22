@@ -6,7 +6,7 @@ from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
 
-async def main():
+async def main() -> None:
     """Debug terminal detection in C++ board logic."""
     # I need to create a debug version that exposes the board's is_terminal method to Python
     # For now, let me trace what's happening by looking at the evaluation logic more carefully
