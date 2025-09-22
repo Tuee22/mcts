@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple, Union
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from corridors.async_mcts import MCTSRegistry, ConcurrencyViolationError
+from corridors.async_mcts import MCTSRegistry, ConcurrencyViolationError, MCTSConfig
 
 from backend.api.models import (
     AnalysisResult,
@@ -119,9 +119,8 @@ class GameManager:
             # Initialize async MCTS instance
             mcts_settings = game.settings.mcts_settings
 
-            # Create async MCTS instance for race-condition-free concurrency
-            await self.mcts_registry.get_or_create(
-                game_id=game.game_id,
+            # Create MCTS configuration
+            mcts_config = MCTSConfig(
                 c=mcts_settings.c,
                 seed=mcts_settings.seed or 42,
                 min_simulations=mcts_settings.min_simulations,
@@ -132,6 +131,11 @@ class GameManager:
                 use_puct=mcts_settings.use_puct,
                 use_probs=mcts_settings.use_probs,
                 decide_using_visits=mcts_settings.decide_using_visits,
+            )
+            # Create async MCTS instance for race-condition-free concurrency
+            await self.mcts_registry.get_or_create(
+                game_id=game.game_id,
+                config=mcts_config,
             )
 
             # Use only async registry for thread safety - no sync instances

@@ -26,6 +26,7 @@ from tests.pytest_marks import display, integration, parametrize, python, unit
 # Note: The fixture is not needed since we use context managers directly
 
 from corridors import AsyncCorridorsMCTS
+from corridors.async_mcts import MCTSConfig
 
 
 # Recreate the display_sorted_actions utility function for testing
@@ -35,17 +36,17 @@ def display_sorted_actions(
     """Format sorted actions for display."""
     # Calculate total visits
     total_visits = sum(action[0] for action in actions)
-    
+
     # Limit actions if requested
     limited_actions = actions[:list_size] if list_size is not None else actions
-    
+
     # Format output
     lines = [f"Total Visits: {total_visits}"]
     lines.append("")  # Add empty line to match expected format
-    
+
     for visits, equity, action in limited_actions:
         lines.append(f"Visit count: {visits} Equity: {equity:.4f} Action: {action}")
-    
+
     return "\n".join(lines) + "\n"
 
 
@@ -183,9 +184,12 @@ class TestAsyncCorridorsMCTSPythonMethods:
     """Test Python-specific methods in AsyncCorridorsMCTS class."""
 
     @pytest.mark.asyncio
-    async def test_get_evaluation_none_handling(self, fast_mcts_params: MCTSParams) -> None:
+    async def test_get_evaluation_none_handling(
+        self, fast_mcts_params: MCTSParams
+    ) -> None:
         """Test that get_evaluation properly handles None values."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             # Test that get_evaluation returns proper types
             result = await mcts.get_evaluation_async()
             assert result is None or isinstance(result, float)
@@ -193,7 +197,8 @@ class TestAsyncCorridorsMCTSPythonMethods:
     @pytest.mark.asyncio
     async def test_method_delegation(self, fast_mcts_params: MCTSParams) -> None:
         """Test that methods properly delegate to async implementation."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             # These should not raise exceptions and should return expected types
             display = await mcts.display_async(flip=False)
             assert isinstance(display, str)
@@ -218,7 +223,7 @@ async def test_async_mcts_parameter_combinations(
     c: float, seed: int, min_sims: int, max_sims: int
 ) -> None:
     """Test AsyncCorridorsMCTS with various parameter combinations."""
-    async with AsyncCorridorsMCTS(
+    config = MCTSConfig(
         c=c,
         seed=seed,
         min_simulations=min_sims,
@@ -229,7 +234,8 @@ async def test_async_mcts_parameter_combinations(
         use_puct=False,
         use_probs=False,
         decide_using_visits=True,
-    ) as mcts:
+    )
+    async with AsyncCorridorsMCTS(config) as mcts:
         assert mcts is not None
         # Basic functionality should work
         display = await mcts.display_async()

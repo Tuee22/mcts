@@ -174,8 +174,6 @@ def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[[], MockCorridorsMCTS]:
     monkeypatch.setattr(
         "backend.api.game_manager.AsyncCorridorsMCTS", mock_mcts_constructor
     )
-    monkeypatch.setattr(
-        "corridors.AsyncCorridorsMCTS", mock_mcts_constructor
-    )
+    monkeypatch.setattr("corridors.AsyncCorridorsMCTS", mock_mcts_constructor)
 
     return mock_mcts_constructor

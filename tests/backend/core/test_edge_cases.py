@@ -41,6 +41,24 @@ import pytest_asyncio
 from tests.mock_helpers import MockCorridorsMCTS
 
 from corridors import AsyncCorridorsMCTS
+from corridors.async_mcts import MCTSConfig
+
+
+# Utility functions for tests
+def display_sorted_actions(
+    actions: List[Tuple[int, float, str]], list_size: Optional[int] = None
+) -> str:
+    """Format sorted actions for display."""
+    limited_actions = actions[:list_size] if list_size is not None else actions
+    return "\n".join(
+        f"{action}: {visits} visits, {equity:.4f} equity"
+        for visits, equity, action in limited_actions
+    )
+
+
+def computer_self_play(*args: object, **kwargs: object) -> None:
+    """Stub function - computer_self_play was removed in async refactor."""
+    raise NotImplementedError("computer_self_play was removed in async refactor")
 
 
 @edge_cases
@@ -62,11 +80,19 @@ class TestBoundaryConditions:
     @pytest.mark.asyncio
     async def test_boundary_positions(self, x: int, y: int) -> None:
         """Test MCTS behavior at board boundaries."""
-        async with AsyncCorridorsMCTS(
-            c=1.0, seed=42, min_simulations=10, max_simulations=100,
-            sim_increment=10, use_rollout=True, eval_children=False,
-            use_puct=False, use_probs=False, decide_using_visits=True
-        ) as mcts:
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=10,
+            max_simulations=100,
+            sim_increment=10,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             # Try to place hero at boundary position via moves
             # (This is indirect since we can't directly set positions)
             await mcts.ensure_sims_async(10)
@@ -78,69 +104,78 @@ class TestBoundaryConditions:
             assert isinstance(actions, list)
             assert isinstance(display, str)
 
-    def test_wall_boundary_positions(self) -> None:
+    @pytest.mark.asyncio
+    async def test_wall_boundary_positions(self) -> None:
         """Test wall placement at board boundaries."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=20, max_simulations=100)
+        config = MCTSConfig(c=1.0, seed=42, min_simulations=20, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(20)
+            actions = await mcts.get_sorted_actions_async(flip=True)
 
-        mcts.ensure_sims(20)
-        actions = mcts.get_sorted_actions(flip=True)
-
-        # Look for wall actions at boundaries
-        wall_actions = [
-            a[2] for a in actions if a[2].startswith("H(") or a[2].startswith("V(")
-        ]
-        boundary_walls = []
-
-        for wall_action in wall_actions:
-            # Parse wall coordinates
-            coords_str = wall_action[2:-1]  # Remove "H(" or "V(" and ")"
-            x_str, y_str = coords_str.split(",")
-            x, y = int(x_str), int(y_str)
-
-            # Check if it's a boundary wall (coordinates 0 or max)
-            if x == 0 or x >= 7 or y == 0 or y >= 7:  # (BOARD_SIZE-2) = 7 for 9x9 board
-                boundary_walls.append(wall_action)
-
-        # Boundary walls should be legal when they appear
-        for wall_action in boundary_walls[:3]:  # Test first few
-            try:
-                mcts_test = Corridors_MCTS(
-                    c=1.0, seed=42, min_simulations=5, max_simulations=100
-                )
-                mcts_test.ensure_sims(5)
-                test_actions = mcts_test.get_sorted_actions(flip=True)
-                if wall_action in [a[2] for a in test_actions]:
-                    mcts_test.make_move(wall_action, flip=True)
-                    # Should not raise exception
-            except Exception as e:
-                pytest.fail(f"Boundary wall {wall_action} caused error: {e}")
-
-    def test_maximum_walls_placement(self) -> None:
-        """Test behavior when maximum walls are placed."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=100)
-
-        # Try to place many walls (simulate late game)
-        for i in range(10):  # Try up to 10 wall placements
-            mcts.ensure_sims(15)
-            actions = mcts.get_sorted_actions(flip=True)
-
-            if not actions:
-                break
-
-            # Look for wall placement moves
-            wall_moves = [
+            # Look for wall actions at boundaries
+            wall_actions = [
                 a[2] for a in actions if a[2].startswith("H(") or a[2].startswith("V(")
             ]
+            boundary_walls = []
 
-            if not wall_moves:
-                break  # No more wall moves available
+            for wall_action in wall_actions:
+                # Parse wall coordinates
+                coords_str = wall_action[2:-1]  # Remove "H(" or "V(" and ")"
+                x_str, y_str = coords_str.split(",")
+                x, y = int(x_str), int(y_str)
 
-            # Place a wall
-            mcts.make_move(wall_moves[0], flip=True)
+                # Check if it's a boundary wall (coordinates 0 or max)
+                if (
+                    x == 0 or x >= 7 or y == 0 or y >= 7
+                ):  # (BOARD_SIZE-2) = 7 for 9x9 board
+                    boundary_walls.append(wall_action)
 
-        # Should still function normally
-        final_actions = mcts.get_sorted_actions(flip=False)
-        assert isinstance(final_actions, list)
+            # Boundary walls should be legal when they appear
+            for wall_action in boundary_walls[:3]:  # Test first few
+                try:
+                    config = MCTSConfig(
+                        c=1.0, seed=42, min_simulations=5, max_simulations=100
+                    )
+                    async with AsyncCorridorsMCTS(config) as mcts_test:
+                        await mcts_test.ensure_sims_async(5)
+                        test_actions = await mcts_test.get_sorted_actions_async(
+                            flip=True
+                        )
+                        if wall_action in [a[2] for a in test_actions]:
+                            await mcts_test.make_move_async(wall_action, flip=True)
+                            # Should not raise exception
+                except Exception as e:
+                    pytest.fail(f"Boundary wall {wall_action} caused error: {e}")
+
+    @pytest.mark.asyncio
+    async def test_maximum_walls_placement(self) -> None:
+        """Test behavior when maximum walls are placed."""
+        config = MCTSConfig(c=1.0, seed=42, min_simulations=15, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Try to place many walls (simulate late game)
+            for i in range(10):  # Try up to 10 wall placements
+                await mcts.ensure_sims_async(15)
+                actions = await mcts.get_sorted_actions_async(flip=True)
+
+                if not actions:
+                    break
+
+                # Look for wall placement moves
+                wall_moves = [
+                    a[2]
+                    for a in actions
+                    if a[2].startswith("H(") or a[2].startswith("V(")
+                ]
+
+                if not wall_moves:
+                    break  # No more wall moves available
+
+                # Place a wall
+                await mcts.make_move_async(wall_moves[0], flip=True)
+
+            # Should still function normally
+            final_actions = await mcts.get_sorted_actions_async(flip=False)
+            assert isinstance(final_actions, list)
 
 
 @edge_cases
@@ -271,48 +306,57 @@ class TestGameFlowEdgeCases:
 class TestMCTSParameterEdgeCases:
     """Test MCTS with edge case parameters."""
 
-    def test_very_small_c_parameter(self) -> None:
+    @pytest.mark.asyncio
+    async def test_very_small_c_parameter(self) -> None:
         """Test with very small exploration parameter."""
-        mcts = Corridors_MCTS(
+        config = MCTSConfig(
             c=1e-10,  # Extremely small
             seed=42,
             min_simulations=10,
             max_simulations=100,
         )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(10)
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
-        mcts.ensure_sims(10)
-        actions = mcts.get_sorted_actions(flip=True)
-        assert isinstance(actions, list)
-
-    def test_very_large_c_parameter(self) -> None:
+    @pytest.mark.asyncio
+    async def test_very_large_c_parameter(self) -> None:
         """Test with very large exploration parameter."""
-        mcts = Corridors_MCTS(
+        config = MCTSConfig(
             c=1e6,  # Extremely large
             seed=42,
             min_simulations=10,
             max_simulations=100,
         )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(10)
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
-        mcts.ensure_sims(10)
-        actions = mcts.get_sorted_actions(flip=True)
-        assert isinstance(actions, list)
-
-    def test_min_greater_than_max_simulations(self) -> None:
+    @pytest.mark.asyncio
+    async def test_min_greater_than_max_simulations(self) -> None:
         """Test behavior when min_simulations > max_simulations."""
         # This should either work (correcting the range internally) or raise a specific error
         try:
-            mcts = Corridors_MCTS(
+            config = MCTSConfig(
                 c=1.0,
                 seed=42,
                 min_simulations=100,
                 max_simulations=100,  # Less than min
+                sim_increment=50,
+                use_rollout=True,
+                eval_children=False,
+                use_puct=False,
+                use_probs=False,
+                decide_using_visits=True,
             )
-
-            mcts.ensure_sims(50)
-            actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(
-                actions, list
-            ), "MCTS should return list of actions when it handles invalid range internally"
+            async with AsyncCorridorsMCTS(config) as mcts:
+                await mcts.ensure_sims_async(50)
+                actions = await mcts.get_sorted_actions_async(flip=True)
+                assert isinstance(
+                    actions, list
+                ), "MCTS should return list of actions when it handles invalid range internally"
         except (ValueError, RuntimeError, TypeError) as e:
             # Specific exceptions are acceptable for invalid parameters
             assert len(str(e)) > 0, "Exception should have a descriptive message"
@@ -321,9 +365,21 @@ class TestMCTSParameterEdgeCases:
                 f"Unexpected exception type {type(e).__name__}: {e}. Expected ValueError, RuntimeError, or TypeError"
             )
 
-    def test_zero_increment(self) -> None:
+    @pytest.mark.asyncio
+    async def test_zero_increment(self) -> None:
         """Test with zero simulation increment."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=10,
+            max_simulations=100,
+            sim_increment=0,  # Zero increment
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
 
         # This should either complete normally or raise a specific timeout/runtime error
         try:
@@ -338,15 +394,16 @@ class TestMCTSParameterEdgeCases:
             signal.signal(signal.SIGALRM, timeout_handler)
             signal.alarm(5)  # 5 second timeout
 
-            mcts.ensure_sims(10)
+            async with AsyncCorridorsMCTS(config) as mcts:
+                await mcts.ensure_sims_async(10)
 
-            signal.alarm(0)  # Cancel timeout
+                signal.alarm(0)  # Cancel timeout
 
-            # If we get here, the operation completed successfully
-            actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(
-                actions, list
-            ), "MCTS should return valid actions after ensure_sims"
+                # If we get here, the operation completed successfully
+                actions = await mcts.get_sorted_actions_async(flip=True)
+                assert isinstance(
+                    actions, list
+                ), "MCTS should return valid actions after ensure_sims"
 
         except (TimeoutError, RuntimeError, ValueError) as e:
             signal.alarm(0)  # Cancel timeout
@@ -359,19 +416,31 @@ class TestMCTSParameterEdgeCases:
             )
 
     @parametrize("seed", [-1, 0, 2**31 - 1, 2**32 - 1])
-    def test_edge_case_seeds(self, seed: int) -> None:
+    @pytest.mark.asyncio
+    async def test_edge_case_seeds(self, seed: int) -> None:
         """Test with edge case random seeds."""
         try:
-            mcts = Corridors_MCTS(
-                c=1.0, seed=seed, min_simulations=5, max_simulations=100
+            config = MCTSConfig(
+                c=1.0,
+                seed=seed,
+                min_simulations=5,
+                max_simulations=100,
+                sim_increment=50,
+                use_rollout=True,
+                eval_children=False,
+                use_puct=False,
+                use_probs=False,
+                decide_using_visits=True,
             )
-
-            mcts.ensure_sims(5)
-            actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(
-                actions, list
-            ), f"MCTS should return list of actions with seed {seed}"
-            assert len(actions) >= 0, f"Actions list should be valid with seed {seed}"
+            async with AsyncCorridorsMCTS(config) as mcts:
+                await mcts.ensure_sims_async(5)
+                actions = await mcts.get_sorted_actions_async(flip=True)
+                assert isinstance(
+                    actions, list
+                ), f"MCTS should return list of actions with seed {seed}"
+                assert (
+                    len(actions) >= 0
+                ), f"Actions list should be valid with seed {seed}"
         except (ValueError, OverflowError, RuntimeError, TypeError) as e:
             # Some seeds might be invalid (e.g., negative, overflow, type issues) - that's acceptable
             assert (
@@ -388,65 +457,96 @@ class TestMCTSParameterEdgeCases:
 class TestStateTransitionEdgeCases:
     """Test edge cases in state transitions."""
 
-    def test_rapid_move_sequence(self) -> None:
+    @pytest.mark.asyncio
+    async def test_rapid_move_sequence(self) -> None:
         """Test rapid sequence of moves without simulations."""
-        mcts = Corridors_MCTS(
+        config = MCTSConfig(
             c=1.0,
             seed=42,
             min_simulations=1,  # Minimal simulations
             max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
         )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Try to make moves rapidly
+            for i in range(5):
+                await mcts.ensure_sims_async(1)
+                actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
 
-        # Try to make moves rapidly
-        for i in range(5):
-            mcts.ensure_sims(1)
-            actions = mcts.get_sorted_actions(flip=(i % 2 == 0))
+                if not actions:
+                    break
 
-            if not actions:
-                break
+                # Make first available move
+                await mcts.make_move_async(actions[0][2], flip=(i % 2 == 0))
 
-            # Make first available move
-            mcts.make_move(actions[0][2], flip=(i % 2 == 0))
+                # Verify state is still consistent
+                display = await mcts.display_async(flip=False)
+                assert isinstance(display, str)
+                assert len(display) > 0
 
-            # Verify state is still consistent
-            display = mcts.display(flip=False)
-            assert isinstance(display, str)
-            assert len(display) > 0
-
-    def test_alternating_flip_parameters(self) -> None:
+    @pytest.mark.asyncio
+    async def test_alternating_flip_parameters(self) -> None:
         """Test alternating flip parameters."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=10,
+            max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(10)
 
-        mcts.ensure_sims(10)
+            # Alternate flip parameters
+            for flip_value in [True, False, True, False]:
+                actions = await mcts.get_sorted_actions_async(flip=flip_value)
+                display = await mcts.display_async(flip=flip_value)
 
-        # Alternate flip parameters
-        for flip_value in [True, False, True, False]:
-            actions = mcts.get_sorted_actions(flip=flip_value)
-            display = mcts.display(flip=flip_value)
+                assert isinstance(actions, list)
+                assert isinstance(display, str)
 
-            assert isinstance(actions, list)
-            assert isinstance(display, str)
-
-    def test_evaluation_during_game_progress(self) -> None:
+    @pytest.mark.asyncio
+    async def test_evaluation_during_game_progress(self) -> None:
         """Test evaluation changes during game progress."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=15, max_simulations=100)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=15,
+            max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            evaluations = []
 
-        evaluations = []
+            for i in range(5):
+                await mcts.ensure_sims_async(15)
+                evaluation = await mcts.get_evaluation_async()
+                evaluations.append(evaluation)
 
-        for i in range(5):
-            mcts.ensure_sims(15)
-            evaluation = mcts.get_evaluation()
-            evaluations.append(evaluation)
+                actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
+                if not actions:
+                    break
 
-            actions = mcts.get_sorted_actions(flip=(i % 2 == 0))
-            if not actions:
-                break
+                await mcts.make_move_async(actions[0][2], flip=(i % 2 == 0))
 
-            mcts.make_move(actions[0][2], flip=(i % 2 == 0))
-
-        # Evaluations should be None or numeric
-        for eval_val in evaluations:
-            assert eval_val is None or isinstance(eval_val, (int, float))
+            # Evaluations should be None or numeric
+            for eval_val in evaluations:
+                assert eval_val is None or isinstance(eval_val, (int, float))
 
 
 @edge_cases
@@ -484,26 +584,40 @@ class TestErrorRecovery:
             # Type errors are acceptable for invalid input
             pass
 
-    def test_function_resilience(self) -> None:
+    @pytest.mark.asyncio
+    async def test_function_resilience(self) -> None:
         """Test that functions are resilient to unexpected inputs."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=5, max_simulations=100)
+        config = MCTSConfig(
+            c=1.0,
+            seed=42,
+            min_simulations=5,
+            max_simulations=100,
+            sim_increment=50,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Test various edge case calls
+            try:
+                await mcts.ensure_sims_async(5)
 
-        # Test various edge case calls
-        try:
-            mcts.ensure_sims(5)
+                # These should not crash the system
+                await mcts.display_async(flip=True)
+                await mcts.display_async(flip=False)
+                await mcts.get_evaluation_async()
 
-            # These should not crash the system
-            mcts.display(flip=True)
-            mcts.display(flip=False)
-            mcts.get_evaluation()
+                actions = await mcts.get_sorted_actions_async(flip=True)
+                if actions:
+                    # Try epsilon values outside normal range
+                    await mcts.choose_best_action_async(
+                        epsilon=-1.0
+                    )  # Negative epsilon
+                    await mcts.choose_best_action_async(epsilon=2.0)  # > 1.0 epsilon
 
-            actions = mcts.get_sorted_actions(flip=True)
-            if actions:
-                # Try epsilon values outside normal range
-                mcts.choose_best_action(epsilon=-1.0)  # Negative epsilon
-                mcts.choose_best_action(epsilon=2.0)  # > 1.0 epsilon
-
-        except Exception as e:
-            # Some exceptions may be expected for invalid inputs
-            # Just ensure the system doesn't crash completely
-            assert isinstance(e, Exception)
+            except Exception as e:
+                # Some exceptions may be expected for invalid inputs
+                # Just ensure the system doesn't crash completely
+                assert isinstance(e, Exception)

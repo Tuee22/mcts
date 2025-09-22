@@ -42,6 +42,7 @@ import pytest_asyncio
 from tests.conftest import MCTSParams
 
 from corridors import AsyncCorridorsMCTS
+from corridors.async_mcts import MCTSConfig
 
 
 @cpp
@@ -50,9 +51,12 @@ class TestCorridorsMCTSBasicFunctionality:
     """Test basic MCTS functionality exposed from C++."""
 
     @pytest.mark.asyncio
-    async def test_mcts_initialization_basic(self, basic_mcts_params: MCTSParams) -> None:
+    async def test_mcts_initialization_basic(
+        self, basic_mcts_params: MCTSParams
+    ) -> None:
         """Test MCTS instance can be created with basic parameters."""
-        async with AsyncCorridorsMCTS(**basic_mcts_params) as mcts:
+        config = MCTSConfig(**basic_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             assert mcts is not None
             assert hasattr(mcts, "display_async")
             assert hasattr(mcts, "make_move_async")
@@ -61,29 +65,46 @@ class TestCorridorsMCTSBasicFunctionality:
     @pytest.mark.asyncio
     async def test_mcts_initialization_fast(self, fast_mcts_params: MCTSParams) -> None:
         """Test MCTS instance with fast parameters."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             assert mcts is not None
 
     @parametrize("c_value", [0.1, 1.0, 2.0, 10.0])
     @pytest.mark.asyncio
     async def test_mcts_initialization_c_values(self, c_value: float) -> None:
         """Test MCTS initialization with different exploration parameters."""
-        async with AsyncCorridorsMCTS(
-            c=c_value, seed=42, min_simulations=10, max_simulations=100,
-            sim_increment=25, use_rollout=True, eval_children=False,
-            use_puct=False, use_probs=False, decide_using_visits=True
-        ) as mcts:
+        config = MCTSConfig(
+            c=c_value,
+            seed=42,
+            min_simulations=10,
+            max_simulations=100,
+            sim_increment=25,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             assert mcts is not None
 
     @parametrize("seed", [1, 42, 123, 999, 12345])
     @pytest.mark.asyncio
     async def test_mcts_initialization_seeds(self, seed: int) -> None:
         """Test MCTS initialization with different random seeds."""
-        async with AsyncCorridorsMCTS(
-            seed=seed, min_simulations=10, max_simulations=100,
-            c=1.4, sim_increment=25, use_rollout=True, eval_children=False,
-            use_puct=False, use_probs=False, decide_using_visits=True
-        ) as mcts:
+        config = MCTSConfig(
+            seed=seed,
+            min_simulations=10,
+            max_simulations=100,
+            c=1.4,
+            sim_increment=25,
+            use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
+            decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             assert mcts is not None
 
     @parametrize(
@@ -100,7 +121,7 @@ class TestCorridorsMCTSBasicFunctionality:
         self, use_rollout: bool, eval_children: bool, use_puct: bool, use_probs: bool
     ) -> None:
         """Test different MCTS algorithm configurations."""
-        async with AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=1.0,
             seed=42,
             min_simulations=10,
@@ -111,7 +132,8 @@ class TestCorridorsMCTSBasicFunctionality:
             use_puct=use_puct,
             use_probs=use_probs,
             decide_using_visits=True,
-        ) as mcts:
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             assert mcts is not None
 
 
@@ -123,7 +145,8 @@ class TestBoardDisplay:
     @pytest.mark.asyncio
     async def test_display_initial_state(self, fast_mcts_params: MCTSParams) -> None:
         """Test displaying initial board state."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             display = await mcts.display_async(flip=False)
 
             assert isinstance(display, str)
@@ -137,7 +160,8 @@ class TestBoardDisplay:
     @pytest.mark.asyncio
     async def test_display_flipped(self, fast_mcts_params: MCTSParams) -> None:
         """Test displaying board from villain's perspective."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             # Make a move to create asymmetric position
             await mcts.ensure_sims_async(20)
             actions = await mcts.get_sorted_actions_async(flip=False)
@@ -160,7 +184,8 @@ class TestBoardDisplay:
     @pytest.mark.asyncio
     async def test_display_after_moves(self, fast_mcts_params: MCTSParams) -> None:
         """Test board display changes after making moves."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             initial_display = await mcts.display_async(flip=False)
 
             # Get legal actions and make a move
@@ -185,7 +210,8 @@ class TestMCTSActions:
         self, fast_mcts_params: MCTSParams, mcts_helper: object
     ) -> None:
         """Test getting sorted actions from initial position."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(20)  # Ensure minimum simulations
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -200,9 +226,12 @@ class TestMCTSActions:
                 assert isinstance(action_str, str) and len(action_str) > 0
 
     @pytest.mark.asyncio
-    async def test_get_sorted_actions_structure(self, fast_mcts_params: MCTSParams) -> None:
+    async def test_get_sorted_actions_structure(
+        self, fast_mcts_params: MCTSParams
+    ) -> None:
         """Test structure of sorted actions."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(15)
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -220,7 +249,8 @@ class TestMCTSActions:
         self, fast_mcts_params: MCTSParams, mcts_helper: object
     ) -> None:
         """Test that action strings follow expected formats."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(15)
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -232,7 +262,8 @@ class TestMCTSActions:
     @pytest.mark.asyncio
     async def test_choose_best_action(self, fast_mcts_params: MCTSParams) -> None:
         """Test choosing best action."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(20)
 
             # Test greedy selection (epsilon=0)
@@ -252,7 +283,8 @@ class TestMCTSActions:
         self, epsilon: float, fast_mcts_params: MCTSParams
     ) -> None:
         """Test epsilon-greedy action selection."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(15)
 
             best_action = await mcts.choose_best_action_async(epsilon=epsilon)
@@ -268,7 +300,8 @@ class TestMoveValidation:
     @pytest.mark.asyncio
     async def test_make_valid_moves(self, fast_mcts_params: MCTSParams) -> None:
         """Test making valid positional moves."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(10)
 
             # Get initial actions
@@ -281,7 +314,9 @@ class TestMoveValidation:
                 await mcts.make_move_async(move, flip=True)
 
                 # Verify the move was applied
-                new_actions = await mcts.get_sorted_actions_async(flip=False)  # Opponent's turn
+                new_actions = await mcts.get_sorted_actions_async(
+                    flip=False
+                )  # Opponent's turn
                 # Board state should have changed
                 assert isinstance(new_actions, list)
 
@@ -298,7 +333,8 @@ class TestMoveValidation:
         self, move_str: str, fast_mcts_params: MCTSParams
     ) -> None:
         """Test making specific moves if they're legal."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(10)
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -314,7 +350,8 @@ class TestMoveValidation:
     @pytest.mark.asyncio
     async def test_wall_placement_moves(self, fast_mcts_params: MCTSParams) -> None:
         """Test wall placement moves."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(15)
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -340,7 +377,8 @@ class TestGameEvaluation:
     @pytest.mark.asyncio
     async def test_get_evaluation_initial(self, fast_mcts_params: MCTSParams) -> None:
         """Test evaluation on initial position."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             evaluation = await mcts.get_evaluation_async()
             # Initial position should be non-terminal
             assert evaluation is None or evaluation == 0.0
@@ -348,7 +386,8 @@ class TestGameEvaluation:
     @pytest.mark.asyncio
     async def test_ensure_simulations(self, fast_mcts_params: MCTSParams) -> None:
         """Test ensuring minimum simulations are performed."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             # This should block until simulations are complete
             await mcts.ensure_sims_async(25)
 
@@ -370,7 +409,8 @@ class TestGameEvaluation:
         params["min_simulations"] = 200
         params["max_simulations"] = 500
 
-        async with AsyncCorridorsMCTS(**params) as mcts:
+        config = MCTSConfig(**params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             await mcts.ensure_sims_async(200)
 
             actions = await mcts.get_sorted_actions_async(flip=True)
@@ -392,13 +432,16 @@ class TestGameFlow:
     @pytest.mark.asyncio
     async def test_make_several_moves(self, fast_mcts_params: MCTSParams) -> None:
         """Test making several moves in sequence."""
-        async with AsyncCorridorsMCTS(**fast_mcts_params) as mcts:
+        config = MCTSConfig(**fast_mcts_params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             moves_made = 0
             max_moves = 5
 
             for i in range(max_moves):
                 await mcts.ensure_sims_async(15)
-                actions = await mcts.get_sorted_actions_async(flip=(moves_made % 2 == 0))
+                actions = await mcts.get_sorted_actions_async(
+                    flip=(moves_made % 2 == 0)
+                )
 
                 if not actions:
                     break  # Game ended
@@ -423,13 +466,16 @@ class TestGameFlow:
         params["min_simulations"] = 20
         params["max_simulations"] = 100
 
-        async with AsyncCorridorsMCTS(**params) as mcts:
+        config = MCTSConfig(**params)
+        async with AsyncCorridorsMCTS(config) as mcts:
             moves_made = 0
             max_moves = 50  # Safety limit
 
             while moves_made < max_moves:
                 await mcts.ensure_sims_async(20)
-                actions = await mcts.get_sorted_actions_async(flip=(moves_made % 2 == 0))
+                actions = await mcts.get_sorted_actions_async(
+                    flip=(moves_made % 2 == 0)
+                )
 
                 if not actions:
                     # Game ended - no more legal moves

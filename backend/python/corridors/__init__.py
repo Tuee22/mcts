@@ -20,11 +20,35 @@ from corridors.async_mcts import (
     AsyncCorridorsMCTS,
     MCTSRegistry,
     ConcurrencyViolationError,
+    MCTSConfig,
 )
+
+# Alias for backward compatibility
+Corridors_MCTS = AsyncCorridorsMCTS
+
+
+# Utility functions for backward compatibility
+def display_sorted_actions(actions, list_size=None):
+    """Format sorted actions for display."""
+    limited_actions = actions[:list_size] if list_size is not None else actions
+    return "\n".join(
+        f"{action}: {visits} visits, {equity:.4f} equity"
+        for visits, equity, action in limited_actions
+    )
+
+
+def computer_self_play(*args, **kwargs):
+    """Stub function - computer_self_play was removed in async refactor."""
+    raise NotImplementedError("computer_self_play was removed in async refactor")
+
 
 __all__ = [
     "AsyncCorridorsMCTS",
     "MCTSRegistry",
     "ConcurrencyViolationError",
+    "MCTSConfig",
     "_corridors_mcts",
+    "Corridors_MCTS",
+    "display_sorted_actions",
+    "computer_self_play",
 ]

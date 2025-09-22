@@ -39,6 +39,7 @@ import pytest
 import pytest_asyncio
 
 from corridors import AsyncCorridorsMCTS
+from corridors.async_mcts import MCTSConfig
 
 
 @integration
@@ -50,7 +51,7 @@ class TestCompleteGameScenarios:
     async def test_full_computer_self_play(self) -> None:
         """Test a complete computer self-play game."""
         # Use reasonable parameters for a full game
-        async with AsyncCorridorsMCTS(
+        p1_config = MCTSConfig(
             c=1.4,
             seed=123,
             min_simulations=100,
@@ -61,7 +62,8 @@ class TestCompleteGameScenarios:
             use_puct=False,
             use_probs=False,
             decide_using_visits=True,
-        ) as p1, AsyncCorridorsMCTS(
+        )
+        p2_config = MCTSConfig(
             c=1.4,
             seed=456,  # Different seed for variation
             min_simulations=100,
@@ -72,6 +74,9 @@ class TestCompleteGameScenarios:
             use_puct=False,
             use_probs=False,
             decide_using_visits=True,
+        )
+        async with AsyncCorridorsMCTS(p1_config) as p1, AsyncCorridorsMCTS(
+            p2_config
         ) as p2:
             moves_made = []
             game_states = []
@@ -93,7 +98,9 @@ class TestCompleteGameScenarios:
                 game_states.append(display)
 
                 # Get available actions
-                actions = await current_player.get_sorted_actions_async(flip=is_hero_turn)
+                actions = await current_player.get_sorted_actions_async(
+                    flip=is_hero_turn
+                )
 
                 if not actions:
                     # Game ended - no legal moves
@@ -128,7 +135,9 @@ class TestCompleteGameScenarios:
             assert len(game_states) > 0, "No game states recorded"
 
             # Verify move quality - actions should have reasonable visit counts
-            for move_num, player, action, visits in moves_made[:10]:  # Check first 10 moves
+            for move_num, player, action, visits in moves_made[
+                :10
+            ]:  # Check first 10 moves
                 assert (
                     visits >= 1
                 ), f"Move {move_num} had no visits: {visits}"  # More realistic expectation
@@ -138,7 +147,7 @@ class TestCompleteGameScenarios:
     @pytest.mark.asyncio
     async def test_single_player_game_to_completion(self) -> None:
         """Test a single-player game played to completion."""
-        async with AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=2.0,
             seed=789,
             min_simulations=150,
@@ -149,7 +158,8 @@ class TestCompleteGameScenarios:
             use_puct=False,
             use_probs=False,
             decide_using_visits=True,
-        ) as mcts:
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             move_sequence = []
             max_moves = 200  # Increase limit for corridors games which can be longer
 
@@ -202,7 +212,9 @@ class TestCompleteGameScenarios:
             for i, move_data in enumerate(move_sequence):
                 visits = move_data["visits"]
                 total_actions = move_data["total_actions"]
-                assert isinstance(visits, int) and visits > 0, f"Move {i} had zero visits"
+                assert (
+                    isinstance(visits, int) and visits > 0
+                ), f"Move {i} had zero visits"
                 assert isinstance(
                     move_data["equity"], (int, float)
                 ), f"Move {i} had invalid equity"
@@ -224,7 +236,7 @@ class TestCompleteGameScenarios:
         self, algorithm_params: Dict[str, bool]
     ) -> None:
         """Test that different algorithm configurations can complete games."""
-        async with AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=1.2,
             seed=999,
             min_simulations=80,
@@ -235,7 +247,8 @@ class TestCompleteGameScenarios:
             use_puct=algorithm_params.get("use_puct", False),
             use_probs=algorithm_params.get("use_probs", False),
             decide_using_visits=algorithm_params.get("decide_using_visits", True),
-        ) as mcts:
+        )
+        async with AsyncCorridorsMCTS(config) as mcts:
             moves_completed = 0
             max_moves = 30  # Shorter test for parameter variations
 
@@ -261,51 +274,55 @@ class TestCompleteGameScenarios:
 class TestCPythonIntegration:
     """Test integration between Python and C++ components."""
 
-    def test_data_type_consistency(self) -> None:
+    @pytest.mark.asyncio
+    async def test_data_type_consistency(self) -> None:
         """Test that data types are consistent across Python-C++ boundary."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=50, max_simulations=100)
+        config = MCTSConfig(c=1.0, seed=42, min_simulations=50, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(50)
 
-        mcts.ensure_sims(50)
+            # Test display string handling
+            display = await mcts.display_async(flip=False)
+            assert isinstance(display, str)
+            assert len(display) > 0
 
-        # Test display string handling
-        display = mcts.display(flip=False)
-        assert isinstance(display, str)
-        assert len(display) > 0
+            # Test action list structure
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            assert isinstance(actions, list)
 
-        # Test action list structure
-        actions = mcts.get_sorted_actions(flip=True)
-        assert isinstance(actions, list)
+            for action in actions[:5]:  # Test first 5 actions
+                assert len(action) == 3
+                visits, equity, action_str = action
 
-        for action in actions[:5]:  # Test first 5 actions
-            assert len(action) == 3
-            visits, equity, action_str = action
+                # Verify types match expectations
+                assert isinstance(visits, int)
+                assert visits >= 0
+                assert isinstance(equity, (int, float))
+                assert isinstance(action_str, str)
+                assert len(action_str) > 0
 
-            # Verify types match expectations
-            assert isinstance(visits, int)
-            assert visits >= 0
-            assert isinstance(equity, (int, float))
-            assert isinstance(action_str, str)
-            assert len(action_str) > 0
-
-    def test_move_execution_consistency(self) -> None:
+    @pytest.mark.asyncio
+    async def test_move_execution_consistency(self) -> None:
         """Test that moves are executed consistently between calls."""
-        mcts = Corridors_MCTS(c=1.0, seed=111, min_simulations=30, max_simulations=100)
+        config = MCTSConfig(c=1.0, seed=111, min_simulations=30, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(30)
 
-        mcts.ensure_sims(30)
+            # Get initial state
+            initial_display = await mcts.display_async(flip=False)
+            initial_actions = await mcts.get_sorted_actions_async(flip=True)
 
-        # Get initial state
-        initial_display = mcts.display(flip=False)
-        initial_actions = mcts.get_sorted_actions(flip=True)
+            assert len(initial_actions) > 0
 
-        assert len(initial_actions) > 0
+            # Make a move
+            move_to_make = initial_actions[0][2]
+            await mcts.make_move_async(move_to_make, flip=True)
 
-        # Make a move
-        move_to_make = initial_actions[0][2]
-        mcts.make_move(move_to_make, flip=True)
-
-        # Verify state changed
-        new_display = mcts.display(flip=False)
-        new_actions = mcts.get_sorted_actions(flip=False)  # Other player's turn
+            # Verify state changed
+            new_display = await mcts.display_async(flip=False)
+            new_actions = await mcts.get_sorted_actions_async(
+                flip=False
+            )  # Other player's turn
 
         assert new_display != initial_display, "Board display should change after move"
         assert isinstance(new_actions, list), "Should get valid actions list"
@@ -315,34 +332,35 @@ class TestCPythonIntegration:
             assert len(action) == 3
             assert isinstance(action[2], str)
 
-    def test_evaluation_function_integration(self) -> None:
+    @pytest.mark.asyncio
+    async def test_evaluation_function_integration(self) -> None:
         """Test evaluation function returns consistent types."""
-        mcts = Corridors_MCTS(c=1.0, seed=222, min_simulations=40, max_simulations=100)
+        config = MCTSConfig(c=1.0, seed=222, min_simulations=40, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Test evaluation at different stages
+            initial_eval = await mcts.get_evaluation_async()
+            assert initial_eval is None or isinstance(initial_eval, (int, float))
 
-        # Test evaluation at different stages
-        initial_eval = mcts.get_evaluation()
-        assert initial_eval is None or isinstance(initial_eval, (int, float))
+            await mcts.ensure_sims_async(40)
 
-        mcts.ensure_sims(40)
+            # Make some moves and check evaluations
+            for i in range(5):
+                actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
+                if not actions:
+                    break
 
-        # Make some moves and check evaluations
-        for i in range(5):
-            actions = mcts.get_sorted_actions(flip=(i % 2 == 0))
-            if not actions:
-                break
+                await mcts.make_move_async(actions[0][2], flip=(i % 2 == 0))
 
-            mcts.make_move(actions[0][2], flip=(i % 2 == 0))
+                evaluation = await mcts.get_evaluation_async()
+                assert evaluation is None or isinstance(evaluation, (int, float))
 
-            evaluation = mcts.get_evaluation()
-            assert evaluation is None or isinstance(evaluation, (int, float))
-
-            if evaluation is not None and abs(evaluation) >= 1.0:
-                # Terminal state reached
-                assert evaluation in [
-                    -1.0,
-                    1.0,
-                ], f"Terminal evaluation should be ±1.0, got {evaluation}"
-                break
+                if evaluation is not None and abs(evaluation) >= 1.0:
+                    # Terminal state reached
+                    assert evaluation in [
+                        -1.0,
+                        1.0,
+                    ], f"Terminal evaluation should be ±1.0, got {evaluation}"
+                    break
 
 
 @integration
@@ -350,83 +368,90 @@ class TestCPythonIntegration:
 class TestRealisticUsagePatterns:
     """Test realistic usage patterns and performance."""
 
-    def test_interactive_session_simulation(self) -> None:
+    @pytest.mark.asyncio
+    async def test_interactive_session_simulation(self) -> None:
         """Simulate an interactive session with varied queries."""
-        mcts = Corridors_MCTS(c=1.5, seed=333, min_simulations=100, max_simulations=200)
+        config = MCTSConfig(c=1.5, seed=333, min_simulations=100, max_simulations=200)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Simulate user behavior: checking state, making moves, checking again
+            session_log = []
 
-        # Simulate user behavior: checking state, making moves, checking again
-        session_log = []
-
-        # Initial exploration
-        start_time = time.time()
-        mcts.ensure_sims(100)
-        session_log.append(("ensure_sims", time.time() - start_time))
-
-        for interaction in range(10):
-            # User checks current state
+            # Initial exploration
             start_time = time.time()
-            display = mcts.display(flip=False)
-            session_log.append(("display", time.time() - start_time))
+            await mcts.ensure_sims_async(100)
+            session_log.append(("ensure_sims", time.time() - start_time))
 
-            # User gets available actions
-            start_time = time.time()
-            actions = mcts.get_sorted_actions(flip=(interaction % 2 == 0))
-            session_log.append(("get_actions", time.time() - start_time))
+            for interaction in range(10):
+                # User checks current state
+                start_time = time.time()
+                display = await mcts.display_async(flip=False)
+                session_log.append(("display", time.time() - start_time))
 
-            if not actions:
-                break
+                # User gets available actions
+                start_time = time.time()
+                actions = await mcts.get_sorted_actions_async(
+                    flip=(interaction % 2 == 0)
+                )
+                session_log.append(("get_actions", time.time() - start_time))
 
-            # User makes a move (sometimes not the best one)
-            move_index = min(interaction % 3, len(actions) - 1)  # Vary move choice
-            start_time = time.time()
-            mcts.make_move(actions[move_index][2], flip=(interaction % 2 == 0))
-            session_log.append(("make_move", time.time() - start_time))
+                if not actions:
+                    break
 
-            # User checks evaluation
-            start_time = time.time()
-            evaluation = mcts.get_evaluation()
-            session_log.append(("get_evaluation", time.time() - start_time))
+                # User makes a move (sometimes not the best one)
+                move_index = min(interaction % 3, len(actions) - 1)  # Vary move choice
+                start_time = time.time()
+                await mcts.make_move_async(
+                    actions[move_index][2], flip=(interaction % 2 == 0)
+                )
+                session_log.append(("make_move", time.time() - start_time))
 
-            if evaluation is not None and abs(evaluation) >= 1.0:
-                break
+                # User checks evaluation
+                start_time = time.time()
+                evaluation = await mcts.get_evaluation_async()
+                session_log.append(("get_evaluation", time.time() - start_time))
 
-        # Verify performance characteristics
-        display_times = [t for op, t in session_log if op == "display"]
-        action_times = [t for op, t in session_log if op == "get_actions"]
+                if evaluation is not None and abs(evaluation) >= 1.0:
+                    break
 
-        if display_times:
-            avg_display_time = sum(display_times) / len(display_times)
-            assert (
-                avg_display_time < 0.1
-            ), f"Display too slow: {avg_display_time}s average"
+            # Verify performance characteristics
+            display_times = [t for op, t in session_log if op == "display"]
+            action_times = [t for op, t in session_log if op == "get_actions"]
 
-        if action_times:
-            avg_action_time = sum(action_times) / len(action_times)
-            assert (
-                avg_action_time < 0.1
-            ), f"Get actions too slow: {avg_action_time}s average"
+            if display_times:
+                avg_display_time = sum(display_times) / len(display_times)
+                assert (
+                    avg_display_time < 0.1
+                ), f"Display too slow: {avg_display_time}s average"
 
-    def test_tournament_style_games(self) -> None:
+            if action_times:
+                avg_action_time = sum(action_times) / len(action_times)
+                assert (
+                    avg_action_time < 0.1
+                ), f"Get actions too slow: {avg_action_time}s average"
+
+    @pytest.mark.asyncio
+    async def test_tournament_style_games(self) -> None:
         """Test multiple games as in a tournament setting."""
         results = []
 
         for game_num in range(3):  # Play 3 games
-            p1 = Corridors_MCTS(
+            p1_config = MCTSConfig(
                 c=1.4,
                 seed=100 + game_num,
                 min_simulations=80,
                 max_simulations=160,
             )
-
-            p2 = Corridors_MCTS(
+            p2_config = MCTSConfig(
                 c=1.4,
                 seed=200 + game_num,
                 min_simulations=80,
                 max_simulations=160,
             )
-
-            game_result = self._play_game(p1, p2, max_moves=120)
-            results.append(game_result)
+            async with AsyncCorridorsMCTS(p1_config) as p1, AsyncCorridorsMCTS(
+                p2_config
+            ) as p2:
+                game_result = await self._play_game_async(p1, p2, max_moves=120)
+                results.append(game_result)
 
         # Verify all games completed
         for i, result in enumerate(results):
@@ -444,12 +469,12 @@ class TestRealisticUsagePatterns:
         completed_games = [r for r in results if r["winner"] != "Incomplete"]
         assert len(completed_games) > 0, "No games completed"
 
-    def _play_game(
-        self, p1: "Corridors_MCTS", p2: "Corridors_MCTS", max_moves: int
+    async def _play_game_async(
+        self, p1: AsyncCorridorsMCTS, p2: AsyncCorridorsMCTS, max_moves: int
     ) -> Dict[str, str | int | bool]:
         """Helper to play a single game between two MCTS instances."""
-        p1.ensure_sims(80)
-        p2.ensure_sims(80)
+        await p1.ensure_sims_async(80)
+        await p2.ensure_sims_async(80)
 
         moves = 0
         is_hero_turn = True
@@ -458,7 +483,7 @@ class TestRealisticUsagePatterns:
             current_player = p1 if is_hero_turn else p2
             other_player = p2 if is_hero_turn else p1
 
-            actions = current_player.get_sorted_actions(flip=is_hero_turn)
+            actions = await current_player.get_sorted_actions_async(flip=is_hero_turn)
 
             if not actions:
                 winner = "Villain" if is_hero_turn else "Hero"
@@ -466,16 +491,16 @@ class TestRealisticUsagePatterns:
 
             # Make best move
             best_action = actions[0][2]
-            current_player.make_move(best_action, flip=is_hero_turn)
-            other_player.make_move(best_action, flip=is_hero_turn)
+            await current_player.make_move_async(best_action, flip=is_hero_turn)
+            await other_player.make_move_async(best_action, flip=is_hero_turn)
 
             moves += 1
 
             # Ensure simulations for evaluation
-            current_player.ensure_sims(40)
+            await current_player.ensure_sims_async(40)
 
             # Check terminal state
-            evaluation = current_player.get_evaluation()
+            evaluation = await current_player.get_evaluation_async()
             if evaluation is not None and abs(evaluation) >= 0.95:
                 winner = "Hero" if (evaluation > 0) == is_hero_turn else "Villain"
                 return {"moves": moves, "winner": winner, "reason": "terminal"}
@@ -490,79 +515,93 @@ class TestRealisticUsagePatterns:
 class TestDisplayIntegration:
     """Test display functionality integration."""
 
-    def test_display_consistency_during_game(self) -> None:
+    @pytest.mark.asyncio
+    async def test_display_consistency_during_game(self) -> None:
         """Test that display remains consistent during game progression."""
-        mcts = Corridors_MCTS(c=1.0, seed=444, min_simulations=50, max_simulations=100)
+        config = MCTSConfig(c=1.0, seed=444, min_simulations=50, max_simulations=100)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            displays = []
 
-        displays = []
+            for move_num in range(8):
+                await mcts.ensure_sims_async(50)
 
-        for move_num in range(8):
-            mcts.ensure_sims(50)
+                # Capture display from both perspectives
+                hero_display = await mcts.display_async(flip=False)
+                villain_display = await mcts.display_async(flip=True)
 
-            # Capture display from both perspectives
-            hero_display = mcts.display(flip=False)
-            villain_display = mcts.display(flip=True)
+                displays.append(
+                    {
+                        "move": move_num,
+                        "hero_view": hero_display,
+                        "villain_view": villain_display,
+                    }
+                )
 
-            displays.append(
-                {
-                    "move": move_num,
-                    "hero_view": hero_display,
-                    "villain_view": villain_display,
-                }
+                # Verify display properties
+                assert isinstance(hero_display, str)
+                assert isinstance(villain_display, str)
+                assert len(hero_display) > 100, "Display too short"
+                assert len(villain_display) > 100, "Display too short"
+                assert "h" in hero_display.lower(), "Hero marker missing"
+                assert "v" in hero_display.lower(), "Villain marker missing"
+
+                # Make a move
+                actions = await mcts.get_sorted_actions_async(flip=(move_num % 2 == 0))
+                if not actions:
+                    break
+
+                await mcts.make_move_async(actions[0][2], flip=(move_num % 2 == 0))
+
+            # Verify displays change over time
+            if len(displays) > 1:
+                assert (
+                    displays[0]["hero_view"] != displays[-1]["hero_view"]
+                ), "Display should change during game"
+
+    @pytest.mark.asyncio
+    async def test_action_display_integration(self) -> None:
+        """Test integration between action generation and display."""
+
+        # Local utility function for displaying actions
+        def display_sorted_actions(actions: List[Tuple[int, float, str]]) -> str:
+            """Format sorted actions for display."""
+            return "\n".join(
+                f"{action}: {visits} visits, {equity:.4f} equity"
+                for visits, equity, action in actions
             )
 
-            # Verify display properties
-            assert isinstance(hero_display, str)
-            assert isinstance(villain_display, str)
-            assert len(hero_display) > 100, "Display too short"
-            assert len(villain_display) > 100, "Display too short"
-            assert "h" in hero_display.lower(), "Hero marker missing"
-            assert "v" in hero_display.lower(), "Villain marker missing"
+        config = MCTSConfig(c=1.0, seed=555, min_simulations=60, max_simulations=120)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            await mcts.ensure_sims_async(60)
+            actions = await mcts.get_sorted_actions_async(flip=True)
 
-            # Make a move
-            actions = mcts.get_sorted_actions(flip=(move_num % 2 == 0))
-            if not actions:
-                break
+            assert len(actions) > 0
 
-            mcts.make_move(actions[0][2], flip=(move_num % 2 == 0))
+            # Test displaying actions
+            display_result = display_sorted_actions(actions)
+            assert isinstance(display_result, str)
 
-        # Verify displays change over time
-        if len(displays) > 1:
-            assert (
-                displays[0]["hero_view"] != displays[-1]["hero_view"]
-            ), "Display should change during game"
+            # Verify action strings are valid for the current board state
+            for visits, equity, action_str in actions[:5]:
+                assert isinstance(action_str, str)
+                assert len(action_str) > 3, f"Action string too short: {action_str}"
 
-    def test_action_display_integration(self) -> None:
-        """Test integration between action generation and display."""
-        mcts = Corridors_MCTS(c=1.0, seed=555, min_simulations=60, max_simulations=120)
+                # Action should be executable (test first few)
+                try:
+                    config = MCTSConfig(
+                        c=1.0, seed=555, min_simulations=10, max_simulations=100
+                    )
+                    async with AsyncCorridorsMCTS(config) as test_mcts:
+                        await test_mcts.ensure_sims_async(10)
+                        test_actions = await test_mcts.get_sorted_actions_async(
+                            flip=True
+                        )
 
-        mcts.ensure_sims(60)
-        actions = mcts.get_sorted_actions(flip=True)
-
-        assert len(actions) > 0
-
-        # Test displaying actions
-        display_result = display_sorted_actions(actions)
-        assert isinstance(display_result, str)
-
-        # Verify action strings are valid for the current board state
-        for visits, equity, action_str in actions[:5]:
-            assert isinstance(action_str, str)
-            assert len(action_str) > 3, f"Action string too short: {action_str}"
-
-            # Action should be executable (test first few)
-            try:
-                test_mcts = Corridors_MCTS(
-                    c=1.0, seed=555, min_simulations=10, max_simulations=100
-                )
-                test_mcts.ensure_sims(10)
-                test_actions = test_mcts.get_sorted_actions(flip=True)
-
-                if action_str in [a[2] for a in test_actions]:
-                    test_mcts.make_move(action_str, flip=True)
-                    # Should not raise exception
-            except Exception as e:
-                pytest.fail(f"Action {action_str} caused error: {e}")
+                        if action_str in [a[2] for a in test_actions]:
+                            await test_mcts.make_move_async(action_str, flip=True)
+                            # Should not raise exception
+                except Exception as e:
+                    pytest.fail(f"Action {action_str} caused error: {e}")
 
 
 @integration
@@ -570,42 +609,41 @@ class TestDisplayIntegration:
 class TestLongRunningScenarios:
     """Test long-running scenarios and stability."""
 
-    def test_extended_simulation_session(self) -> None:
+    @pytest.mark.asyncio
+    async def test_extended_simulation_session(self) -> None:
         """Test extended simulation and query session."""
-        mcts = Corridors_MCTS(
-            c=1.2, seed=666, min_simulations=200, max_simulations=1000
-        )
+        config = MCTSConfig(c=1.2, seed=666, min_simulations=200, max_simulations=1000)
+        async with AsyncCorridorsMCTS(config) as mcts:
+            # Extended simulation session
+            simulation_targets = [200, 400, 600, 800, 1000]
 
-        # Extended simulation session
-        simulation_targets = [200, 400, 600, 800, 1000]
+            for target in simulation_targets:
+                start_time = time.time()
+                await mcts.ensure_sims_async(target)
+                elapsed = time.time() - start_time
 
-        for target in simulation_targets:
-            start_time = time.time()
-            mcts.ensure_sims(target)
-            elapsed = time.time() - start_time
+                # Should complete in reasonable time
+                assert elapsed < 60, f"Simulation to {target} took too long: {elapsed}s"
 
-            # Should complete in reasonable time
-            assert elapsed < 60, f"Simulation to {target} took too long: {elapsed}s"
+                # Verify functionality at each stage
+                actions = await mcts.get_sorted_actions_async(flip=True)
+                assert isinstance(actions, list)
 
-            # Verify functionality at each stage
-            actions = mcts.get_sorted_actions(flip=True)
-            assert isinstance(actions, list)
+                if actions:
+                    total_visits = sum(a[0] for a in actions)
+                    # In MCTS, root has one more visit than sum of children
+                    # so we expect total_visits to be target-1 or target
+                    assert (
+                        total_visits >= target - 1
+                    ), f"Total visits {total_visits} less than target-1 {target-1}"
 
-            if actions:
-                total_visits = sum(a[0] for a in actions)
-                # In MCTS, root has one more visit than sum of children
-                # so we expect total_visits to be target-1 or target
-                assert (
-                    total_visits >= target - 1
-                ), f"Total visits {total_visits} less than target-1 {target-1}"
+            # Make some moves and verify stability
+            for i in range(5):
+                actions = await mcts.get_sorted_actions_async(flip=(i % 2 == 0))
+                if actions:
+                    await mcts.make_move_async(actions[0][2], flip=(i % 2 == 0))
 
-        # Make some moves and verify stability
-        for i in range(5):
-            actions = mcts.get_sorted_actions(flip=(i % 2 == 0))
-            if actions:
-                mcts.make_move(actions[0][2], flip=(i % 2 == 0))
-
-                # Verify system is still stable
-                display = mcts.display(flip=False)
-                assert isinstance(display, str)
-                assert len(display) > 0
+                    # Verify system is still stable
+                    display = await mcts.display_async(flip=False)
+                    assert isinstance(display, str)
+                    assert len(display) > 0

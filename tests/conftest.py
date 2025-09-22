@@ -12,6 +12,7 @@ import pytest
 
 # Import the corridors async module - required for all tests
 from corridors import AsyncCorridorsMCTS, ConcurrencyViolationError
+from corridors.async_mcts import MCTSConfig
 
 
 class MCTSParams(TypedDict):
@@ -172,10 +173,11 @@ class MCTSTestHelper:
     @staticmethod
     def create_mcts_instance(params: MCTSParams) -> AsyncCorridorsMCTS:
         """Create async MCTS instance with given parameters."""
-        # Add default sim_increment parameter for async constructor
-        async_params = params.copy()
-        async_params["sim_increment"] = 50  # Default increment
-        return AsyncCorridorsMCTS(**async_params)
+        # Add default max_workers parameter and create config
+        config_params = params.copy()
+        config_params["max_workers"] = 1  # Default for tests
+        config = MCTSConfig(**config_params)
+        return AsyncCorridorsMCTS(config)
 
     @staticmethod
     def validate_action_format(action: str) -> bool:

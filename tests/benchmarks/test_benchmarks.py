@@ -13,6 +13,7 @@ from pytest_benchmark.plugin import BenchmarkFixture
 
 # Import required modules - tests will fail properly if not available
 from corridors import AsyncCorridorsMCTS
+from corridors.async_mcts import MCTSConfig
 import asyncio
 
 
@@ -38,7 +39,7 @@ class TestMCTSBenchmarks:
         self, benchmark: BenchmarkFixture, sim_count: int
     ) -> None:
         """Benchmark MCTS simulation time scaling."""
-        mcts = AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=1.4,
             seed=42,
             min_simulations=sim_count,
@@ -50,6 +51,7 @@ class TestMCTSBenchmarks:
             use_probs=False,
             decide_using_visits=True,
         )
+        mcts = AsyncCorridorsMCTS(config)
 
         async def run_simulations() -> List[Tuple[int, float, str]]:
             await mcts.ensure_sims_async(sim_count)
@@ -68,7 +70,7 @@ class TestMCTSBenchmarks:
 
     def test_action_retrieval_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark action retrieval speed."""
-        mcts = AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=1.4,
             seed=42,
             min_simulations=1000,
@@ -80,6 +82,7 @@ class TestMCTSBenchmarks:
             use_probs=False,
             decide_using_visits=True,
         )
+        mcts = AsyncCorridorsMCTS(config)
 
         # Pre-compute simulations
         asyncio.run(mcts.ensure_sims_async(1000))
@@ -92,7 +95,7 @@ class TestMCTSBenchmarks:
 
     def test_display_performance(self, benchmark: BenchmarkFixture) -> None:
         """Benchmark board display generation."""
-        mcts = AsyncCorridorsMCTS(
+        config = MCTSConfig(
             c=1.4,
             seed=42,
             min_simulations=500,
@@ -104,6 +107,7 @@ class TestMCTSBenchmarks:
             use_probs=False,
             decide_using_visits=True,
         )
+        mcts = AsyncCorridorsMCTS(config)
         asyncio.run(mcts.ensure_sims_async(500))
 
         def generate_display() -> str:
@@ -117,7 +121,7 @@ class TestMCTSBenchmarks:
         """Benchmark move execution speed."""
 
         def execute_moves() -> int:
-            mcts = AsyncCorridorsMCTS(
+            config = MCTSConfig(
                 c=1.4,
                 seed=123,
                 min_simulations=100,
@@ -129,6 +133,7 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
+            mcts = AsyncCorridorsMCTS(config)
             asyncio.run(mcts.ensure_sims_async(100))
 
             moves_made = 0
@@ -151,7 +156,7 @@ class TestMCTSBenchmarks:
         """Benchmark impact of different exploration parameters."""
 
         def run_with_c() -> List[Tuple[int, float, str]]:
-            mcts = AsyncCorridorsMCTS(
+            config = MCTSConfig(
                 c=c_value,
                 seed=42,
                 min_simulations=500,
@@ -163,6 +168,7 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
+            mcts = AsyncCorridorsMCTS(config)
             asyncio.run(mcts.ensure_sims_async(500))
             return asyncio.run(mcts.get_sorted_actions_async(flip=True))
 
@@ -173,7 +179,7 @@ class TestMCTSBenchmarks:
         """Benchmark complete game from start to finish."""
 
         def play_complete_game() -> int:
-            p1 = AsyncCorridorsMCTS(
+            p1_config = MCTSConfig(
                 c=1.4,
                 seed=111,
                 min_simulations=200,
@@ -185,7 +191,7 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
-            p2 = AsyncCorridorsMCTS(
+            p2_config = MCTSConfig(
                 c=1.4,
                 seed=222,
                 min_simulations=200,
@@ -197,6 +203,8 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
+            p1 = AsyncCorridorsMCTS(p1_config)
+            p2 = AsyncCorridorsMCTS(p2_config)
 
             asyncio.run(p1.ensure_sims_async(200))
             asyncio.run(p2.ensure_sims_async(200))
@@ -241,7 +249,7 @@ class TestMCTSBenchmarks:
         """Benchmark random rollout performance specifically."""
 
         def run_rollout_simulation() -> int:
-            mcts = AsyncCorridorsMCTS(
+            config = MCTSConfig(
                 c=1.4,
                 seed=42,
                 min_simulations=500,
@@ -253,6 +261,7 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
+            mcts = AsyncCorridorsMCTS(config)
 
             asyncio.run(mcts.ensure_sims_async(500))
             actions = asyncio.run(mcts.get_sorted_actions_async(flip=True))
@@ -300,7 +309,7 @@ class TestMCTSBenchmarks:
             sys.stdout = io.StringIO()
 
             try:
-                p1 = AsyncCorridorsMCTS(
+                p1_config = MCTSConfig(
                     c=1.4,
                     seed=333,
                     min_simulations=100,
@@ -312,7 +321,7 @@ class TestMCTSBenchmarks:
                     use_probs=False,
                     decide_using_visits=True,
                 )
-                p2 = AsyncCorridorsMCTS(
+                p2_config = MCTSConfig(
                     c=1.4,
                     seed=444,
                     min_simulations=100,
@@ -324,6 +333,8 @@ class TestMCTSBenchmarks:
                     use_probs=False,
                     decide_using_visits=True,
                 )
+                p1 = AsyncCorridorsMCTS(p1_config)
+                p2 = AsyncCorridorsMCTS(p2_config)
 
                 # Track game state before and after
                 initial_actions = len(
@@ -379,7 +390,7 @@ class TestMCTSBenchmarks:
         """Benchmark random rollout performance at different simulation counts."""
 
         def run_random_rollouts() -> int:
-            mcts = AsyncCorridorsMCTS(
+            config = MCTSConfig(
                 c=1.4,
                 seed=42,
                 min_simulations=sim_count,
@@ -391,6 +402,7 @@ class TestMCTSBenchmarks:
                 use_probs=False,
                 decide_using_visits=True,
             )
+            mcts = AsyncCorridorsMCTS(config)
 
             # Run simulations
             asyncio.run(mcts.ensure_sims_async(sim_count))

@@ -208,32 +208,10 @@ class AsyncCorridorsMCTS:
 
     def __init__(
         self,
-        c: float = sqrt(0.025),
-        seed: int = 42,
-        min_simulations: int = 100,
-        max_simulations: int = 10000,
-        sim_increment: int = 50,
-        use_rollout: bool = True,
-        eval_children: bool = False,
-        use_puct: bool = False,
-        use_probs: bool = False,
-        decide_using_visits: bool = True,
-        max_workers: int = 1,
+        config: MCTSConfig,
     ) -> None:
-        # Validate configuration using pydantic
-        self._config = MCTSConfig(
-            c=c,
-            seed=seed,
-            min_simulations=min_simulations,
-            max_simulations=max_simulations,
-            sim_increment=sim_increment,
-            use_rollout=use_rollout,
-            eval_children=eval_children,
-            use_puct=use_puct,
-            use_probs=use_probs,
-            decide_using_visits=decide_using_visits,
-            max_workers=max_workers,
-        )
+        # Store validated configuration
+        self._config = config
 
         # Create C++ instance with validated configuration
         self._impl: MCTSProtocol = _corridors_mcts._corridors_mcts(
@@ -621,33 +599,13 @@ class MCTSRegistry:
     async def get_or_create(
         self,
         game_id: str,
-        c: float = sqrt(0.025),
-        seed: int = 42,
-        min_simulations: int = 100,
-        max_simulations: int = 10000,
-        sim_increment: int = 50,
-        use_rollout: bool = True,
-        eval_children: bool = False,
-        use_puct: bool = False,
-        use_probs: bool = False,
-        decide_using_visits: bool = True,
+        config: MCTSConfig,
     ) -> AsyncCorridorsMCTS:
         """Get existing instance or create new one with atomic registry operations."""
         async with self._registry_lock:
             if game_id not in self._instances:
-                # Create new instance with corrected constructor signature
-                self._instances[game_id] = AsyncCorridorsMCTS(
-                    c=c,
-                    seed=seed,
-                    min_simulations=min_simulations,
-                    max_simulations=max_simulations,
-                    sim_increment=sim_increment,
-                    use_rollout=use_rollout,
-                    eval_children=eval_children,
-                    use_puct=use_puct,
-                    use_probs=use_probs,
-                    decide_using_visits=decide_using_visits,
-                )
+                # Create new instance with config
+                self._instances[game_id] = AsyncCorridorsMCTS(config)
 
                 # Create corresponding API lock
                 self._instance_locks[game_id] = asyncio.Lock()
