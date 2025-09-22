@@ -38,7 +38,11 @@ from backend.api.models import (
 )
 from backend.api.websocket_manager import WebSocketManager
 from backend.api.websocket_unified import unified_ws_manager
-from backend.api.websocket_models import PongMessage, WebSocketMessage, parse_websocket_message
+from backend.api.websocket_models import (
+    PongMessage,
+    WebSocketMessage,
+    parse_websocket_message,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

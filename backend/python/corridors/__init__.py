@@ -16,7 +16,11 @@ if build_dir not in sys.path:
 import _corridors_mcts
 
 # Import async Python wrapper after C++ extension is available
-from corridors.async_mcts import AsyncCorridorsMCTS, MCTSRegistry, ConcurrencyViolationError
+from corridors.async_mcts import (
+    AsyncCorridorsMCTS,
+    MCTSRegistry,
+    ConcurrencyViolationError,
+)
 
 __all__ = [
     "AsyncCorridorsMCTS",

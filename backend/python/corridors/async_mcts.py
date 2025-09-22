@@ -9,6 +9,8 @@ import asyncio
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from enum import Enum, auto
 from math import sqrt
 from typing import (
     Dict,
@@ -22,15 +24,122 @@ from typing import (
     TypeVar,
     Awaitable,
     ParamSpec,
+    NamedTuple,
 )
 from types import TracebackType
 import functools
 
+from pydantic import BaseModel, Field, field_validator
 from corridors import _corridors_mcts
 
 # Type variables for decorator typing
 T = TypeVar("T")
 P = ParamSpec("P")
+
+
+class OperationStatus(Enum):
+    """Enum for MCTS operation status with functional pattern matching."""
+
+    IDLE = auto()
+    RUNNING = auto()
+    CANCELLED = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+
+
+class OperationState(NamedTuple):
+    """Immutable operation state record."""
+
+    status: OperationStatus
+    operation_name: Optional[str]
+    start_time: Optional[float]
+    end_time: Optional[float]
+
+    @classmethod
+    def idle(cls) -> "OperationState":
+        """Create idle state."""
+        return cls(OperationStatus.IDLE, None, None, None)
+
+    @classmethod
+    def running(cls, operation_name: str, start_time: float) -> "OperationState":
+        """Create running state."""
+        return cls(OperationStatus.RUNNING, operation_name, start_time, None)
+
+    def complete(self, end_time: float) -> "OperationState":
+        """Create completed state from current state."""
+        return self._replace(status=OperationStatus.COMPLETED, end_time=end_time)
+
+    def cancel(self, end_time: float) -> "OperationState":
+        """Create cancelled state from current state."""
+        return self._replace(status=OperationStatus.CANCELLED, end_time=end_time)
+
+    def fail(self, end_time: float) -> "OperationState":
+        """Create failed state from current state."""
+        return self._replace(status=OperationStatus.FAILED, end_time=end_time)
+
+    @property
+    def is_active(self) -> bool:
+        """Check if operation is currently active."""
+        return self.status == OperationStatus.RUNNING
+
+    @property
+    def elapsed_time(self) -> Optional[float]:
+        """Calculate elapsed time for active operations."""
+        return (
+            time.time() - self.start_time
+            if self.start_time and self.status == OperationStatus.RUNNING
+            else None
+        )
+
+
+class MCTSConfig(BaseModel):
+    """Pydantic model for MCTS configuration validation."""
+
+    c: float = sqrt(0.025)
+    seed: int = 42
+    min_simulations: int = 100
+    max_simulations: int = 10000
+    sim_increment: int = 50
+    use_rollout: bool = True
+    eval_children: bool = False
+    use_puct: bool = False
+    use_probs: bool = False
+    decide_using_visits: bool = True
+    max_workers: int = 1
+
+    @field_validator("c")
+    @classmethod
+    def validate_c(cls, v: float) -> float:
+        """Ensure c > 0."""
+        if v <= 0:
+            raise ValueError("c must be greater than 0")
+        return v
+
+    @field_validator(
+        "seed", "min_simulations", "max_simulations", "sim_increment", "max_workers"
+    )
+    @classmethod
+    def validate_positive_int(cls, v: int) -> int:
+        """Ensure positive integers."""
+        if v < 1:
+            raise ValueError("Value must be >= 1")
+        return v
+
+    @field_validator("max_workers")
+    @classmethod
+    def validate_max_workers(cls, v: int) -> int:
+        """Ensure max_workers is between 1 and 4."""
+        if not 1 <= v <= 4:
+            raise ValueError("max_workers must be between 1 and 4")
+        return v
+
+    @field_validator("max_simulations")
+    @classmethod
+    def validate_max_simulations(cls, v: int) -> int:
+        """Ensure max_simulations is reasonable (simplified validation)."""
+        if v < 100:
+            raise ValueError("max_simulations must be >= 100")
+        return v
 
 
 class ConcurrencyViolationError(Exception):
@@ -91,10 +200,10 @@ class MCTSProtocol(Protocol):
 
 class AsyncCorridorsMCTS:
     """
-    Async wrapper for Corridors MCTS operations.
+    Async wrapper for Corridors MCTS operations with functional state management.
 
     This class provides thread-safe async access to MCTS simulations,
-    allowing cancellation and proper resource management.
+    allowing cancellation and proper resource management using immutable patterns.
     """
 
     def __init__(
@@ -111,26 +220,36 @@ class AsyncCorridorsMCTS:
         decide_using_visits: bool = True,
         max_workers: int = 1,
     ) -> None:
-        # Create C++ instance with correct pybind11 signature
-        self._impl: MCTSProtocol = _corridors_mcts._corridors_mcts(
-            c,
-            seed,
-            use_rollout,
-            eval_children,
-            use_puct,
-            use_probs,
-            decide_using_visits,
+        # Validate configuration using pydantic
+        self._config = MCTSConfig(
+            c=c,
+            seed=seed,
+            min_simulations=min_simulations,
+            max_simulations=max_simulations,
+            sim_increment=sim_increment,
+            use_rollout=use_rollout,
+            eval_children=eval_children,
+            use_puct=use_puct,
+            use_probs=use_probs,
+            decide_using_visits=decide_using_visits,
+            max_workers=max_workers,
         )
 
-        # Store simulation parameters separately
-        self.min_simulations = min_simulations
-        self.max_simulations = max_simulations
-        self.sim_increment = sim_increment
+        # Create C++ instance with validated configuration
+        self._impl: MCTSProtocol = _corridors_mcts._corridors_mcts(
+            self._config.c,
+            self._config.seed,
+            self._config.use_rollout,
+            self._config.eval_children,
+            self._config.use_puct,
+            self._config.use_probs,
+            self._config.decide_using_visits,
+        )
 
         # Thread pool for async operations
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        self._executor = ThreadPoolExecutor(max_workers=self._config.max_workers)
 
-        # Cancellation support
+        # Cancellation support (immutable)
         self._cancel_flag = threading.Event()
         self._current_task: Optional[
             Union[asyncio.Task[int], asyncio.Future[int]]
@@ -140,11 +259,9 @@ class AsyncCorridorsMCTS:
         self._lock = asyncio.Lock()
         self._closed = False
 
-        # Race condition protection
-        self._operation_in_progress = False
+        # Immutable operation state management
+        self._operation_state = OperationState.idle()
         self._operation_lock = asyncio.Lock()
-        self._current_operation: Optional[str] = None
-        self._operation_start_time: Optional[float] = None
 
     async def __aenter__(self) -> "AsyncCorridorsMCTS":
         """Async context manager entry."""
@@ -161,116 +278,120 @@ class AsyncCorridorsMCTS:
 
     async def _acquire_operation_lock(self, operation_name: str) -> None:
         """
-        Acquire exclusive operation lock with fail-fast semantics.
+        Acquire exclusive operation lock with fail-fast semantics using immutable state.
 
         Raises ConcurrencyViolationError if another operation is in progress.
         """
-        # Acquire lock and check atomically
         async with self._operation_lock:
-            if self._operation_in_progress:
-                elapsed = time.time() - (self._operation_start_time or 0)
-                raise ConcurrencyViolationError(
-                    f"RACE CONDITION DETECTED: '{operation_name}' blocked by "
-                    f"'{self._current_operation}' running for {elapsed:.3f}s"
-                )
+            # Check current state using pattern matching
+            current_state = self._operation_state
 
-            # Atomically mark operation as in progress
-            self._operation_in_progress = True
-            self._current_operation = operation_name
-            self._operation_start_time = time.time()
+            match current_state.status:
+                case OperationStatus.RUNNING:
+                    elapsed = current_state.elapsed_time or 0
+                    raise ConcurrencyViolationError(
+                        f"RACE CONDITION DETECTED: '{operation_name}' blocked by "
+                        f"'{current_state.operation_name}' running for {elapsed:.3f}s"
+                    )
+                case OperationStatus.IDLE | OperationStatus.COMPLETED | OperationStatus.CANCELLED | OperationStatus.FAILED:
+                    # Atomically transition to running state
+                    self._operation_state = OperationState.running(
+                        operation_name, time.time()
+                    )
+                case _:
+                    raise ConcurrencyViolationError(
+                        f"Invalid operation state: {current_state.status}"
+                    )
 
     async def _release_operation_lock(self) -> None:
-        """Release exclusive operation lock."""
-        self._operation_in_progress = False
-        self._current_operation = None
-        self._operation_start_time = None
+        """Release exclusive operation lock by transitioning to idle state."""
+        current_time = time.time()
+
+        # Create new idle state (functional transition)
+        match self._operation_state.status:
+            case OperationStatus.RUNNING:
+                self._operation_state = self._operation_state.complete(current_time)
+            case _:
+                # Already released or in error state, transition to idle
+                self._operation_state = OperationState.idle()
+
+    def _run_simulations_batch(self, n: int, batch_size: int = 100) -> int:
+        """Functional simulation runner that processes in batches."""
+        simulations_completed = 0
+
+        while simulations_completed < n and not self._cancel_flag.is_set():
+            current_batch = min(batch_size, n - simulations_completed)
+            try:
+                self._impl.run_simulations(current_batch)
+                simulations_completed += current_batch
+            except Exception:
+                break
+
+        return simulations_completed
+
+    async def _run_simulations_with_timeout(
+        self, n: int, timeout: Optional[float]
+    ) -> int:
+        """Functional simulation runner with timeout and cancellation."""
+        # Execute with timeout handling
+        loop = asyncio.get_event_loop()
+        task = loop.run_in_executor(
+            self._executor, lambda: self._run_simulations_batch(n)
+        )
+
+        try:
+            return await asyncio.wait_for(task, timeout) if timeout else await task
+        except asyncio.TimeoutError:
+            # Functional cancellation - set flag and wait for graceful completion
+            self._cancel_flag.set()
+            try:
+                return await asyncio.wait_for(task, timeout=1.0)
+            except asyncio.TimeoutError:
+                return 0
+        except asyncio.CancelledError:
+            self._cancel_flag.set()
+            raise
 
     async def run_simulations_async(
         self, n: int, timeout: Optional[float] = None
     ) -> int:
         """
-        Run MCTS simulations asynchronously with optional timeout and cancellation.
+        Run MCTS simulations asynchronously with functional timeout and cancellation.
 
         Returns the actual number of simulations completed.
         """
         await self._acquire_operation_lock("run_simulations")
-        try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
-            if n <= 0:
-                return 0
-        except Exception:
+        # Early validation using guard clauses
+        if self._closed:
             await self._release_operation_lock()
-            raise
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+        if n <= 0:
+            await self._release_operation_lock()
+            return 0
 
         try:
             async with self._lock:
-                # Cancel any existing simulation task
-                if self._current_task and not self._current_task.done():
+                # Cancel any existing task functionally
+                current_task = self._current_task
+                if current_task and not current_task.done():
                     self._cancel_flag.set()
-                    try:
-                        await asyncio.wait_for(self._current_task, timeout=1.0)
-                    except (asyncio.TimeoutError, asyncio.CancelledError):
-                        pass
+                    await asyncio.gather(current_task, return_exceptions=True)
 
-                # Reset cancellation flag
+                # Reset cancellation state
                 self._cancel_flag.clear()
 
-                # Create simulation function with cancellation support
-                def _run_with_cancellation() -> int:
-                    simulations_completed = 0
-                    batch_size = min(100, n)  # Process in batches to check cancellation
-
-                    while simulations_completed < n:
-                        if self._cancel_flag.is_set():
-                            break
-
-                        current_batch = min(batch_size, n - simulations_completed)
-                        try:
-                            self._impl.run_simulations(current_batch)
-                            simulations_completed += current_batch
-                        except Exception:
-                            # If simulation fails, stop processing
-                            break
-
-                    return simulations_completed
-
-                # Run simulations in executor
-                loop = asyncio.get_event_loop()
-                current_future = loop.run_in_executor(
-                    self._executor, _run_with_cancellation
+                # Run simulations using functional approach
+                self._current_task = asyncio.create_task(
+                    self._run_simulations_with_timeout(n, timeout)
                 )
-                self._current_task = current_future
 
                 try:
-                    if timeout:
-                        simulations_done = await asyncio.wait_for(
-                            current_future, timeout=timeout
-                        )
-                    else:
-                        simulations_done = await current_future
-
-                    return simulations_done
-
-                except asyncio.TimeoutError:
-                    # Cancel the simulation
-                    self._cancel_flag.set()
-                    # Wait briefly for cancellation to take effect
-                    try:
-                        simulations_done = await asyncio.wait_for(
-                            current_future, timeout=1.0
-                        )
-                        return simulations_done
-                    except asyncio.TimeoutError:
-                        return 0  # Couldn't even cancel cleanly
-
-                except asyncio.CancelledError:
-                    self._cancel_flag.set()
-                    raise
-
+                    return await self._current_task
                 finally:
                     self._current_task = None
+
         finally:
             await self._release_operation_lock()
 
@@ -278,27 +399,32 @@ class AsyncCorridorsMCTS:
         self, target_sims: int, timeout: Optional[float] = None
     ) -> int:
         """
-        Ensure a minimum number of simulations, running additional ones if needed.
+        Ensure a minimum number of simulations using functional composition.
 
         Returns the total simulation count after completion.
         """
         current_sims: int = await self.get_visit_count_async()
 
-        if current_sims >= target_sims:
-            return current_sims
+        # Use ternary operator instead of if statement
+        needed_sims = max(0, target_sims - current_sims)
 
-        needed_sims = target_sims - current_sims
-        completed_sims: int = await self.run_simulations_async(needed_sims, timeout)
-
-        return current_sims + completed_sims
+        # Short-circuit if no simulations needed
+        return (
+            current_sims
+            if needed_sims == 0
+            else current_sims + await self.run_simulations_async(needed_sims, timeout)
+        )
 
     async def make_move_async(self, action: str, flip: bool = False) -> None:
-        """Make a move asynchronously."""
+        """Make a move asynchronously using functional composition."""
         await self._acquire_operation_lock("make_move")
-        try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
+        # Guard clause for closed state
+        if self._closed:
+            await self._release_operation_lock()
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+        try:
             async with self._lock:
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
@@ -310,12 +436,15 @@ class AsyncCorridorsMCTS:
     async def get_sorted_actions_async(
         self, flip: bool = False
     ) -> List[Tuple[int, float, str]]:
-        """Get sorted actions asynchronously."""
+        """Get sorted actions asynchronously using functional composition."""
         await self._acquire_operation_lock("get_sorted_actions")
-        try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
+        # Guard clause for closed state
+        if self._closed:
+            await self._release_operation_lock()
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+        try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
                 self._executor, lambda: self._impl.get_sorted_actions(flip)
@@ -324,12 +453,15 @@ class AsyncCorridorsMCTS:
             await self._release_operation_lock()
 
     async def choose_best_action_async(self, epsilon: float = 0.0) -> str:
-        """Choose best action asynchronously."""
+        """Choose best action asynchronously using functional composition."""
         await self._acquire_operation_lock("choose_best_action")
-        try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
+        # Guard clause for closed state
+        if self._closed:
+            await self._release_operation_lock()
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+        try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
                 self._executor, lambda: self._impl.choose_best_action(epsilon)
@@ -338,12 +470,15 @@ class AsyncCorridorsMCTS:
             await self._release_operation_lock()
 
     async def get_evaluation_async(self) -> Optional[float]:
-        """Get evaluation asynchronously."""
+        """Get evaluation asynchronously using functional composition."""
         await self._acquire_operation_lock("get_evaluation")
-        try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
+        # Guard clause for closed state
+        if self._closed:
+            await self._release_operation_lock()
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
+        try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(self._executor, self._impl.get_evaluation)
         finally:
@@ -389,22 +524,28 @@ class AsyncCorridorsMCTS:
         finally:
             await self._release_operation_lock()
 
+    async def _cancel_current_task(self) -> None:
+        """Functionally cancel current task if exists."""
+        current_task = self._current_task
+        if current_task and not current_task.done():
+            self._cancel_flag.set()
+            await asyncio.gather(current_task, return_exceptions=True)
+
     async def reset_async(self) -> None:
-        """Reset to initial state asynchronously."""
+        """Reset to initial state asynchronously using functional composition."""
         await self._acquire_operation_lock("reset")
+
+        # Guard clause for closed state
+        if self._closed:
+            await self._release_operation_lock()
+            raise RuntimeError("AsyncCorridorsMCTS has been closed")
+
         try:
-            if self._closed:
-                raise RuntimeError("AsyncCorridorsMCTS has been closed")
-
             async with self._lock:
-                # Cancel any running simulations
-                if self._current_task and not self._current_task.done():
-                    self._cancel_flag.set()
-                    try:
-                        await asyncio.wait_for(self._current_task, timeout=1.0)
-                    except (asyncio.TimeoutError, asyncio.CancelledError):
-                        pass
+                # Cancel any running simulations functionally
+                await self._cancel_current_task()
 
+                # Reset state functionally
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
                     self._executor, self._impl.reset_to_initial_state
@@ -419,19 +560,21 @@ class AsyncCorridorsMCTS:
             self._current_task.cancel()
 
     async def cleanup(self) -> None:
-        """Clean up resources."""
+        """Clean up resources using functional composition."""
+        # Guard clause - already closed
         if self._closed:
             return
 
+        # Mark as closed atomically
         self._closed = True
         self.cancel_simulations()
 
-        # Wait for any running tasks to complete
-        if self._current_task and not self._current_task.done():
-            try:
-                await asyncio.wait_for(self._current_task, timeout=2.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                pass
+        # Wait for any running tasks to complete functionally
+        current_task = self._current_task
+        if current_task and not current_task.done():
+            await asyncio.gather(
+                asyncio.wait_for(current_task, timeout=2.0), return_exceptions=True
+            )
 
         # Shutdown executor
         self._executor.shutdown(wait=True)
