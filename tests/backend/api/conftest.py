@@ -170,12 +170,12 @@ def mock_mcts(monkeypatch: MonkeyPatch) -> Callable[[], MockCorridorsMCTS]:
             action_stats=action_stats,
         )
 
-    # Apply mocking to all relevant modules
+    # Apply mocking to all relevant modules - update to use AsyncCorridorsMCTS
     monkeypatch.setattr(
-        "backend.api.game_manager.Corridors_MCTS", mock_mcts_constructor
+        "backend.api.game_manager.AsyncCorridorsMCTS", mock_mcts_constructor
     )
     monkeypatch.setattr(
-        "corridors.corridors_mcts.Corridors_MCTS", mock_mcts_constructor
+        "corridors.AsyncCorridorsMCTS", mock_mcts_constructor
     )
 
     return mock_mcts_constructor

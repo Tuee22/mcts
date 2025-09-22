@@ -1,6 +1,6 @@
 from tests.pytest_marks import (
     api,
-    asyncio,
+    asyncio as asyncio_mark,
     benchmark,
     board,
     cpp,
@@ -30,21 +30,17 @@ These tests cover unusual conditions and corner cases:
 - Algorithm edge conditions
 """
 
+import asyncio
 import sys
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+import pytest_asyncio
 
 from tests.mock_helpers import MockCorridorsMCTS
 
-from corridors.corridors_mcts import (
-    Corridors_MCTS,
-    display_sorted_actions,
-    computer_self_play,
-    human_computer_play,
-)
-from typing import List, Tuple, Optional
+from corridors import AsyncCorridorsMCTS
 
 
 @edge_cases
@@ -63,20 +59,24 @@ class TestBoundaryConditions:
             (8, 4),  # Side centers
         ],
     )
-    def test_boundary_positions(self, x: int, y: int) -> None:
+    @pytest.mark.asyncio
+    async def test_boundary_positions(self, x: int, y: int) -> None:
         """Test MCTS behavior at board boundaries."""
-        mcts = Corridors_MCTS(c=1.0, seed=42, min_simulations=10, max_simulations=100)
+        async with AsyncCorridorsMCTS(
+            c=1.0, seed=42, min_simulations=10, max_simulations=100,
+            sim_increment=10, use_rollout=True, eval_children=False,
+            use_puct=False, use_probs=False, decide_using_visits=True
+        ) as mcts:
+            # Try to place hero at boundary position via moves
+            # (This is indirect since we can't directly set positions)
+            await mcts.ensure_sims_async(10)
 
-        # Try to place hero at boundary position via moves
-        # (This is indirect since we can't directly set positions)
-        mcts.ensure_sims(10)
+            # Basic functionality should work regardless of internal positions
+            actions = await mcts.get_sorted_actions_async(flip=True)
+            display = await mcts.display_async(flip=False)
 
-        # Basic functionality should work regardless of internal positions
-        actions = mcts.get_sorted_actions(flip=True)
-        display = mcts.display(flip=False)
-
-        assert isinstance(actions, list)
-        assert isinstance(display, str)
+            assert isinstance(actions, list)
+            assert isinstance(display, str)
 
     def test_wall_boundary_positions(self) -> None:
         """Test wall placement at board boundaries."""

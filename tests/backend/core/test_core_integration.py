@@ -30,19 +30,15 @@ These tests verify that all components work together correctly:
 - System behavior under realistic conditions
 """
 
+import asyncio
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from unittest.mock import Mock, patch
 
 import pytest
+import pytest_asyncio
 
-from corridors.corridors_mcts import (
-    Corridors_MCTS,
-    display_sorted_actions,
-    computer_self_play,
-    human_computer_play,
-)
-from typing import List, Tuple, Optional
+from corridors import AsyncCorridorsMCTS
 
 
 @integration
@@ -50,161 +46,169 @@ from typing import List, Tuple, Optional
 class TestCompleteGameScenarios:
     """Test complete game scenarios from start to finish."""
 
-    def test_full_computer_self_play(self) -> None:
+    @pytest.mark.asyncio
+    async def test_full_computer_self_play(self) -> None:
         """Test a complete computer self-play game."""
         # Use reasonable parameters for a full game
-        p1 = Corridors_MCTS(
+        async with AsyncCorridorsMCTS(
             c=1.4,
             seed=123,
             min_simulations=100,
             max_simulations=500,
+            sim_increment=50,
             use_rollout=True,
             eval_children=False,
+            use_puct=False,
+            use_probs=False,
             decide_using_visits=True,
-        )
-
-        p2 = Corridors_MCTS(
+        ) as p1, AsyncCorridorsMCTS(
             c=1.4,
             seed=456,  # Different seed for variation
             min_simulations=100,
             max_simulations=500,
+            sim_increment=50,
             use_rollout=True,
             eval_children=False,
+            use_puct=False,
+            use_probs=False,
             decide_using_visits=True,
-        )
+        ) as p2:
+            moves_made = []
+            game_states = []
 
-        moves_made = []
-        game_states = []
+            # Ensure initial simulations
+            await p1.ensure_sims_async(100)
+            await p2.ensure_sims_async(100)
 
-        # Ensure initial simulations
-        p1.ensure_sims(100)
-        p2.ensure_sims(100)
+            # Track game progression
+            is_hero_turn = True
+            max_moves = 200  # Safety limit (increased for more complex games)
 
-        # Track game progression
-        is_hero_turn = True
-        max_moves = 200  # Safety limit (increased for more complex games)
+            for move_count in range(max_moves):
+                current_player = p1 if is_hero_turn else p2
+                other_player = p2 if is_hero_turn else p1
 
-        for move_count in range(max_moves):
-            current_player = p1 if is_hero_turn else p2
-            other_player = p2 if is_hero_turn else p1
+                # Get current board state
+                display = await current_player.display_async(flip=not is_hero_turn)
+                game_states.append(display)
 
-            # Get current board state
-            display = current_player.display(flip=not is_hero_turn)
-            game_states.append(display)
+                # Get available actions
+                actions = await current_player.get_sorted_actions_async(flip=is_hero_turn)
 
-            # Get available actions
-            actions = current_player.get_sorted_actions(flip=is_hero_turn)
+                if not actions:
+                    # Game ended - no legal moves
+                    break
 
-            if not actions:
-                # Game ended - no legal moves
-                break
+                # Choose best action
+                best_action = actions[0][2]
+                moves_made.append(
+                    (move_count, is_hero_turn, best_action, actions[0][0])
+                )  # move, player, action, visits
 
-            # Choose best action
-            best_action = actions[0][2]
-            moves_made.append(
-                (move_count, is_hero_turn, best_action, actions[0][0])
-            )  # move, player, action, visits
+                # Make move on both boards
+                await current_player.make_move_async(best_action, flip=is_hero_turn)
+                await other_player.make_move_async(best_action, flip=is_hero_turn)
 
-            # Make move on both boards
-            current_player.make_move(best_action, flip=is_hero_turn)
-            other_player.make_move(best_action, flip=is_hero_turn)
+                # Ensure simulations for both players after move
+                await current_player.ensure_sims_async(50)
+                await other_player.ensure_sims_async(50)
 
-            # Ensure simulations for both players after move
-            current_player.ensure_sims(50)
-            other_player.ensure_sims(50)
+                # Check for terminal state
+                evaluation = await current_player.get_evaluation_async()
+                if evaluation is not None and abs(evaluation) >= 0.95:
+                    winner = "Hero" if (evaluation > 0) == is_hero_turn else "Villain"
+                    break
 
-            # Check for terminal state
-            evaluation = current_player.get_evaluation()
-            if evaluation is not None and abs(evaluation) >= 0.95:
-                winner = "Hero" if (evaluation > 0) == is_hero_turn else "Villain"
-                break
+                # Switch players
+                is_hero_turn = not is_hero_turn
 
-            # Switch players
-            is_hero_turn = not is_hero_turn
+            # Verify game completed properly
+            assert len(moves_made) > 0, "No moves were made"
+            assert len(moves_made) < max_moves, "Game didn't end within move limit"
+            assert len(game_states) > 0, "No game states recorded"
 
-        # Verify game completed properly
-        assert len(moves_made) > 0, "No moves were made"
-        assert len(moves_made) < max_moves, "Game didn't end within move limit"
-        assert len(game_states) > 0, "No game states recorded"
+            # Verify move quality - actions should have reasonable visit counts
+            for move_num, player, action, visits in moves_made[:10]:  # Check first 10 moves
+                assert (
+                    visits >= 1
+                ), f"Move {move_num} had no visits: {visits}"  # More realistic expectation
 
-        # Verify move quality - actions should have reasonable visit counts
-        for move_num, player, action, visits in moves_made[:10]:  # Check first 10 moves
-            assert (
-                visits >= 1
-            ), f"Move {move_num} had no visits: {visits}"  # More realistic expectation
+            print(f"Game completed in {len(moves_made)} moves")
 
-        print(f"Game completed in {len(moves_made)} moves")
-
-    def test_single_player_game_to_completion(self) -> None:
+    @pytest.mark.asyncio
+    async def test_single_player_game_to_completion(self) -> None:
         """Test a single-player game played to completion."""
-        mcts = Corridors_MCTS(
+        async with AsyncCorridorsMCTS(
             c=2.0,
             seed=789,
             min_simulations=150,
             max_simulations=300,
+            sim_increment=50,
             use_rollout=True,
+            eval_children=False,
+            use_puct=False,
+            use_probs=False,
             decide_using_visits=True,
-        )
+        ) as mcts:
+            move_sequence = []
+            max_moves = 200  # Increase limit for corridors games which can be longer
 
-        move_sequence = []
-        max_moves = 200  # Increase limit for corridors games which can be longer
+            for move_num in range(max_moves):
+                # Ensure adequate simulations
+                await mcts.ensure_sims_async(150)
 
-        for move_num in range(max_moves):
-            # Ensure adequate simulations
-            mcts.ensure_sims(150)
+                # Get game state
+                actions = await mcts.get_sorted_actions_async(flip=(move_num % 2 == 0))
 
-            # Get game state
-            actions = mcts.get_sorted_actions(flip=(move_num % 2 == 0))
+                if not actions:
+                    # Game ended
+                    break
 
-            if not actions:
-                # Game ended
-                break
+                # Record move details
+                best_action = actions[0]
+                move_sequence.append(
+                    {
+                        "move": move_num,
+                        "player": "Hero" if move_num % 2 == 0 else "Villain",
+                        "action": best_action[2],
+                        "visits": best_action[0],
+                        "equity": best_action[1],
+                        "total_actions": len(actions),
+                    }
+                )
 
-            # Record move details
-            best_action = actions[0]
-            move_sequence.append(
-                {
-                    "move": move_num,
-                    "player": "Hero" if move_num % 2 == 0 else "Villain",
-                    "action": best_action[2],
-                    "visits": best_action[0],
-                    "equity": best_action[1],
-                    "total_actions": len(actions),
-                }
-            )
+                # Make the move
+                await mcts.make_move_async(best_action[2], flip=(move_num % 2 == 0))
 
-            # Make the move
-            mcts.make_move(best_action[2], flip=(move_num % 2 == 0))
+                # Check if the game is actually terminal
+                # Don't rely on evaluation alone - check if there are legal moves remaining
+                # and use the C++ terminal detection
+                if await mcts.is_terminal_async():
+                    evaluation = await mcts.get_evaluation_async()
+                    if evaluation is not None:
+                        winner = "Hero" if evaluation > 0 else "Villain"
+                        if move_num % 2 != 0:  # Adjust for perspective
+                            winner = "Villain" if winner == "Hero" else "Hero"
+                    break
 
-            # Check if the game is actually terminal
-            # Don't rely on evaluation alone - check if there are legal moves remaining
-            # and use the C++ terminal detection
-            if mcts.is_terminal():
-                evaluation = mcts.get_evaluation()
-                if evaluation is not None:
-                    winner = "Hero" if evaluation > 0 else "Villain"
-                    if move_num % 2 != 0:  # Adjust for perspective
-                        winner = "Villain" if winner == "Hero" else "Hero"
-                break
-
-        assert (
-            len(move_sequence) > 5
-        ), f"Game ended too quickly after {len(move_sequence)} moves"
-        assert (
-            len(move_sequence) < max_moves
-        ), f"Game didn't complete within {max_moves} moves (got {len(move_sequence)} moves)"
-
-        # Verify game progression makes sense
-        for i, move_data in enumerate(move_sequence):
-            visits = move_data["visits"]
-            total_actions = move_data["total_actions"]
-            assert isinstance(visits, int) and visits > 0, f"Move {i} had zero visits"
-            assert isinstance(
-                move_data["equity"], (int, float)
-            ), f"Move {i} had invalid equity"
             assert (
-                isinstance(total_actions, int) and total_actions > 0
-            ), f"Move {i} had no available actions"
+                len(move_sequence) > 5
+            ), f"Game ended too quickly after {len(move_sequence)} moves"
+            assert (
+                len(move_sequence) < max_moves
+            ), f"Game didn't complete within {max_moves} moves (got {len(move_sequence)} moves)"
+
+            # Verify game progression makes sense
+            for i, move_data in enumerate(move_sequence):
+                visits = move_data["visits"]
+                total_actions = move_data["total_actions"]
+                assert isinstance(visits, int) and visits > 0, f"Move {i} had zero visits"
+                assert isinstance(
+                    move_data["equity"], (int, float)
+                ), f"Move {i} had invalid equity"
+                assert (
+                    isinstance(total_actions, int) and total_actions > 0
+                ), f"Move {i} had no available actions"
 
     @parametrize(
         "algorithm_params",
@@ -215,40 +219,41 @@ class TestCompleteGameScenarios:
             # Add more algorithm variations as they become available
         ],
     )
-    def test_different_algorithms_complete_games(
+    @pytest.mark.asyncio
+    async def test_different_algorithms_complete_games(
         self, algorithm_params: Dict[str, bool]
     ) -> None:
         """Test that different algorithm configurations can complete games."""
-        mcts = Corridors_MCTS(
+        async with AsyncCorridorsMCTS(
             c=1.2,
             seed=999,
             min_simulations=80,
             max_simulations=200,
+            sim_increment=40,
             use_rollout=algorithm_params.get("use_rollout", True),
             eval_children=algorithm_params.get("eval_children", False),
             use_puct=algorithm_params.get("use_puct", False),
             use_probs=algorithm_params.get("use_probs", False),
             decide_using_visits=algorithm_params.get("decide_using_visits", True),
-        )
+        ) as mcts:
+            moves_completed = 0
+            max_moves = 30  # Shorter test for parameter variations
 
-        moves_completed = 0
-        max_moves = 30  # Shorter test for parameter variations
+            for move_num in range(max_moves):
+                await mcts.ensure_sims_async(80)
+                actions = await mcts.get_sorted_actions_async(flip=(move_num % 2 == 0))
 
-        for move_num in range(max_moves):
-            mcts.ensure_sims(80)
-            actions = mcts.get_sorted_actions(flip=(move_num % 2 == 0))
+                if not actions:
+                    break
 
-            if not actions:
-                break
+                await mcts.make_move_async(actions[0][2], flip=(move_num % 2 == 0))
+                moves_completed += 1
 
-            mcts.make_move(actions[0][2], flip=(move_num % 2 == 0))
-            moves_completed += 1
+                # Early termination check
+                if await mcts.get_evaluation_async() is not None:
+                    break
 
-            # Early termination check
-            if mcts.get_evaluation() is not None:
-                break
-
-        assert moves_completed > 0, f"No moves completed with {algorithm_params}"
+            assert moves_completed > 0, f"No moves completed with {algorithm_params}"
 
 
 @integration

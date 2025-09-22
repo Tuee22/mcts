@@ -1,7 +1,8 @@
 """Type-safe mock helpers for testing."""
 
+import asyncio
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Awaitable, Callable, Dict, List, Optional, Protocol, Tuple, Union
 
 from corridors.async_mcts import MCTSProtocol
 
@@ -209,3 +210,55 @@ class MockCorridorsMCTS(MCTSProtocol):
     def assert_called_ensure_sims(self) -> None:
         """Assert ensure_sims was called."""
         assert len(self.ensure_sims_calls) > 0
+
+    # Async method implementations for compatibility with AsyncCorridorsMCTS
+    async def make_move_async(self, action: str, flip: bool = False) -> None:
+        """Async version of make_move."""
+        self.make_move(action, flip)
+
+    async def get_legal_moves_async(self, flip: bool = False) -> List[str]:
+        """Async version of get_legal_moves."""
+        return self.get_legal_moves(flip)
+
+    async def get_sorted_actions_async(
+        self, flip: bool = False
+    ) -> List[Tuple[int, float, str]]:
+        """Async version of get_sorted_actions."""
+        return self.get_sorted_actions(flip)
+
+    async def choose_best_action_async(self, epsilon: float = 0.0) -> str:
+        """Async version of choose_best_action."""
+        return self.choose_best_action(epsilon)
+
+    async def ensure_sims_async(self, num_sims: int) -> None:
+        """Async version of ensure_sims."""
+        self.ensure_sims(num_sims)
+
+    async def get_evaluation_async(self) -> Optional[float]:
+        """Async version of get_evaluation."""
+        return self.get_evaluation()
+
+    async def display_async(self, flip: bool = False) -> str:
+        """Async version of display."""
+        return self.display(flip)
+
+    async def reset_async(self) -> None:
+        """Async version of reset."""
+        self.reset()
+
+    async def is_terminal_async(self) -> bool:
+        """Async version of is_terminal."""
+        return self.is_terminal()
+
+    async def get_visit_count_async(self) -> int:
+        """Async version of get_visit_count."""
+        return self.get_visit_count()
+
+    # Context manager support for compatibility with AsyncCorridorsMCTS
+    async def __aenter__(self) -> "MockCorridorsMCTS":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: None, exc_val: None, exc_tb: None) -> None:
+        """Async context manager exit."""
+        pass
