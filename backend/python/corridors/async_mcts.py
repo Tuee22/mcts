@@ -8,7 +8,6 @@ allowing proper integration with FastAPI and other async frameworks.
 import asyncio
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum, auto
 from math import sqrt
@@ -105,7 +104,6 @@ class MCTSConfig(BaseModel):
     use_puct: bool = False
     use_probs: bool = False
     decide_using_visits: bool = True
-    max_workers: int = 1
 
     @field_validator("c")
     @classmethod
@@ -115,22 +113,12 @@ class MCTSConfig(BaseModel):
             raise ValueError("c must be greater than 0")
         return v
 
-    @field_validator(
-        "seed", "min_simulations", "max_simulations", "sim_increment", "max_workers"
-    )
+    @field_validator("seed", "min_simulations", "max_simulations", "sim_increment")
     @classmethod
     def validate_positive_int(cls, v: int) -> int:
         """Ensure positive integers."""
         if v < 1:
             raise ValueError("Value must be >= 1")
-        return v
-
-    @field_validator("max_workers")
-    @classmethod
-    def validate_max_workers(cls, v: int) -> int:
-        """Ensure max_workers is between 1 and 4."""
-        if not 1 <= v <= 4:
-            raise ValueError("max_workers must be between 1 and 4")
         return v
 
     @field_validator("max_simulations")
@@ -224,9 +212,6 @@ class AsyncCorridorsMCTS:
             self._config.decide_using_visits,
         )
 
-        # Thread pool for async operations
-        self._executor = ThreadPoolExecutor(max_workers=self._config.max_workers)
-
         # Cancellation support (immutable)
         self._cancel_flag = threading.Event()
         self._current_task: Optional[
@@ -311,11 +296,9 @@ class AsyncCorridorsMCTS:
         self, n: int, timeout: Optional[float]
     ) -> int:
         """Functional simulation runner with timeout and cancellation."""
-        # Execute with timeout handling
+        # Execute with timeout handling using asyncio's default thread pool
         loop = asyncio.get_event_loop()
-        task = loop.run_in_executor(
-            self._executor, lambda: self._run_simulations_batch(n)
-        )
+        task = loop.run_in_executor(None, lambda: self._run_simulations_batch(n))
 
         try:
             return await asyncio.wait_for(task, timeout) if timeout else await task
@@ -406,7 +389,7 @@ class AsyncCorridorsMCTS:
             async with self._lock:
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
-                    self._executor, lambda: self._impl.make_move(action, flip)
+                    None, lambda: self._impl.make_move(action, flip)
                 )
         finally:
             await self._release_operation_lock()
@@ -425,7 +408,7 @@ class AsyncCorridorsMCTS:
         try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
-                self._executor, lambda: self._impl.get_sorted_actions(flip)
+                None, lambda: self._impl.get_sorted_actions(flip)
             )
         finally:
             await self._release_operation_lock()
@@ -442,7 +425,7 @@ class AsyncCorridorsMCTS:
         try:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(
-                self._executor, lambda: self._impl.choose_best_action(epsilon)
+                None, lambda: self._impl.choose_best_action(epsilon)
             )
         finally:
             await self._release_operation_lock()
@@ -458,7 +441,7 @@ class AsyncCorridorsMCTS:
 
         try:
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, self._impl.get_evaluation)
+            return await loop.run_in_executor(None, self._impl.get_evaluation)
         finally:
             await self._release_operation_lock()
 
@@ -470,9 +453,7 @@ class AsyncCorridorsMCTS:
                 raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, self._impl.get_visit_count
-            )
+            return await loop.run_in_executor(None, self._impl.get_visit_count)
         finally:
             await self._release_operation_lock()
 
@@ -484,9 +465,7 @@ class AsyncCorridorsMCTS:
                 raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(
-                self._executor, lambda: self._impl.display(flip)
-            )
+            return await loop.run_in_executor(None, lambda: self._impl.display(flip))
         finally:
             await self._release_operation_lock()
 
@@ -498,7 +477,7 @@ class AsyncCorridorsMCTS:
                 raise RuntimeError("AsyncCorridorsMCTS has been closed")
 
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(self._executor, self._impl.is_terminal)
+            return await loop.run_in_executor(None, self._impl.is_terminal)
         finally:
             await self._release_operation_lock()
 
@@ -525,9 +504,7 @@ class AsyncCorridorsMCTS:
 
                 # Reset state functionally
                 loop = asyncio.get_event_loop()
-                await loop.run_in_executor(
-                    self._executor, self._impl.reset_to_initial_state
-                )
+                await loop.run_in_executor(None, self._impl.reset_to_initial_state)
         finally:
             await self._release_operation_lock()
 
@@ -553,9 +530,6 @@ class AsyncCorridorsMCTS:
             await asyncio.gather(
                 asyncio.wait_for(current_task, timeout=2.0), return_exceptions=True
             )
-
-        # Shutdown executor
-        self._executor.shutdown(wait=True)
 
     @property
     def is_closed(self) -> bool:

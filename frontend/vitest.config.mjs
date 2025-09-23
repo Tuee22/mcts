@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url);
 
 // Use absolute paths to resolve modules from the build directory
 const vitestPath = '/opt/mcts/frontend-build/node_modules/vitest/dist/config.js';
-const reactPluginPath = '/opt/mcts/frontend-build/node_modules/@vitejs/plugin-react/dist/index.mjs';
+const reactPluginPath = '/opt/mcts/frontend-build/node_modules/@vitejs/plugin-react/dist/index.js';
 
 let defineConfig, react;
 
@@ -105,9 +105,22 @@ export default defineConfig({
       '@/store': '/app/frontend/src/store',
       '@/types': '/app/frontend/src/types',
       '@/utils': '/app/frontend/src/utils',
+      // Map common dependencies to the build directory
+      'react': '/opt/mcts/frontend-build/node_modules/react',
+      'react-dom': '/opt/mcts/frontend-build/node_modules/react-dom'
     },
-    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
+    // Tell Vite where to find node_modules
+    preserveSymlinks: false
   },
+
+  // Vite config to specify module directories
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  },
+
+  // Specify custom node_modules location
+  cacheDir: '/opt/mcts/frontend-build/.vite',
   define: {
     'process.env.NODE_ENV': '"test"',
     global: 'globalThis',
