@@ -33,6 +33,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="/app/backend/python:/opt/mcts/backend-build" \
     PYTHONDONTWRITEBYTECODE=1 \
     NPM_CONFIG_YES=true \
+    NODE_PATH="/opt/mcts/frontend-build/node_modules" \
     DOCKER_CONTAINER=1
 
 WORKDIR /app
@@ -167,6 +168,8 @@ RUN if [ "$VARIANT" = "cuda" ]; then \
 
 # Official Playwright command to install system dependencies
 RUN poetry run playwright install-deps
+# Install all three browser engines for comprehensive E2E testing
+RUN poetry run playwright install chromium firefox webkit
 # Verify Playwright browsers are installed correctly
 RUN ls -la /root/.cache/ms-playwright 2>/dev/null || echo "Playwright cache not found" && echo "✅ Playwright installation completed"
 

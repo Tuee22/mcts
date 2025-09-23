@@ -284,17 +284,23 @@ def main() -> None:
         if frontend_test_dir.exists() and frontend_src_dir.exists():
             print("\n⚛️  Running Frontend tests with Vitest...")
 
-            # Use npm run test:run from frontend directory with default config
+            # Use npm run test:run from frontend build directory where dependencies exist
+            frontend_build_dir = Path("/opt/mcts/frontend-build")
             frontend_cmd = ["npm", "run", "test:run"]
             if args.coverage:
                 frontend_cmd.extend(["--coverage"])
             if args.verbose:
                 frontend_cmd.append("--reporter=verbose")
 
+            # Set up environment to use the build directory with dependencies
+            frontend_env = os.environ.copy()
+            frontend_env["VITEST_CONFIG"] = str(frontend_src_dir / "vitest.config.ts")
+
             frontend_success = run_command(
                 frontend_cmd,
                 "Frontend Tests",
-                cwd=str(frontend_src_dir),
+                cwd=str(frontend_build_dir),
+                env=frontend_env,
                 timeout_seconds=300,
             )
             test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"

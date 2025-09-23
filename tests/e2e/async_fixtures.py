@@ -5,23 +5,25 @@ from typing import AsyncGenerator, Dict
 
 import pytest
 import pytest_asyncio
+from _pytest.fixtures import FixtureRequest
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
-@pytest_asyncio.fixture(scope="function")
-async def browser() -> AsyncGenerator[Browser, None]:
-    """Create and yield a browser instance."""
+@pytest_asyncio.fixture(scope="function", params=["chromium", "firefox", "webkit"])
+async def browser(request: FixtureRequest) -> AsyncGenerator[Browser, None]:
+    """Create and yield a browser instance for each browser type."""
+    browser_name = request.param
+    assert isinstance(
+        browser_name, str
+    ), f"Expected string browser name, got {type(browser_name)}"
+
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true",
-            args=[
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-            ],
+        if not hasattr(p, browser_name):
+            pytest.fail(f"Browser {browser_name} not available in Playwright")
+
+        launcher = getattr(p, browser_name)
+        browser = await launcher.launch(
+            headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true"
         )
         yield browser
         await browser.close()
