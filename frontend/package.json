@@ -23,10 +23,10 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest --coverage",
+    "test": "NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest --config ./vitest.config.mjs",
+    "test:ui": "NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest --ui --config ./vitest.config.mjs",
+    "test:run": "NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest run --config ./vitest.config.mjs",
+    "test:coverage": "NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest --coverage --config ./vitest.config.mjs",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

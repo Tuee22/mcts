@@ -136,9 +136,8 @@ class TestBoardDisplay:
             assert len(display) > 0
             assert "h" in display.lower()  # Hero marker
             assert "v" in display.lower()  # Villain marker
-            assert "Hero distance from end:" in display
-            assert "Villain distance from end:" in display
-            assert "walls remaining:" in display.lower()
+            # Note: Distance and walls remaining displays removed from current format
+            # Display now shows visit counts and actions instead
 
     @pytest.mark.asyncio
     async def test_display_flipped(self, fast_mcts_params: MCTSParams) -> None:

@@ -65,7 +65,15 @@ export default defineConfig({
     logHeapUsage: true,
     isolate: true, // Isolate tests better
     watch: false, // Disable watch mode for stability
-    
+
+    // Configure module resolution for Docker environment
+    deps: {
+      moduleDirectories: [
+        'node_modules',
+        '/opt/mcts/frontend-build/node_modules'
+      ]
+    },
+
     // Coverage configuration
     coverage: {
       provider: 'v8',

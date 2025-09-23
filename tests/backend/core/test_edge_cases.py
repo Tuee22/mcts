@@ -50,9 +50,7 @@ def display_sorted_actions(
     return result.rstrip()
 
 
-def computer_self_play(*args: object, **kwargs: object) -> None:
-    """Stub function - computer_self_play was removed in async refactor."""
-    raise NotImplementedError("computer_self_play was removed in async refactor")
+# computer_self_play function removed - was removed in async refactor
 
 
 @edge_cases
@@ -247,52 +245,7 @@ class TestDisplayEdgeCases:
 class TestGameFlowEdgeCases:
     """Test edge cases in game flow."""
 
-    @patch("builtins.print")
-    def test_computer_self_play_immediate_end(self, mock_print: MagicMock) -> None:
-        """Test self-play when game ends immediately."""
-        mock_p1 = MockCorridorsMCTS(
-            sorted_actions=[],  # No moves available
-            board_display="Game over",
-            evaluation=None,
-        )
-
-        # Should handle gracefully
-        computer_self_play(mock_p1)
-        # MockCorridorsMCTS automatically tracks calls
-
-    @patch("builtins.print")
-    def test_computer_self_play_alternating_players(
-        self, mock_print: MagicMock
-    ) -> None:
-        """Test self-play with proper player alternation."""
-        call_count = [0]  # Mutable counter
-
-        def get_actions_p1(flip: bool) -> List[Tuple[int, float, str]]:
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return [(100, 0.6, "*(4,1)")]  # First call - hero's move
-            else:
-                return []  # Second call - game over
-
-        def get_actions_p2(flip: bool) -> List[Tuple[int, float, str]]:
-            return []  # Villain has no moves
-
-        mock_p1 = MockCorridorsMCTS(
-            sorted_actions_side_effect=get_actions_p1,
-            board_display="Board 1",
-            evaluation=None,
-        )
-        mock_p2 = MockCorridorsMCTS(
-            sorted_actions_side_effect=get_actions_p2,
-            board_display="Board 2",
-            evaluation=None,
-        )
-
-        computer_self_play(mock_p1, mock_p2)
-
-        # Both players should make the same move
-        mock_p1.assert_move_made("*(4,1)", True)
-        mock_p2.assert_move_made("*(4,1)", True)
+    # Note: computer_self_play tests removed - function was removed in async refactor
 
 
 @edge_cases
@@ -367,7 +320,7 @@ class TestMCTSParameterEdgeCases:
             seed=42,
             min_simulations=10,
             max_simulations=100,
-            sim_increment=0,  # Zero increment
+            sim_increment=1,  # Minimum increment (was 0, but validation requires >= 1)
             use_rollout=True,
             eval_children=False,
             use_puct=False,

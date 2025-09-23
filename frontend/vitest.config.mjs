@@ -1,0 +1,115 @@
+// Use ES modules with dynamic imports to handle module resolution
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// Use absolute paths to resolve modules from the build directory
+const vitestPath = '/opt/mcts/frontend-build/node_modules/vitest/dist/config.js';
+const reactPluginPath = '/opt/mcts/frontend-build/node_modules/@vitejs/plugin-react/dist/index.mjs';
+
+let defineConfig, react;
+
+try {
+  const vitestModule = await import(vitestPath);
+  defineConfig = vitestModule.defineConfig;
+} catch (error) {
+  console.error('Failed to import vitest config:', error);
+  process.exit(1);
+}
+
+try {
+  const reactModule = await import(reactPluginPath);
+  react = reactModule.default;
+} catch (error) {
+  console.warn('Failed to import react plugin:', error);
+  react = () => ({});
+}
+
+export default defineConfig({
+  plugins: [react()],
+  esbuild: {
+    jsx: 'automatic',
+    target: 'esnext',
+  },
+  build: {
+    target: 'esnext',
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./setupTests.ts'],
+    include: [
+      'tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+    ],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/cypress/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
+      ...(process.env.INCLUDE_PERFORMANCE_TESTS !== 'true' ? ['**/performanceEdgeCases.test.*'] : [])
+    ],
+    testTimeout: 20000,
+    hookTimeout: 15000,
+    teardownTimeout: 5000,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+        execArgv: ['--max-old-space-size=8192', '--expose-gc'],
+        maxWorkers: 1,
+      }
+    },
+    retry: 0,
+    bail: 0,
+    logHeapUsage: true,
+    isolate: true,
+    watch: false,
+    deps: {
+      moduleDirectories: [
+        'node_modules',
+        '/opt/mcts/frontend-build/node_modules'
+      ]
+    },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'node_modules/',
+        'build/',
+        'dist/',
+        'coverage/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/fixtures/**',
+        '**/mocks/**'
+      ],
+      thresholds: {
+        global: {
+          branches: 70,
+          functions: 70,
+          lines: 70,
+          statements: 70
+        }
+      }
+    },
+    reporters: ['default']
+  },
+  resolve: {
+    alias: {
+      '@': '/app/frontend/src',
+      '@/components': '/app/frontend/src/components',
+      '@/services': '/app/frontend/src/services',
+      '@/store': '/app/frontend/src/store',
+      '@/types': '/app/frontend/src/types',
+      '@/utils': '/app/frontend/src/utils',
+    },
+    extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']
+  },
+  define: {
+    'process.env.NODE_ENV': '"test"',
+    global: 'globalThis',
+  }
+});
