@@ -1,9 +1,3 @@
-volumes:
-  frontend_build:
-  backend_build:
-  playwright_browsers:
-  frontend_node_modules:
-  frontend_test_node_modules:
 
 services:
   mcts:
@@ -22,28 +16,8 @@ services:
         protocol: tcp
     restart: unless-stopped
     volumes:
-      # Mount entire project for live development
+      # Mount entire project for live development (git-versioned files only)
       - type: bind
         source: ..
         target: /app
         read_only: false
-      # Preserve frontend node_modules dependencies
-      - type: volume
-        source: frontend_node_modules
-        target: /app/frontend/node_modules
-      # Preserve frontend build artifacts
-      - type: volume
-        source: frontend_build
-        target: /app/frontend/build
-      # Preserve backend build artifacts
-      - type: volume
-        source: backend_build
-        target: /app/backend/build
-      # Preserve Playwright browser installations
-      - type: volume
-        source: playwright_browsers
-        target: /root/.cache/ms-playwright
-      # Preserve frontend test node_modules dependencies
-      - type: volume
-        source: frontend_test_node_modules
-        target: /app/tests/frontend/node_modules

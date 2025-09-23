@@ -470,11 +470,12 @@ class TestBoardInteractions:
         self, page: Page, mode: str = "human_vs_human", board_size: int = 9
     ) -> None:
         """Configure game settings using the React app."""
-        # Wait for and click the settings button
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-        await expect(settings_button).to_be_visible(timeout=5000)
-        await settings_button.click()
-        await page.wait_for_timeout(1000)
+        # Settings panel should be visible by default when no game is active
+        # Wait for the settings panel to be visible
+        await expect(page.locator('h2:has-text("Game Settings")')).to_be_visible(
+            timeout=5000
+        )
+        await page.wait_for_timeout(500)
 
         # Select mode using data-testid
         if mode == "human_vs_human":

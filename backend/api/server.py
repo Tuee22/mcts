@@ -110,8 +110,8 @@ async def concurrency_violation_handler(
 # Create API router for /api-prefixed endpoints (health only)
 api_router = APIRouter(prefix="/api")
 
-# Static files configuration for frontend - updated for container path
-FRONTEND_BUILD_DIR = Path("/app/frontend/build")
+# Static files configuration for frontend - build artifacts outside /app
+FRONTEND_BUILD_DIR = Path("/opt/mcts/frontend-build/build")
 
 
 def setup_static_files() -> None:

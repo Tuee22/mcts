@@ -97,8 +97,14 @@ if test:
         **extra_args
     )
 else:
-    # Build extension into the centralized build directory
-    target_path = '../build/' + target_name
+    # Support custom target path from command line or use default
+    target_arg = ARGUMENTS.get('target')
+    if target_arg:
+        target_path = target_arg
+    else:
+        # Default build location for local development
+        target_path = '../build/' + target_name
+
     result = build_method(
         target=target_path,
         source=source_files,

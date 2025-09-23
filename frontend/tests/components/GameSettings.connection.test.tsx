@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Mock the game store first with vi.hoisted (same pattern as other tests)
 const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
   const store = {
-    gameId: null,
+    gameId: 'test-game-123', // Set gameId so toggle button renders
     gameState: null,
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
     isConnected: true,
@@ -66,7 +66,7 @@ describe('GameSettings Connection Tests', () => {
     
     // Reset the game store state for each test
     Object.assign(mockGameStore, {
-      gameId: null,
+      gameId: 'test-game-123', // Set gameId so toggle button renders
       gameState: null,
       gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
       isConnected: true,

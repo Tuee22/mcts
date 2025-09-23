@@ -30,11 +30,16 @@ ENV PYTHONUNBUFFERED=1 \
     CI=1 \
     PATH="/usr/local/bin:${PATH}" \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 \
-    PYTHONPATH="/app/backend/python:/app/backend/build" \
+    PYTHONPATH="/app/backend/python:/opt/mcts/backend-build" \
+    PYTHONDONTWRITEBYTECODE=1 \
     NPM_CONFIG_YES=true \
     DOCKER_CONTAINER=1
 
 WORKDIR /app
+
+# Create directories for build artifacts outside /app
+RUN mkdir -p /opt/mcts/backend-build \
+             /opt/mcts/frontend-build
 
 # Install system dependencies - same for both CPU and CUDA since both use Ubuntu 22.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -87,42 +92,43 @@ COPY pyproject.toml /app/
 # Install Python dependencies (without root package)
 RUN poetry install --no-root --with dev
 
-# Copy the entire project
-COPY . /app
-
-# Install the root package (for scripts) as root
-RUN poetry install --with dev
-
 # Install Playwright system dependencies as root using official command
 RUN poetry run playwright install-deps
 
-# Build frontend during image construction
-WORKDIR /app/frontend
+# Build frontend during image construction (outside /app)
+WORKDIR /opt/mcts/frontend-build
 ENV CI=false
 ENV GENERATE_SOURCEMAP=false
-# Install dependencies with clean, deterministic resolution
+# Copy frontend source files for building
+COPY frontend/package.json frontend/tsconfig.json ./
+COPY frontend/src ./src
+COPY frontend/public ./public
+# Install dependencies and build to current directory
 # Note: npm install used instead of npm ci because package-lock.json is intentionally excluded
 # This ensures cross-platform compatibility and .dockerignore prevents artifacts from entering build context
 RUN npm install --no-audit --no-fund && npm run build
 
-# Build C++ backend during image construction
+# Copy source code to /app (git-versioned files only)
+COPY . /app
+
+# Install the root package (for scripts) as root
+WORKDIR /app
+RUN poetry install --with dev
+
+# Build C++ backend during image construction (to /opt/mcts/backend-build)
 WORKDIR /app/backend/core
 
-# Verify user permissions and clean any conflicting directories
+# Verify user permissions and prepare build environment
 RUN echo "=== Permission Check ===" && id && whoami && \
-    echo "=== App Directory Ownership ===" && ls -la /app/ && \
-    echo "=== Corridors Directory Before Cleanup ===" && ls -la /app/backend/python/corridors/ && \
-    echo "=== Removing any conflicting _corridors_mcts.so directory ===" && \
-    rm -rf /app/backend/python/corridors/_corridors_mcts.so && \
-    echo "=== Corridors Directory After Cleanup ===" && ls -la /app/backend/python/corridors/
+    echo "=== Build Directory Setup ===" && ls -la /opt/mcts/backend-build/
 
-# Build C++ extension
-RUN scons
+# Build C++ extension to external directory
+RUN scons target=/opt/mcts/backend-build/_corridors_mcts
 
 # Verify builds completed successfully
 WORKDIR /app
-RUN ls -la /app/frontend/build/index.html && echo "✅ Frontend build completed"
-RUN python3 -c "import sys; sys.path.insert(0, '/app/backend/python'); from corridors import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
+RUN ls -la /opt/mcts/frontend-build/build/index.html && echo "✅ Frontend build completed"
+RUN python3 -c "import sys; sys.path.insert(0, '/opt/mcts/backend-build'); import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # In CUDA builds (FROM nvidia/cuda:... images), the base image automatically

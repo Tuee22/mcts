@@ -4,12 +4,19 @@ import os
 import sys
 
 # Add the build directory to Python path for the C++ extension
-package_dir = os.path.dirname(__file__)
-build_dir = os.path.join(package_dir, "..", "..", "build")
-build_dir = os.path.abspath(build_dir)
+# In Docker container, build artifacts are in /opt/mcts/backend-build
+# For local development, try the old location as fallback
+build_paths = [
+    "/opt/mcts/backend-build",  # Docker container location
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "build")
+    ),  # Local development fallback
+]
 
-if build_dir not in sys.path:
-    sys.path.insert(0, build_dir)
+for build_dir in build_paths:
+    if os.path.exists(build_dir) and build_dir not in sys.path:
+        sys.path.insert(0, build_dir)
+        break
 
 # Import the C++ extension module directly
 # This will fail fast if the .so is not available

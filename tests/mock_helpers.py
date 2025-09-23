@@ -262,3 +262,11 @@ class MockCorridorsMCTS(MCTSProtocol):
     async def __aexit__(self, exc_type: None, exc_val: None, exc_tb: None) -> None:
         """Async context manager exit."""
         pass
+
+    async def cleanup(self) -> None:
+        """Cleanup method for compatibility with AsyncCorridorsMCTS."""
+        pass
+
+    def cancel_simulations(self) -> None:
+        """Cancel simulations method for compatibility."""
+        pass
