@@ -107,7 +107,16 @@ export default defineConfig({
       '@/utils': '/app/frontend/src/utils',
       // Map common dependencies to the build directory
       'react': '/opt/mcts/frontend-build/node_modules/react',
-      'react-dom': '/opt/mcts/frontend-build/node_modules/react-dom'
+      'react-dom': '/opt/mcts/frontend-build/node_modules/react-dom',
+      // Map testing library modules to the build directory
+      '@testing-library/react': '/opt/mcts/frontend-build/node_modules/@testing-library/react',
+      '@testing-library/dom': '/opt/mcts/frontend-build/node_modules/@testing-library/dom',
+      '@testing-library/user-event': '/opt/mcts/frontend-build/node_modules/@testing-library/user-event',
+      // Map other dependencies to the build directory
+      'react-hot-toast': '/opt/mcts/frontend-build/node_modules/react-hot-toast',
+      'zustand': '/opt/mcts/frontend-build/node_modules/zustand',
+      'axios': '/opt/mcts/frontend-build/node_modules/axios',
+      'socket.io-client': '/opt/mcts/frontend-build/node_modules/socket.io-client'
     },
     extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
     // Tell Vite where to find node_modules

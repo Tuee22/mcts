@@ -109,6 +109,11 @@ MessageData = Union[
     PlayerLeftData,
     ErrorData,
     Dict[str, Union[str, int, float, bool]],  # Generic fallback
+    str,  # Allow string data for ping messages
+    int,  # Allow numeric data
+    float,  # Allow float data
+    bool,  # Allow boolean data
+    None,  # Allow None data
 ]
 
 
@@ -147,7 +152,7 @@ class MessageType(str, Enum):
 class WSMessage(BaseModel):
     """Unified WebSocket message format."""
 
-    id: Annotated[str, Field(default_factory=lambda: str(uuid.uuid4()))]
+    id: Annotated[Union[str, int], Field(default_factory=lambda: str(uuid.uuid4()))]
     type: MessageType
     data: Annotated[MessageData, Field(default_factory=dict)]
     error: Optional[str] = None
@@ -160,7 +165,7 @@ class WSMessage(BaseModel):
 class WSResponse(BaseModel):
     """WebSocket response message."""
 
-    id: str  # Correlates with request ID
+    id: Union[str, int]  # Correlates with request ID
     type: MessageType
     data: Annotated[MessageData, Field(default_factory=dict)]
     success: bool = True
@@ -382,16 +387,43 @@ class UnifiedWebSocketManager:
             if connection_info:
                 connection_info.last_ping = datetime.utcnow()
 
+        # Echo back any data sent in the ping message
+        response_data: Dict[str, Union[str, int, float, bool]] = {
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Include any data from the original ping message
+        if message.data:
+            # Handle large messages by limiting echoed data size
+            if isinstance(message.data, dict):
+                for key, value in message.data.items():
+                    if key != "timestamp":  # Don't override our timestamp
+                        # Limit large string values to prevent memory issues
+                        if isinstance(value, str) and len(value) > 10000:
+                            response_data[key] = value[:1000] + "...[truncated]"
+                        else:
+                            response_data[key] = value
+            else:
+                response_data["echo"] = message.data
+
         return WSResponse(
             id=message.id,
             type=MessageType.PONG,
-            data={"timestamp": datetime.utcnow().isoformat()},
+            data=response_data,
         )
 
     async def _handle_join_game(
         self, connection_id: str, message: WSMessage
     ) -> WSResponse:
         """Handle join game message."""
+        if not isinstance(message.data, dict):
+            return WSResponse(
+                id=message.id,
+                type=MessageType.ERROR,
+                success=False,
+                error="Invalid message data format",
+            )
+
         game_id = message.data.get("game_id")
         if not game_id or not isinstance(game_id, str):
             return WSResponse(
@@ -413,6 +445,14 @@ class UnifiedWebSocketManager:
         self, connection_id: str, message: WSMessage
     ) -> WSResponse:
         """Handle leave game message."""
+        if not isinstance(message.data, dict):
+            return WSResponse(
+                id=message.id,
+                type=MessageType.ERROR,
+                success=False,
+                error="Invalid message data format",
+            )
+
         game_id = message.data.get("game_id")
         if not game_id or not isinstance(game_id, str):
             return WSResponse(
