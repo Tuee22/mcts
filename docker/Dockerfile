@@ -83,7 +83,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12
 
 # Upgrade pip and install base tools
-RUN python3 -m pip install --upgrade pip wheel setuptools poetry
+RUN python -m pip install --upgrade pip wheel setuptools poetry
 
 # Container runs as root - no user creation needed
 
@@ -129,7 +129,7 @@ RUN scons target=/opt/mcts/backend-build/_corridors_mcts
 # Verify builds completed successfully
 WORKDIR /app
 RUN ls -la /opt/mcts/frontend-build/build/index.html && echo "✅ Frontend build completed"
-RUN python3 -c "import sys; sys.path.insert(0, '/opt/mcts/backend-build'); import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
+RUN python -c "import sys; sys.path.insert(0, '/opt/mcts/backend-build'); import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # In CUDA builds (FROM nvidia/cuda:... images), the base image automatically

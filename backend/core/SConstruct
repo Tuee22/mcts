@@ -29,12 +29,12 @@ python_libs = []
 
 if not test:
     # Get python config for current Python version
-    python_includes = subprocess.check_output(['python3-config', '--includes'], 
+    python_includes = subprocess.check_output(['python-config', '--includes'], 
                                              universal_newlines=True).strip().split()
     python_includes = [flag[2:] for flag in python_includes if flag.startswith('-I')]
     
     # Get python linker flags (use --embed for proper library linking)
-    python_libs = subprocess.check_output(['python3-config', '--embed', '--ldflags'], 
+    python_libs = subprocess.check_output(['python-config', '--embed', '--ldflags'], 
                                          universal_newlines=True).strip().split()
     
     # Add pybind11 includes if available

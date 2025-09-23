@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Cleanup hook to remove temporary files from project root.
 Runs after any agent completion to prevent accumulation of temp files.

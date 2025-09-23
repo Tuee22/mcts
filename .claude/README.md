@@ -14,7 +14,7 @@ Comprehensive automated quality assurance system for the MCTS repository using C
 **Workarounds Available**:
 - Git commits are blocked by the git-commit-guard.py hook
 - Rely on agent behavioral policies for git commit prevention
-- Manually run quality checks: `python3 .claude/hooks/quality-gate-safe.py`
+- Manually run quality checks: `python .claude/hooks/quality-gate-safe.py`
 
 ## Overview
 
@@ -115,7 +115,7 @@ Call agents directly when needed:
 
 **Manual Quality Check** (since hooks don't work):
 ```bash
-python3 .claude/hooks/quality-gate-safe.py
+python .claude/hooks/quality-gate-safe.py
 ```
 
 **Git Commit Protection**:

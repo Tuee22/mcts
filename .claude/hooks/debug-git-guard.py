@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Debug version of git-commit-guard to understand why it didn't catch the bypass.
 This will help us understand if the issue is in pattern matching or hook execution.

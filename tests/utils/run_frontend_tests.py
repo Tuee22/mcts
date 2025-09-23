@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Frontend test runner using Vitest.
 Provides a clean interface for running only frontend tests with various options.

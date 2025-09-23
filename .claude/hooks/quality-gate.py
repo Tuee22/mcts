@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Robust Quality Gate for Claude Code Stop Hook with Containerized Execution
 

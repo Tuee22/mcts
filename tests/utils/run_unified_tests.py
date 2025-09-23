@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Unified test runner that runs all tests in the correct order: Python → Frontend → E2E.
 Ensures services are properly started before E2E tests.

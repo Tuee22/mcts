@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Run the complete test suite including E2E tests with proper server setup."""
 
 import subprocess

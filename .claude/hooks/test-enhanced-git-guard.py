@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Comprehensive test suite for the enhanced git-commit-guard.
 

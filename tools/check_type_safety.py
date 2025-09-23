@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Enhanced type safety checker for the MCTS project.
 Ensures no usage of Any, cast, or type ignore comments.

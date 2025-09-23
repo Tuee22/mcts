@@ -35,7 +35,7 @@ nm -D ../build/_corridors_mcts.so | grep PyInit
 
 ### 4. Test Direct Import
 ```bash
-python3 -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; print('✅ Direct import successful')"
+python -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; print('✅ Direct import successful')"
 ```
 
 **Expected output:**
@@ -44,7 +44,7 @@ python3 -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; 
 
 ### 5. Test Object Creation
 ```bash
-python3 -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; obj = _corridors_mcts._corridors_mcts(1.0, 42, True, False, False, False, True); print('✅ Object creation successful')"
+python -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; obj = _corridors_mcts._corridors_mcts(1.0, 42, True, False, False, False, True); print('✅ Object creation successful')"
 ```
 
 **Expected output:**
@@ -53,7 +53,7 @@ python3 -c "import sys; sys.path.insert(0, '../build'); import _corridors_mcts; 
 
 ### 6. Test Package Import
 ```bash
-PYTHONPATH='../python:../build' python3 -c "from corridors import _corridors_mcts; print('✅ Package import successful:', _corridors_mcts.__file__)"
+PYTHONPATH='../python:../build' python -c "from corridors import _corridors_mcts; print('✅ Package import successful:', _corridors_mcts.__file__)"
 ```
 
 **Expected output:**
@@ -62,7 +62,7 @@ PYTHONPATH='../python:../build' python3 -c "from corridors import _corridors_mct
 
 ### 7. Test Full Interface
 ```bash
-PYTHONPATH='../python:../build' python3 -c "
+PYTHONPATH='../python:../build' python -c "
 from corridors import _corridors_mcts
 obj = _corridors_mcts._corridors_mcts(1.0, 42, True, False, False, False, True)
 print('Legal moves:', len(obj.get_legal_moves()))
@@ -96,7 +96,7 @@ if [ ! -f "../build/_corridors_mcts.so" ]; then
 fi
 
 echo "=== Testing Import ==="
-PYTHONPATH="../python:../build" python3 -c "
+PYTHONPATH="../python:../build" python -c "
 import _corridors_mcts
 obj = _corridors_mcts._corridors_mcts(1.0, 42, True, False, False, False, True)
 assert len(obj.get_legal_moves()) > 0
@@ -119,7 +119,7 @@ echo "=== Build Validation Complete ==="
 
 ### Issue: Symbol not found errors
 **Cause:** Missing or incorrect Python headers during compilation
-**Solution:** Verify `python3-config --includes` paths are correct
+**Solution:** Verify `python-config --includes` paths are correct
 
 ### Issue: Architecture mismatch
 **Cause:** Cross-compilation or mixed architectures
@@ -129,12 +129,12 @@ echo "=== Build Validation Complete ==="
 
 ```bash
 # Check Python configuration
-python3-config --includes
-python3-config --ldflags
+python-config --includes
+python-config --ldflags
 
 # Check architecture compatibility
 file ../build/_corridors_mcts.so
-file $(python3 -c "import sys; print(sys.executable)")
+file $(python -c "import sys; print(sys.executable)")
 
 # Inspect build dependencies
 ldd ../build/_corridors_mcts.so  # On Linux

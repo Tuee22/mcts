@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 Combined test runner for Python and Frontend tests (excludes E2E tests).
 For all tests including E2E, use run_unified_tests.py instead.
@@ -58,7 +58,7 @@ def main() -> None:
         print("🐍 Running Python tests (Core + API separately)...")
 
         # Run Core tests first (these load the C++ module)
-        core_cmd = ["python3", "-m", "pytest", "tests/backend/core/"]
+        core_cmd = ["python", "-m", "pytest", "tests/backend/core/"]
         if args.verbose:
             core_cmd.append("-v")
         if args.coverage:
@@ -73,7 +73,7 @@ def main() -> None:
         core_success = run_command(core_cmd, "Python Core Tests", cwd=project_root)
 
         # Run API tests in a separate process to avoid pybind11 double registration
-        api_cmd = ["python3", "-m", "pytest", "tests/backend/api/"]
+        api_cmd = ["python", "-m", "pytest", "tests/backend/api/"]
         if args.verbose:
             api_cmd.append("-v")
         if args.coverage:

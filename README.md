@@ -70,11 +70,11 @@ The Docker image includes pre-built C++ extensions. To verify the build succeede
 
 ```bash
 # Test without bind mounts (uses only artifacts baked into image)
-docker run --rm mcts:cpu python3 -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
+docker run --rm mcts:cpu python -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
 # Expected output: Extension loaded: /app/backend/build/_corridors_mcts.so
 
 # With docker compose (includes bind mounts and volumes)
-docker compose exec mcts python3 -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
+docker compose exec mcts python -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
 ```
 
 ### Build Architecture
@@ -123,7 +123,7 @@ Once the container is running:
 docker compose exec mcts bash
 
 # Run interactive Python session
-docker compose exec mcts python3
+docker compose exec mcts python
 
 # Check container logs
 docker compose logs mcts
@@ -566,7 +566,7 @@ Corridors is a two-player board game where players race to reach the opposite si
 - Run `poetry install` to ensure all dependencies are present
 
 **C++ Extension Issues:**
-- Verify extension built: `docker run --rm mcts:cpu python3 -c "from corridors import _corridors_mcts"`
+- Verify extension built: `docker run --rm mcts:cpu python -c "from corridors import _corridors_mcts"`
 - Check build location: `docker compose exec mcts ls -la /app/backend/build/`
 - Rebuild in container: `docker compose exec mcts cd /app/backend/core && scons`
 - Build artifacts are in Docker volumes, not on host filesystem
