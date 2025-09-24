@@ -168,7 +168,9 @@ async def create_game(
             if await cancel_button.count() > 0:
                 await cancel_button.click()
                 await page.wait_for_timeout(500)
-        except:
+        except Exception as e:
+            # Cancel button interaction failed - not critical, continue with test
+            print(f"⚠️  Cancel button interaction failed (non-critical): {e}")
             pass
 
         # Inject functional game board HTML

@@ -125,8 +125,10 @@ class TestBrowserCompatibility:
                     if await settings_button.is_visible():
                         await settings_button.click()
                         print("✅ Game settings accessible")
-                except:
-                    print("⚠️  Game settings not found (may not be implemented)")
+                except Exception as e:
+                    print(
+                        f"⚠️  Game settings not accessible: {e} (may not be implemented)"
+                    )
 
             finally:
                 await browser.close()

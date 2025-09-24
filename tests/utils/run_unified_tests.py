@@ -10,7 +10,13 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import Dict, List, NoReturn, Optional, Tuple, TypedDict
+
+
+def fail_loudly(msg: str) -> NoReturn:
+    """Fail with explicit error message and exit."""
+    print(f"❌ CRITICAL: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
 class TestSuite(TypedDict):
@@ -281,36 +287,33 @@ def main() -> None:
     if not args.skip_frontend:
         frontend_test_dir = project_root / "frontend" / "tests"
         frontend_src_dir = project_root / "frontend"
-        if frontend_test_dir.exists() and frontend_src_dir.exists():
-            print("\n⚛️  Running Frontend tests with Vitest...")
 
-            # Use npm run test:run from frontend build directory where dependencies exist
-            frontend_build_dir = Path("/opt/mcts/frontend-build")
-            frontend_cmd = ["npm", "run", "test:run"]
-            if args.coverage:
-                frontend_cmd.extend(["--coverage"])
-            if args.verbose:
-                frontend_cmd.append("--reporter=verbose")
+        # Check directories exist - fail loudly if missing
+        if not frontend_test_dir.exists():
+            fail_loudly(f"Frontend test directory missing: {frontend_test_dir}")
+        if not frontend_src_dir.exists():
+            fail_loudly(f"Frontend source directory missing: {frontend_src_dir}")
 
-            # Set up environment to use the build directory with dependencies
-            frontend_env = os.environ.copy()
-            frontend_env["VITEST_CONFIG"] = str(frontend_src_dir / "vitest.config.ts")
+        print("\n⚛️  Running Frontend tests with Vitest...")
 
-            frontend_success = run_command(
-                frontend_cmd,
-                "Frontend Tests",
-                cwd=str(frontend_build_dir),
-                env=frontend_env,
-                timeout_seconds=300,
-            )
-            test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"
-            success = success and frontend_success
+        # Use npm run test:run from frontend source directory (scripts handle path resolution)
+        frontend_cmd = ["npm", "run", "test:run"]
+        if args.coverage:
+            frontend_cmd = ["npm", "run", "test:coverage"]
+        if args.verbose:
+            frontend_cmd.append("--reporter=verbose")
 
-            if args.fail_fast and not frontend_success:
-                print("❌ Stopping due to --fail-fast flag")
-        else:
-            print("\n⚛️  Skipping Frontend tests (frontend directories not found)")
-            test_results["Frontend Tests"] = "SKIPPED"
+        frontend_success = run_command(
+            frontend_cmd,
+            "Frontend Tests",
+            cwd=str(frontend_src_dir),
+            timeout_seconds=300,
+        )
+        test_results["Frontend Tests"] = "PASSED" if frontend_success else "FAILED"
+        success = success and frontend_success
+
+        if args.fail_fast and not frontend_success:
+            print("❌ Stopping due to --fail-fast flag")
 
     # Run E2E tests
     if not args.skip_e2e and (not args.fail_fast or success):

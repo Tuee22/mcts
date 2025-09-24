@@ -8,6 +8,7 @@ import time
 from typing import Optional
 
 import requests
+from requests.exceptions import RequestException
 
 
 def check_server(url: str, name: str) -> bool:
@@ -17,7 +18,9 @@ def check_server(url: str, name: str) -> bool:
         if response.status_code in [200, 304]:
             print(f"✅ {name} server already running at {url}")
             return True
-    except Exception:
+    except (RequestException, OSError) as e:
+        # Server not available - this is expected when checking if server exists
+        print(f"ℹ️  {name} server not running at {url}: {e}")
         pass
     return False
 

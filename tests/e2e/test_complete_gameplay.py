@@ -98,12 +98,12 @@ class TestCompleteGameplay:
                     actual_board = page.locator(".game-board")
                     await expect(actual_board).to_be_visible(timeout=10000)
                     print("✅ Game board loaded successfully")
-                except:
+                except (TimeoutError, AssertionError) as e:
                     # Check if it's still in empty state
                     empty_board = page.locator(".game-board-empty")
                     if await empty_board.count() > 0:
                         print(
-                            "❌ Game board still in empty state - WebSocket game state not received"
+                            f"❌ Game board still in empty state - WebSocket game state not received: {e}"
                         )
                         # Wait a bit more and try again
                         await page.wait_for_timeout(3000)
@@ -656,7 +656,9 @@ class TestCompleteGameplay:
             if await cancel_button.count() > 0:
                 await cancel_button.click()
                 await page.wait_for_timeout(500)
-        except:
+        except Exception as e:
+            # Cancel button interaction failed - not critical for test, continue
+            print(f"⚠️  Cancel button interaction failed (non-critical): {e}")
             pass
 
         # Create game via REST API and inject game board

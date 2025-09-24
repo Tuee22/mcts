@@ -327,7 +327,7 @@ class TestMainFunction:
         """Test main function with default arguments."""
         with (
             patch("sys.argv", ["run_unified_tests.py"]),
-            patch("pathlib.Path.exists", return_value=False),
+            patch("pathlib.Path.exists", return_value=True),
             patch("os.chdir"),
             patch("tests.utils.run_unified_tests.run_command", return_value=True),
             patch(
@@ -382,7 +382,7 @@ class TestMainFunction:
         """Test that test failures result in non-zero exit code."""
         with (
             patch("sys.argv", ["run_unified_tests.py"]),
-            patch("pathlib.Path.exists", return_value=False),
+            patch("pathlib.Path.exists", return_value=True),
             patch("os.chdir"),
             patch("tests.utils.run_unified_tests.run_command", return_value=False),
             patch("builtins.print"),

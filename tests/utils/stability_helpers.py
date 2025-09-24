@@ -193,8 +193,9 @@ class StabilityWaits:
         for selector in loading_selectors:
             try:
                 await page.wait_for_selector(selector, state="hidden", timeout=2000)
-            except Exception:
-                pass  # Ignore if selector doesn't exist
+            except TimeoutError:
+                # Loading selector didn't disappear or doesn't exist - not critical
+                pass
 
 
 class PortManager:
@@ -305,8 +306,8 @@ class AssertionHelpers:
             try:
                 if await assertion_func():
                     return
-            except Exception:
-                pass  # Ignore exceptions during polling
+            except (AssertionError, TimeoutError):
+                pass  # Ignore assertion/timeout exceptions during polling
 
             await asyncio.sleep(interval)
 
@@ -328,8 +329,8 @@ class AssertionHelpers:
             try:
                 if assertion_func():
                     return
-            except Exception:
-                pass
+            except (AssertionError, TimeoutError):
+                pass  # Ignore assertion/timeout exceptions during polling
 
             time.sleep(interval)
 
@@ -388,5 +389,5 @@ class BrowserStabilityHelpers:
             if await locator.is_enabled():
                 # Wait a bit more for stability
                 await asyncio.sleep(0.1)
-        except Exception:
-            pass  # Not a form control
+        except (TimeoutError, AttributeError):
+            pass  # Not a form control or element doesn't support is_enabled

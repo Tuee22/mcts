@@ -36,9 +36,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./setupTests.ts'],
+    setupFiles: ['/app/frontend/setupTests.ts'],
     include: [
-      'tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+      '/app/frontend/tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
     ],
     exclude: [
       '**/node_modules/**',
@@ -74,7 +74,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
+      include: ['/app/frontend/src/**/*.{ts,tsx}'],
       exclude: [
         'node_modules/',
         'build/',
@@ -115,7 +115,9 @@ export default defineConfig({
       'react-hot-toast': '/opt/mcts/frontend-build/node_modules/react-hot-toast',
       'zustand': '/opt/mcts/frontend-build/node_modules/zustand',
       'axios': '/opt/mcts/frontend-build/node_modules/axios',
-      'socket.io-client': '/opt/mcts/frontend-build/node_modules/socket.io-client'
+      'socket.io-client': '/opt/mcts/frontend-build/node_modules/socket.io-client',
+      // Map test dependencies
+      '@vitest/coverage-v8': '/opt/mcts/frontend-build/node_modules/@vitest/coverage-v8'
     },
     extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
     // Tell Vite where to find node_modules
