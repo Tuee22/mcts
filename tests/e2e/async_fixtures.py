@@ -9,6 +9,26 @@ from _pytest.fixtures import FixtureRequest
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
+# Browser-specific mobile support configuration
+# IMPORTANT: Firefox does not support the is_mobile flag in Playwright.
+# This limitation is a known Playwright issue where Firefox's browser.new_context()
+# raises an error when is_mobile=True is passed. We explicitly set this to False
+# for Firefox to ensure cross-browser compatibility.
+BROWSER_MOBILE_SUPPORT: Dict[str, bool] = {
+    "chromium": True,  # Chromium supports full mobile emulation
+    "firefox": False,  # Firefox does NOT support is_mobile flag
+    "webkit": True,  # Webkit supports full mobile emulation
+}
+
+# Base mobile context configuration (without browser-specific flags)
+MOBILE_CONTEXT_BASE = {
+    "viewport": {"width": 375, "height": 667},  # iPhone-like viewport
+    "ignore_https_errors": True,
+    "has_touch": True,  # Touch events work in all browsers
+    "device_scale_factor": 2,  # 2x pixel density for retina displays
+}
+
+
 @pytest_asyncio.fixture(scope="function", params=["chromium", "firefox", "webkit"])
 async def browser(request: FixtureRequest) -> AsyncGenerator[Browser, None]:
     """Create and yield a browser instance for each browser type."""
@@ -42,14 +62,24 @@ async def context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
 
 @pytest_asyncio.fixture
 async def touch_context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
-    """Create a new browser context with touch support for mobile tests."""
-    context = await browser.new_context(
-        viewport={"width": 375, "height": 667},  # Mobile viewport
-        ignore_https_errors=True,
-        has_touch=True,  # Enable touch support
-        is_mobile=True,
-        device_scale_factor=2,
-    )
+    """Create a new browser context with touch support for mobile tests.
+
+    Note: Firefox does not support the is_mobile flag, so it's explicitly set
+    to False for Firefox while True for Chromium and Webkit. This ensures
+    cross-browser compatibility while maintaining the best possible mobile
+    emulation for each browser.
+    """
+    # Get browser name and look up its mobile support capability
+    browser_name = browser.browser_type.name
+
+    # Build context options using functional composition
+    # This will raise KeyError if an unknown browser is used (intentional - fail loudly)
+    context_options = {
+        **MOBILE_CONTEXT_BASE,
+        "is_mobile": BROWSER_MOBILE_SUPPORT[browser_name],  # No fallback - fail loudly
+    }
+
+    context = await browser.new_context(**context_options)
     yield context
     await context.close()
 
