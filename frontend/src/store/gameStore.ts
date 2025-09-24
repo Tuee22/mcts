@@ -66,9 +66,10 @@ export const useGameStore = create<GameStore>((set) => ({
     gameState: null,
     gameSettings: defaultSettings,
     isLoading: false,
-    error: null,
     selectedHistoryIndex: null,
-    // Preserve connection state - don't disconnect when starting a new game
+    // Preserve connection state and error state - don't disconnect when starting a new game
+    // and preserve error information to help user understand connection issues
     isConnected: state.isConnected,
+    error: state.error,
   })),
 }));

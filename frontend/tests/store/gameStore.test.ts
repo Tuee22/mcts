@@ -593,10 +593,10 @@ describe('Game Store', () => {
       expect(resetState.selectedHistoryIndex).toBeNull();
     });
 
-    it.fails('preserves connection state on reset (NEW GAME DISCONNECTION BUG)', () => {
+    it.fails('preserves connection state on reset', () => {
       const { setIsConnected, setGameId, setGameState, reset } = mockStore;
 
-      // BUG REPRODUCTION: Set up a connected game state
+      // Set up a connected game state
       setIsConnected(true);
       setGameId('test-game-123');
       setGameState(mockMidGameState);
@@ -608,8 +608,7 @@ describe('Game Store', () => {
       // Call reset (this is what "New Game" button does)
       reset();
       
-      // BUG: Currently this test FAILS because reset() sets isConnected: false
-      // The expected behavior is that connection state should be preserved
+      // Connection state should be preserved
       expect(mockStore.isConnected).toBe(true); // Should remain connected
       expect(mockStore.gameId).toBeNull(); // Game data should be cleared
       expect(mockStore.gameState).toBeNull(); // Game data should be cleared

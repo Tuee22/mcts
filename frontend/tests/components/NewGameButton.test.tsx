@@ -78,9 +78,11 @@ vi.mock('@/components/GameBoard', () => ({
 
 // Import components
 import App from '@/App';
-import { render, screen, createUser, waitFor } from '../utils/testHelpers';
+import { render, screen, waitFor } from '@testing-library/react';
+import { createUser } from '../utils/testHelpers';
+import { vi } from 'vitest';
 
-describe('New Game Button Disconnection Bug Tests', () => {
+describe('New Game Button Tests', () => {
   let user: ReturnType<typeof createUser>;
 
   beforeEach(() => {
@@ -109,7 +111,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
     });
   });
 
-  describe('New Game Button Connection Preservation', () => {
+  describe('Connection Preservation', () => {
     it.fails('should NOT cause disconnection when clicked', async () => {
       render(<App />);
       
@@ -123,14 +125,13 @@ describe('New Game Button Disconnection Bug Tests', () => {
       
       await user.click(newGameButton);
       
-      // BUG TEST: This will currently fail because reset() sets isConnected: false
-      // The connection status should remain "Connected"
+      // Connection status should remain "Connected"
       expect(mockGameStore.reset).toHaveBeenCalledTimes(1);
       
       // After clicking New Game, we should be back to game setup
       await waitFor(() => {
         expect(screen.getByTestId('game-setup')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
       
       // But connection should still show as connected
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
@@ -162,7 +163,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
       // Should be back at game setup
       await waitFor(() => {
         expect(screen.getByTestId('game-setup')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
       
       // Game Settings button should be enabled (not disabled due to false disconnection)
       const gameSettingsButton = screen.getByRole('button', { name: /game settings/i });
@@ -177,7 +178,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
     });
   });
 
-  describe('Game Settings Flow After New Game', () => {
+  describe('Settings Flow After New Game', () => {
     it.fails('should complete full flow: game -> new game -> settings -> start game', async () => {
       render(<App />);
       
@@ -188,7 +189,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
       // Step 2: Should be at setup, connection still good
       await waitFor(() => {
         expect(screen.getByTestId('game-setup')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
       
       // Step 3: Open game settings
@@ -217,7 +218,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
       // Open settings
       await waitFor(() => {
         expect(screen.getByTestId('game-setup')).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
       
       const settingsButton = screen.getByRole('button', { name: /game settings/i });
       await user.click(settingsButton);
@@ -229,7 +230,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
     });
   });
 
-  describe('Rapid New Game Clicks', () => {
+  describe('Rapid Clicks', () => {
     it('should handle rapid New Game clicks without causing connection issues', async () => {
       render(<App />);
       
@@ -251,7 +252,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
     });
   });
 
-  describe('New Game Button State', () => {
+  describe('Button State', () => {
     it('should be enabled when connected and in game', () => {
       render(<App />);
       
@@ -272,7 +273,7 @@ describe('New Game Button Disconnection Bug Tests', () => {
       // Reset should be called
       expect(mockGameStore.reset).toHaveBeenCalled();
       
-      // BUG: The reset function currently resets connection state too
+      // Reset function should preserve connection state
       // This test documents what should happen vs what currently happens
     });
   });

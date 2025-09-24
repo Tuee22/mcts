@@ -36,11 +36,10 @@ describe('GameStore Reset Behavior', () => {
       expect(store.isConnected).toBe(true);
       expect(store.gameId).toBe('test-game-123');
 
-      // Call reset - this is the bug we're testing for
+      // Call reset to test connection preservation
       store.reset();
 
-      // BUG: Currently this test will FAIL because reset() incorrectly sets isConnected: false
-      // This test documents the expected behavior (connection should persist)
+      // Connection state should be preserved
       expect(store.isConnected).toBe(true); // Should remain connected
       expect(store.gameId).toBe(null); // Game data should be cleared
       expect(store.gameState).toBe(null); // Game data should be cleared
@@ -110,7 +109,7 @@ describe('GameStore Reset Behavior', () => {
         board_size: 9,
       });
 
-      // Connection state should be preserved (this is the key test for the bug)
+      // Connection state should be preserved
       expect(store.isConnected).toBe(true);
     });
 

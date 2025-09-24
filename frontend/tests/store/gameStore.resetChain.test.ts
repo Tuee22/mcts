@@ -18,7 +18,7 @@ vi.mock('@/services/websocket', () => ({
   wsService: mockWsService
 }));
 
-describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
+describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
   const getStore = () => useGameStore.getState();
 
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe.skip('GameStore Reset Chain Tests (Bug-detecting)', () => {
 
       // Loading should be cleared, but connection should be preserved
       expect(getStore().isLoading).toBe(false); // Loading cleared
-      expect(getStore().isConnected).toBe(true); // BUG: This will fail - connection should persist
+      expect(getStore().isConnected).toBe(true); // Connection should persist
       expect(getStore().gameId).toBe(null); // Game data cleared
       expect(getStore().gameSettings).toEqual({
         mode: 'human_vs_ai',

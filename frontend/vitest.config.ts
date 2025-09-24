@@ -35,9 +35,7 @@ export default defineConfig({
       '**/coverage/**',
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
-      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
-      // Conditionally exclude performance tests unless env var set
-      ...(process.env.INCLUDE_PERFORMANCE_TESTS !== 'true' ? ['**/performanceEdgeCases.test.*'] : [])
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*'
     ],
     
     // Test timeout settings - increased for memory-intensive tests

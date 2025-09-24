@@ -47,12 +47,11 @@ export default defineConfig({
       '**/coverage/**',
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
-      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
-      ...(process.env.INCLUDE_PERFORMANCE_TESTS !== 'true' ? ['**/performanceEdgeCases.test.*'] : [])
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*'
     ],
-    testTimeout: 20000,
-    hookTimeout: 15000,
-    teardownTimeout: 5000,
+    testTimeout: 10000,
+    hookTimeout: 5000,
+    teardownTimeout: 3000,
     pool: 'forks',
     poolOptions: {
       forks: {

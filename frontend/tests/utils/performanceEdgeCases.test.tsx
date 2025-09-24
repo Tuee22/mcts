@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, createUser } from '../utils/testHelpers';
 
 // Performance-focused tests that require more memory and time
-// These are excluded from default test runs and run separately
+// These tests run as part of the standard test suite
 describe('Performance Edge Cases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
