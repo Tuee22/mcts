@@ -10,7 +10,96 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import FrameType
 from typing import Dict, List, NoReturn, Optional, Tuple, TypedDict
+
+
+# Global variable to track running processes
+running_processes: List[subprocess.Popen[str]] = []
+
+
+def cleanup_processes() -> None:
+    """Kill all running processes and their process groups."""
+    for process in running_processes:
+        try:
+            if process.poll() is None:  # Process is still running
+                # Kill the entire process group
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                # Wait a moment for graceful termination
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    # Force kill if graceful termination failed
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            # Process already dead or process group doesn't exist
+            pass
+
+    # Also kill any remaining Playwright processes
+    kill_playwright_processes()
+
+
+def signal_handler(sig: int, frame: Optional[FrameType]) -> None:
+    """Handle interrupt signals by cleaning up processes."""
+    print(f"\n🛑 Received signal {sig}, cleaning up processes...")
+    cleanup_processes()
+    print("✅ Cleanup complete, exiting")
+    sys.exit(1)
+
+
+def kill_playwright_processes() -> None:
+    """Kill any orphaned Playwright browser processes."""
+    if not PSUTIL_AVAILABLE:
+        return
+
+    try:
+        for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            try:
+                # Type-safe extraction of process info
+                name_value = proc.info.get("name")
+                cmdline_value = proc.info.get("cmdline")
+
+                # Type narrowing for name
+                if not isinstance(name_value, str):
+                    continue
+                name = name_value.lower()
+
+                # Type narrowing for cmdline
+                if not isinstance(cmdline_value, list):
+                    continue
+                # Ensure all items in cmdline are strings before joining
+                cmdline_strings = [
+                    item for item in cmdline_value if isinstance(item, str)
+                ]
+                cmdline = " ".join(cmdline_strings).lower()
+
+                # Look for browser processes that Playwright might have spawned
+                if any(
+                    browser in name or browser in cmdline
+                    for browser in [
+                        "chrome",
+                        "chromium",
+                        "firefox",
+                        "webkit",
+                        "playwright",
+                    ]
+                ):
+                    pid_value = proc.info.get("pid")
+                    if isinstance(pid_value, int):
+                        print(f"Killing orphaned browser process: {pid_value} ({name})")
+                    proc.terminate()
+                    # Give process a moment to terminate gracefully, then force kill
+                    time.sleep(0.1)
+                    try:
+                        # Just kill immediately - psutil Process doesn't have wait method
+                        proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        # Process already dead or protected
+                        pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+    except Exception as e:
+        print(f"Warning: Failed to clean up browser processes: {e}")
 
 
 def fail_loudly(msg: str) -> NoReturn:
@@ -72,7 +161,7 @@ def run_command(
     env: Optional[Dict[str, str]] = None,
     timeout_seconds: Optional[int] = None,
 ) -> bool:
-    """Run a command and handle output."""
+    """Run a command and handle output with proper process group management."""
     print(f"\n{'='*60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
@@ -86,15 +175,38 @@ def run_command(
     if timeout_seconds:
         cmd = ["timeout", str(timeout_seconds)] + cmd
 
-    result = subprocess.run(cmd, capture_output=False, cwd=cwd, env=env)
-    success = result.returncode == 0
+    try:
+        # Start process in new process group to enable clean termination
+        process: subprocess.Popen[str] = subprocess.Popen(
+            cmd, cwd=cwd, env=env, preexec_fn=os.setsid  # Create new process group
+        )
 
-    if success:
-        print(f"\n✅ {description} completed successfully")
-    else:
-        print(f"\n❌ {description} failed with return code {result.returncode}")
+        # Track the process for cleanup
+        running_processes.append(process)
 
-    return success
+        # Wait for completion
+        process.wait()
+        success = process.returncode == 0
+
+        # Remove from tracking list
+        if process in running_processes:
+            running_processes.remove(process)
+
+        if success:
+            print(f"\n✅ {description} completed successfully")
+        else:
+            print(f"\n❌ {description} failed with return code {process.returncode}")
+
+        return success
+
+    except KeyboardInterrupt:
+        # Handle Ctrl-C during process execution
+        print(f"\n🛑 Interrupted during: {description}")
+        cleanup_processes()
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ {description} failed with error: {e}")
+        return False
 
 
 def check_server_health(url: str, max_retries: int = 30) -> bool:
@@ -131,6 +243,10 @@ def check_docker_container_health() -> bool:
 
 
 def main() -> None:
+    # Register signal handlers for clean shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     parser = argparse.ArgumentParser(
         description="Run all MCTS tests: Python (Unit → Integration → Benchmarks) → Frontend → E2E"
     )

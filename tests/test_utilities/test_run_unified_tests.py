@@ -5,11 +5,10 @@ import sys
 import tempfile
 import time
 from typing import Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 import requests
-from httpx import AsyncClient
 
 from tests.utils.run_unified_tests import (
     check_server_health,
@@ -140,19 +139,32 @@ class TestRunCommand:
 
     def test_run_command_success(self) -> None:
         """Test running a successful command."""
-        with patch("subprocess.run") as mock_run, patch("builtins.print") as mock_print:
-            assert isinstance(mock_run, MagicMock)
+        with patch("subprocess.Popen") as mock_popen, patch(
+            "builtins.print"
+        ) as mock_print:
+            assert isinstance(mock_popen, MagicMock)
             assert isinstance(mock_print, MagicMock)
-            mock_result = MagicMock()
-            mock_result.returncode = 0
-            mock_run.return_value = mock_result
+
+            # Mock process object
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.wait.return_value = None
+            mock_process.poll.return_value = 0
+            mock_popen.return_value = mock_process
 
             result = run_command(["echo", "test"], "Echo Test")
 
             assert result is True
-            mock_run.assert_called_once_with(
-                ["echo", "test"], capture_output=False, cwd=None, env=None
+
+            # Verify Popen was called with correct arguments including process group creation
+            import os
+
+            mock_popen.assert_called_once_with(
+                ["echo", "test"], cwd=None, env=None, preexec_fn=os.setsid
             )
+
+            # Verify process was waited on
+            mock_process.wait.assert_called_once()
 
             # Check print calls
             print_calls = [str(call) for call in mock_print.call_args_list]
@@ -162,16 +174,25 @@ class TestRunCommand:
 
     def test_run_command_failure(self) -> None:
         """Test running a failing command."""
-        with patch("subprocess.run") as mock_run, patch("builtins.print") as mock_print:
-            assert isinstance(mock_run, MagicMock)
+        with patch("subprocess.Popen") as mock_popen, patch(
+            "builtins.print"
+        ) as mock_print:
+            assert isinstance(mock_popen, MagicMock)
             assert isinstance(mock_print, MagicMock)
-            mock_result = MagicMock()
-            mock_result.returncode = 1
-            mock_run.return_value = mock_result
+
+            # Mock process object with failure
+            mock_process = MagicMock()
+            mock_process.returncode = 1
+            mock_process.wait.return_value = None
+            mock_process.poll.return_value = 1
+            mock_popen.return_value = mock_process
 
             result = run_command(["false"], "Failing Command")
 
             assert result is False
+
+            # Verify process was waited on
+            mock_process.wait.assert_called_once()
 
             # Check failure message
             print_calls = [str(call) for call in mock_print.call_args_list]
@@ -180,27 +201,40 @@ class TestRunCommand:
 
     def test_run_command_with_cwd_and_env(self) -> None:
         """Test running command with custom working directory and environment."""
-        with patch("subprocess.run") as mock_run, patch("builtins.print"):
-            assert isinstance(mock_run, MagicMock)
-            mock_result = MagicMock()
-            mock_result.returncode = 0
-            mock_run.return_value = mock_result
-            custom_env = {"TEST_VAR": "test_value"}
+        with patch("subprocess.Popen") as mock_popen, patch("builtins.print"):
+            assert isinstance(mock_popen, MagicMock)
 
+            # Mock process object
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.wait.return_value = None
+            mock_process.poll.return_value = 0
+            mock_popen.return_value = mock_process
+
+            custom_env = {"TEST_VAR": "test_value"}
             run_command(["pwd"], "Directory Test", cwd="/tmp", env=custom_env)
 
-            mock_run.assert_called_once_with(
-                ["pwd"], capture_output=False, cwd="/tmp", env=custom_env
+            # Verify Popen was called with correct arguments
+            import os
+
+            mock_popen.assert_called_once_with(
+                ["pwd"], cwd="/tmp", env=custom_env, preexec_fn=os.setsid
             )
 
     def test_run_command_prints_working_directory(self) -> None:
         """Test that custom working directory is printed."""
-        with patch("subprocess.run") as mock_run, patch("builtins.print") as mock_print:
-            assert isinstance(mock_run, MagicMock)
+        with patch("subprocess.Popen") as mock_popen, patch(
+            "builtins.print"
+        ) as mock_print:
+            assert isinstance(mock_popen, MagicMock)
             assert isinstance(mock_print, MagicMock)
-            mock_result = MagicMock()
-            mock_result.returncode = 0
-            mock_run.return_value = mock_result
+
+            # Mock process object
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.wait.return_value = None
+            mock_process.poll.return_value = 0
+            mock_popen.return_value = mock_process
 
             run_command(["ls"], "List Files", cwd="/custom/path")
 
@@ -209,6 +243,58 @@ class TestRunCommand:
             assert any(
                 "Working directory: /custom/path" in call for call in print_calls
             )
+
+    def test_run_command_process_tracking(self) -> None:
+        """Test that processes are correctly tracked and cleaned up."""
+        from tests.utils.run_unified_tests import running_processes
+
+        with patch("subprocess.Popen") as mock_popen, patch("builtins.print"):
+            assert isinstance(mock_popen, MagicMock)
+
+            # Mock process object
+            mock_process = MagicMock()
+            mock_process.returncode = 0
+            mock_process.wait.return_value = None
+            mock_process.poll.return_value = 0
+            mock_popen.return_value = mock_process
+
+            # Clear any existing tracked processes
+            initial_count = len(running_processes)
+            running_processes.clear()
+
+            result = run_command(["echo", "test"], "Test Process Tracking")
+
+            # Verify process was tracked during execution and then removed
+            assert result is True
+            assert len(running_processes) == 0  # Should be cleaned up after completion
+
+            # Note: Not restoring original state as it's not needed for this test
+
+    def test_run_command_keyboard_interrupt_cleanup(self) -> None:
+        """Test that KeyboardInterrupt triggers proper cleanup."""
+        from tests.utils.run_unified_tests import cleanup_processes, running_processes
+
+        with patch("subprocess.Popen") as mock_popen, patch("builtins.print"), patch(
+            "tests.utils.run_unified_tests.cleanup_processes"
+        ) as mock_cleanup, patch("sys.exit") as mock_exit:
+            assert isinstance(mock_popen, MagicMock)
+            assert isinstance(mock_cleanup, MagicMock)
+            assert isinstance(mock_exit, MagicMock)
+
+            # Mock process that raises KeyboardInterrupt
+            mock_process = MagicMock()
+            mock_process.wait.side_effect = [KeyboardInterrupt()]
+            mock_popen.return_value = mock_process
+
+            # Clear tracked processes
+            running_processes.clear()
+
+            # This should trigger cleanup and exit
+            run_command(["sleep", "10"], "Interrupted Process")
+
+            # Verify cleanup was called and exit was invoked
+            mock_cleanup.assert_called_once()
+            mock_exit.assert_called_once_with(1)
 
 
 class TestCheckServerHealth:
