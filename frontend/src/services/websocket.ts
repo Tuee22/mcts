@@ -9,21 +9,37 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
 
   connect(url?: string) {
+    console.log('WebSocket connect called with URL:', url);
+
     // Close any existing connection first (including game-specific ones)
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.log('Closing existing socket');
       this.socket.close();
     }
 
-    // Use relative WebSocket URL for single-server architecture
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = url || `${protocol}//${window.location.host}/ws`;
+    // Use provided URL or construct from window.location
+    let wsUrl: string;
+    if (url) {
+      wsUrl = url;
+      console.log('Using provided URL:', wsUrl);
+    } else {
+      // Use relative WebSocket URL for single-server architecture
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+      console.log('Constructed URL from window.location:', wsUrl);
+    }
 
     try {
+      console.log('Creating WebSocket with URL:', wsUrl);
       this.socket = new WebSocket(wsUrl);
+      console.log('WebSocket created successfully');
       this.setupEventListeners();
     } catch (error) {
       console.error('WebSocket connection error:', error);
-      useGameStore.getState().setError('Failed to connect to server');
+      // Only access useGameStore if it exists (for testing)
+      if (typeof useGameStore !== 'undefined') {
+        useGameStore.getState().setError('Failed to connect to server');
+      }
     }
   }
 

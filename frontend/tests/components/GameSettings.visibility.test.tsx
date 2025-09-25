@@ -8,16 +8,16 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { GameSettings } from '../../src/components/GameSettings';
+import { GameSettings } from '@/components/GameSettings';
 
 // Mock the game store
 const mockUseGameStore = vi.fn();
-vi.mock('../../src/store/gameStore', () => ({
+vi.mock('@/store/gameStore', () => ({
   useGameStore: () => mockUseGameStore()
 }));
 
 // Mock the WebSocket service
-vi.mock('../../src/services/websocket', () => ({
+vi.mock('@/services/websocket', () => ({
   wsService: {
     createGame: vi.fn()
   }

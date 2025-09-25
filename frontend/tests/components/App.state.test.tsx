@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import App from '../../src/App';
+import App from '@/App';
 
 // Mock the game store
 const mockUseGameStore = vi.fn();
@@ -21,32 +21,43 @@ vi.mock('../../src/services/websocket', () => ({
   wsService: {
     connect: vi.fn(),
     disconnect: vi.fn(),
+    disconnectFromGame: vi.fn(),
     makeMove: vi.fn(),
     createGame: vi.fn(),
+    getAIMove: vi.fn(),
     isConnected: vi.fn(() => true)
   }
 }));
 
 // Mock all child components to focus on App state logic
-vi.mock('../../src/components/ConnectionStatus', () => ({
-  ConnectionStatus: () => <div data-testid="connection-status">Connected</div>
-}));
 
-vi.mock('../../src/components/GameSettings', () => ({
-  GameSettings: () => <div data-testid="game-settings">Game Settings Component</div>
-}));
+vi.mock('../../src/components/GameSettings', () => {
+  const React = require('react');
+  return {
+    GameSettings: () => React.createElement('div', { 'data-testid': 'game-settings' }, 'Game Settings Component')
+  };
+});
 
-vi.mock('../../src/components/GameBoard', () => ({
-  GameBoard: () => <div data-testid="game-board">Game Board Component</div>
-}));
+vi.mock('../../src/components/GameBoard', () => {
+  const React = require('react');
+  return {
+    GameBoard: () => React.createElement('div', { 'data-testid': 'game-board' }, 'Game Board Component')
+  };
+});
 
-vi.mock('../../src/components/MoveHistory', () => ({
-  MoveHistory: () => <div data-testid="move-history">Move History Component</div>
-}));
+vi.mock('../../src/components/MoveHistory', () => {
+  const React = require('react');
+  return {
+    MoveHistory: () => React.createElement('div', { 'data-testid': 'move-history' }, 'Move History Component')
+  };
+});
 
-vi.mock('../../src/components/NewGameButton', () => ({
-  NewGameButton: () => <div data-testid="new-game-button">New Game Button</div>
-}));
+vi.mock('../../src/components/NewGameButton', () => {
+  const React = require('react');
+  return {
+    NewGameButton: () => React.createElement('div', { 'data-testid': 'new-game-button' }, 'New Game Button')
+  };
+});
 
 describe('App State Management', () => {
   const defaultMockStore = {
@@ -61,11 +72,16 @@ describe('App State Management', () => {
     isConnected: true,
     isLoading: false,
     error: null,
+    selectedHistoryIndex: null,
     setGameState: vi.fn(),
     setGameSettings: vi.fn(),
     setGameId: vi.fn(),
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
     setError: vi.fn(),
-    resetGame: vi.fn()
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
   };
 
   beforeEach(() => {
@@ -112,14 +128,14 @@ describe('App State Management', () => {
       ...defaultMockStore,
       gameId: 'test-game-123',
       gameState: {
-        board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-        current_player: 1,
-        player_1_pos: [4, 8],
-        player_2_pos: [4, 0],
-        player_1_walls: 10,
-        player_2_walls: 10,
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10] as [number, number],
+        legal_moves: [],
         winner: null,
-        moves: []
+        move_history: []
       }
     };
 
@@ -140,15 +156,15 @@ describe('App State Management', () => {
     it('should show game info section with correct data', () => {
       render(<App />);
 
-      expect(screen.getByText('Game Mode')).toBeInTheDocument();
+      expect(screen.getByText('Mode:')).toBeInTheDocument();
       expect(screen.getByText('human vs human')).toBeInTheDocument();
     });
 
     it('should not show AI info for human vs human mode', () => {
       render(<App />);
 
-      expect(screen.queryByText('AI Difficulty')).not.toBeInTheDocument();
-      expect(screen.queryByText('AI Time Limit')).not.toBeInTheDocument();
+      expect(screen.queryByText('AI Level:')).not.toBeInTheDocument();
+      expect(screen.queryByText('AI Time:')).not.toBeInTheDocument();
     });
   });
 
@@ -168,9 +184,9 @@ describe('App State Management', () => {
 
       render(<App />);
 
-      expect(screen.getByText('AI Difficulty')).toBeInTheDocument();
+      expect(screen.getByText('AI Level:')).toBeInTheDocument();
       expect(screen.getByText('hard')).toBeInTheDocument();
-      expect(screen.getByText('AI Time Limit')).toBeInTheDocument();
+      expect(screen.getByText('AI Time:')).toBeInTheDocument();
       expect(screen.getByText('5s')).toBeInTheDocument();
     });
 
@@ -189,31 +205,31 @@ describe('App State Management', () => {
 
       render(<App />);
 
-      expect(screen.getByText('AI Difficulty')).toBeInTheDocument();
+      expect(screen.getByText('AI Level:')).toBeInTheDocument();
       expect(screen.getByText('expert')).toBeInTheDocument();
-      expect(screen.getByText('AI Time Limit')).toBeInTheDocument();
+      expect(screen.getByText('AI Time:')).toBeInTheDocument();
       expect(screen.getByText('10s')).toBeInTheDocument();
     });
   });
 
   describe('AI move automation', () => {
     it('should trigger AI move for ai_vs_ai mode when its AIs turn', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockMakeMove = vi.fn();
-      wsService.makeMove = mockMakeMove;
+      const { wsService } = await import('@/services/websocket');
+      const mockGetAIMove = vi.fn().mockResolvedValue({});
+      wsService.getAIMove = mockGetAIMove;
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 1,
-          player_1_pos: [4, 8],
-          player_2_pos: [4, 0],
-          player_1_walls: 10,
-          player_2_walls: 10,
+          board_size: 9,
+          current_player: 1 as 0 | 1,
+          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+          walls: [],
+          walls_remaining: [10, 10] as [number, number],
+          legal_moves: [],
           winner: null,
-          moves: []
+          move_history: []
         },
         gameSettings: {
           ...defaultMockStore.gameSettings,
@@ -229,27 +245,27 @@ describe('App State Management', () => {
       });
 
       await waitFor(() => {
-        expect(mockMakeMove).toHaveBeenCalled();
-      });
+        expect(mockGetAIMove).toHaveBeenCalledWith('test-game-123');
+      }, { timeout: 2000 });
     });
 
-    it('should trigger AI move for human_vs_ai mode when its AIs turn (player 2)', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockMakeMove = vi.fn();
-      wsService.makeMove = mockMakeMove;
+    it('should trigger AI move for human_vs_ai mode when its AIs turn (player 1)', async () => {
+      const { wsService } = await import('@/services/websocket');
+      const mockGetAIMove = vi.fn().mockResolvedValue({});
+      wsService.getAIMove = mockGetAIMove;
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 2, // AI's turn
-          player_1_pos: [4, 8],
-          player_2_pos: [4, 0],
-          player_1_walls: 10,
-          player_2_walls: 10,
+          board_size: 9,
+          current_player: 1, // AI's turn (0-based: 0=human, 1=AI)
+          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
           winner: null,
-          moves: []
+          move_history: []
         },
         gameSettings: {
           ...defaultMockStore.gameSettings,
@@ -265,27 +281,27 @@ describe('App State Management', () => {
       });
 
       await waitFor(() => {
-        expect(mockMakeMove).toHaveBeenCalled();
-      });
+        expect(mockGetAIMove).toHaveBeenCalledWith('test-game-123');
+      }, { timeout: 2000 });
     });
 
-    it('should not trigger AI move for human_vs_ai mode when its humans turn (player 1)', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockMakeMove = vi.fn();
-      wsService.makeMove = mockMakeMove;
+    it('should not trigger AI move for human_vs_ai mode when its humans turn (player 0)', async () => {
+      const { wsService } = await import('@/services/websocket');
+      const mockGetAIMove = vi.fn().mockResolvedValue({});
+      wsService.getAIMove = mockGetAIMove;
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 1, // Human's turn
-          player_1_pos: [4, 8],
-          player_2_pos: [4, 0],
-          player_1_walls: 10,
-          player_2_walls: 10,
+          board_size: 9,
+          current_player: 0, // Human's turn (0-based: 0=human, 1=AI)
+          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
           winner: null,
-          moves: []
+          move_history: []
         },
         gameSettings: {
           ...defaultMockStore.gameSettings,
@@ -300,26 +316,26 @@ describe('App State Management', () => {
         vi.advanceTimersByTime(1500);
       });
 
-      expect(mockMakeMove).not.toHaveBeenCalled();
+      expect(mockGetAIMove).not.toHaveBeenCalled();
     });
 
     it('should not trigger AI move when game has ended', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockMakeMove = vi.fn();
-      wsService.makeMove = mockMakeMove;
+      const { wsService } = await import('@/services/websocket');
+      const mockGetAIMove = vi.fn().mockResolvedValue({});
+      wsService.getAIMove = mockGetAIMove;
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 1,
-          player_1_pos: [4, 0], // Player 1 won
-          player_2_pos: [4, 8],
-          player_1_walls: 10,
-          player_2_walls: 10,
-          winner: 1,
-          moves: []
+          board_size: 9,
+          current_player: 1 as 0 | 1,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 won
+          walls: [],
+          walls_remaining: [10, 10] as [number, number],
+          legal_moves: [],
+          winner: 1 as 0 | 1,
+          move_history: []
         },
         gameSettings: {
           ...defaultMockStore.gameSettings,
@@ -333,7 +349,7 @@ describe('App State Management', () => {
         vi.advanceTimersByTime(1500);
       });
 
-      expect(mockMakeMove).not.toHaveBeenCalled();
+      expect(mockGetAIMove).not.toHaveBeenCalled();
     });
   });
 
@@ -349,14 +365,14 @@ describe('App State Management', () => {
         ...defaultMockStore,
         gameId: 'new-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 1,
-          player_1_pos: [4, 8],
-          player_2_pos: [4, 0],
-          player_1_walls: 10,
-          player_2_walls: 10,
+          board_size: 9,
+          current_player: 1 as 0 | 1,
+          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+          walls: [],
+          walls_remaining: [10, 10] as [number, number],
+          legal_moves: [],
           winner: null,
-          moves: []
+          move_history: []
         }
       });
 
@@ -372,14 +388,23 @@ describe('App State Management', () => {
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 1,
-          player_1_pos: [4, 0], // Player 1 reached the end
-          player_2_pos: [4, 8],
-          player_1_walls: 8,
-          player_2_walls: 9,
-          winner: 1,
-          moves: ['move up', 'move up', 'move up', 'move up', 'move up', 'move up', 'move up', 'move up']
+          board_size: 9,
+          current_player: 1 as 0 | 1,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 reached the end
+          walls: [],
+          walls_remaining: [8, 9] as [number, number],
+          legal_moves: [],
+          winner: 1 as 0 | 1,
+          move_history: [
+            { player: 0, notation: 'e8', type: 'move' },
+            { player: 0, notation: 'e7', type: 'move' },
+            { player: 0, notation: 'e6', type: 'move' },
+            { player: 0, notation: 'e5', type: 'move' },
+            { player: 0, notation: 'e4', type: 'move' },
+            { player: 0, notation: 'e3', type: 'move' },
+            { player: 0, notation: 'e2', type: 'move' },
+            { player: 0, notation: 'e1', type: 'move' }
+          ]
         }
       });
 
@@ -429,7 +454,16 @@ describe('App State Management', () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
         gameId: 'test-game-123',
-        gameState: { current_player: 1, winner: null } as any,
+        gameState: {
+          board_size: 9,
+          current_player: 1 as 0 | 1,
+          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+          walls: [],
+          walls_remaining: [10, 10] as [number, number],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
         gameSettings: { ...defaultMockStore.gameSettings, mode: 'ai_vs_ai' }
       });
 
@@ -451,14 +485,18 @@ describe('App State Management', () => {
         ...defaultMockStore,
         gameId: 'test-game-123',
         gameState: {
-          board: Array(9).fill(null).map(() => Array(9).fill({ player: null, walls: [] })),
-          current_player: 2,
-          player_1_pos: [4, 6],
-          player_2_pos: [4, 2],
-          player_1_walls: 8,
-          player_2_walls: 7,
+          board_size: 9,
+          current_player: 0 as 0 | 1, // Changed from 2 to 0 (using 0-based)
+          players: [{ x: 4, y: 6 }, { x: 4, y: 2 }],
+          walls: [],
+          walls_remaining: [8, 7] as [number, number],
+          legal_moves: [],
           winner: null,
-          moves: ['move up', 'place wall h4v5', 'move up']
+          move_history: [
+            { player: 0, notation: 'e7', type: 'move' },
+            { player: 1, notation: 'h4v5', type: 'wall' },
+            { player: 0, notation: 'e6', type: 'move' }
+          ]
         }
       });
 

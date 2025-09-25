@@ -64,11 +64,14 @@ export const useGameStore = create<GameStore>((set) => ({
   reset: () => set((state) => ({
     gameId: null,
     gameState: null,
-    gameSettings: defaultSettings,
     isLoading: false,
     selectedHistoryIndex: null,
-    // Preserve connection state and error state - don't disconnect when starting a new game
-    // and preserve error information to help user understand connection issues
+    // Design Decision: Preserve user preferences during reset
+    // - gameSettings: Users expect their chosen mode/difficulty to persist when starting new games
+    // - isConnected: Connection state should persist (don't disconnect on new game)
+    // - error: Preserve error information to help user understand connection issues
+    // This provides better UX than forcing users to reconfigure settings each time
+    gameSettings: state.gameSettings,
     isConnected: state.isConnected,
     error: state.error,
   })),

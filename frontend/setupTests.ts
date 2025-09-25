@@ -152,6 +152,8 @@ afterEach(() => {
   cleanup();
   // Clear all mocks after each test
   vi.clearAllMocks();
+  // Note: vi.resetModules() can be too aggressive and break test isolation
+  // Instead, rely on individual test files to properly manage their mocks
   // Clear timers and intervals if they are mocked
   try {
     vi.clearAllTimers();
@@ -346,15 +348,15 @@ function setupBrowserAPIs() {
   // Mock window.location
   Object.defineProperty(window, 'location', {
     value: {
-      href: 'http://localhost:3000',
+      href: 'http://localhost:8000',
       protocol: 'http:',
-      host: 'localhost:3000',
+      host: 'localhost:8000',
       hostname: 'localhost',
-      port: '3000',
+      port: '8000',
       pathname: '/',
       search: '',
       hash: '',
-      origin: 'http://localhost:3000',
+      origin: 'http://localhost:8000',
     },
     writable: true,
   });

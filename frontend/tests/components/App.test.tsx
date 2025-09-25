@@ -78,6 +78,7 @@ vi.mock('@/components/GameBoard', () => ({
 // Import components and test utilities
 import App from '@/App';
 import { render, screen, waitFor, createUser } from '../utils/testHelpers';
+import { act } from '@testing-library/react';
 import { 
   mockInitialGameState, 
   mockMidGameState, 
@@ -89,6 +90,8 @@ describe('App Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Ensure real timers are used by default for each test
+    vi.useRealTimers();
     // Reset the game store state for each test
     Object.assign(mockGameStore, {
       gameId: null,
@@ -178,9 +181,9 @@ describe('App Component', () => {
       const gameContainer = screen.getByTestId('game-container');
       expect(gameContainer).toBeInTheDocument();
       
-      // The mode is 'human_vs_ai' but replace('_', ' ') only replaces the first underscore
-      // So it becomes 'human vs_ai' not 'human vs ai'
-      expect(screen.getByText('human vs_ai')).toBeInTheDocument();
+      // The mode is 'human_vs_ai' and replace(/_/g, ' ') replaces all underscores
+      // So it becomes 'human vs ai'
+      expect(screen.getByText('human vs ai')).toBeInTheDocument();
     });
 
     it('displays AI settings for AI games', () => {
@@ -219,20 +222,26 @@ describe('App Component', () => {
     beforeEach(() => {
       mockGameStore.gameId = 'test-game-123';
       mockGameStore.gameState = mockMidGameState;
+      mockGameStore.isConnected = true; // Button requires connection to be enabled
     });
 
     it('renders New Game button', async () => {
-      vi.useFakeTimers();
       render(<App />);
       const user = createUser();
 
       const newGameButton = screen.getByText('New Game');
       expect(newGameButton).toBeInTheDocument();
 
-      await user.click(newGameButton);
+      // Check that the button is not disabled
+      expect(newGameButton).not.toBeDisabled();
 
+      await act(async () => {
+        await user.click(newGameButton);
+      });
+
+      // Check immediately - these should be called synchronously
+      expect(mockWebSocketService.disconnectFromGame).toHaveBeenCalled();
       expect(mockGameStore.reset).toHaveBeenCalled();
-      vi.useRealTimers();
     });
 
     it('renders Copy Moves button and handles clipboard operation', async () => {
@@ -280,19 +289,17 @@ describe('App Component', () => {
       vi.useRealTimers();
     });
 
-    it('does not copy moves when no game state exists', async () => {
+    it('does not show copy moves button when no game state exists', async () => {
       mockGameStore.gameState = null;
 
-      vi.useFakeTimers();
       render(<App />);
-      const user = createUser();
 
-      const copyButton = screen.getByText('Copy Moves');
-      await user.click(copyButton);
+      // Should show loading state instead of game interface
+      expect(screen.getByTestId('game-loading')).toBeInTheDocument();
+      expect(screen.getByText('Loading game...')).toBeInTheDocument();
 
-      // If no gameState, the toast should not be called
-      expect(mockToast.success).not.toHaveBeenCalled();
-      vi.useRealTimers();
+      // Copy Moves button should not be available during loading
+      expect(screen.queryByText('Copy Moves')).not.toBeInTheDocument();
     });
   });
 

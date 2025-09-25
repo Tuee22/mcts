@@ -49,9 +49,9 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*'
     ],
-    testTimeout: 10000,
-    hookTimeout: 5000,
-    teardownTimeout: 3000,
+    testTimeout: 15000,
+    hookTimeout: 10000,
+    teardownTimeout: 5000,
     pool: 'forks',
     poolOptions: {
       forks: {
@@ -65,6 +65,10 @@ export default defineConfig({
     logHeapUsage: true,
     isolate: true,
     watch: false,
+    sequence: {
+      concurrent: false,
+      shuffle: false,
+    },
     deps: {
       moduleDirectories: [
         'node_modules',

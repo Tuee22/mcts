@@ -5,6 +5,7 @@ import { wsService } from './services/websocket';
 import { GameBoard } from './components/GameBoard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameSettings } from './components/GameSettings';
+import { NewGameButton } from './components/NewGameButton';
 import './App.css';
 
 function App() {
@@ -87,6 +88,11 @@ function App() {
           <div className="game-setup" data-testid="game-setup">
             <GameSettings />
           </div>
+        ) : !gameState ? (
+          <div className="game-loading" data-testid="game-loading">
+            <GameSettings />
+            <div className="loading-message">Loading game...</div>
+          </div>
         ) : (
           <div className="game-container" data-testid="game-container">
             <div className="game-left">
@@ -101,7 +107,7 @@ function App() {
                 <h3>Game Info</h3>
                 <div className="info-item">
                   <span className="info-label">Mode:</span>
-                  <span className="info-value">{gameSettings.mode.replace('_', ' ')}</span>
+                  <span className="info-value">{gameSettings.mode.replace(/_/g, ' ')}</span>
                 </div>
                 {gameSettings.mode !== 'human_vs_human' && (
                   <>
@@ -126,17 +132,7 @@ function App() {
               </div>
               
               <div className="game-controls-panel" data-testid="game-controls-panel">
-                <button
-                  className="retro-btn"
-                  onClick={() => {
-                    // Disconnect from game-specific WebSocket first to prevent race conditions
-                    wsService.disconnectFromGame();
-                    reset();
-                  }}
-                  data-testid="new-game-button"
-                >
-                  New Game
-                </button>
+                <NewGameButton />
                 <button
                   className="retro-btn"
                   onClick={() => {

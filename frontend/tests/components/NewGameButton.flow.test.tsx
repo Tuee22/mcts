@@ -8,22 +8,46 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { NewGameButton } from '../../src/components/NewGameButton';
+import { NewGameButton } from '@/components/NewGameButton';
+
+// Mock WebSocket service with vi.hoisted
+const mockWsService = vi.hoisted(() => ({
+  createGame: vi.fn(),
+  isConnected: vi.fn(() => true),
+  disconnectFromGame: vi.fn()
+}));
+
+vi.mock('@/services/websocket', () => ({
+  wsService: mockWsService
+}));
 
 // Mock the game store
 const mockUseGameStore = vi.fn();
-vi.mock('../../src/store/gameStore', () => ({
+vi.mock('@/store/gameStore', () => ({
   useGameStore: () => mockUseGameStore()
 }));
 
-// Mock WebSocket service
-const mockWsService = {
-  createGame: vi.fn(),
-  isConnected: vi.fn(() => true)
-};
+// Mock AI config utilities
+vi.mock('@/utils/aiConfig', () => ({
+  createGameCreationSettings: vi.fn((settings) => {
+    const mctsIterationsMap = {
+      easy: 100,
+      medium: 1000,
+      hard: 5000,
+      expert: 10000
+    };
 
-vi.mock('../../src/services/websocket', () => ({
-  wsService: mockWsService
+    return {
+      mode: settings.mode,
+      ai_config: settings.mode !== 'human_vs_human' ? {
+        difficulty: settings.ai_difficulty,
+        time_limit_ms: settings.ai_time_limit,
+        use_mcts: settings.ai_difficulty !== 'easy',
+        mcts_iterations: mctsIterationsMap[settings.ai_difficulty]
+      } : undefined,
+      board_size: settings.board_size
+    };
+  })
 }));
 
 describe('NewGameButton Flow Tests', () => {
@@ -37,13 +61,15 @@ describe('NewGameButton Flow Tests', () => {
       ai_time_limit: 3000,
       board_size: 9
     },
-    resetGame: vi.fn(),
+    reset: vi.fn(),
     setGameSettings: vi.fn(),
     setError: vi.fn()
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset createGame to default behavior (successful Promise resolution)
+    mockWsService.createGame.mockImplementation(() => Promise.resolve());
     mockUseGameStore.mockReturnValue(defaultMockStore);
   });
 
@@ -135,7 +161,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame
+        reset: mockResetGame
       });
 
       render(<NewGameButton />);
@@ -150,7 +176,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'hard' as const,
@@ -180,7 +206,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_human' as const,
           ai_difficulty: 'medium' as const,
@@ -204,7 +230,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'ai_vs_ai' as const,
           ai_difficulty: 'expert' as const,
@@ -235,7 +261,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'easy' as const,
@@ -264,7 +290,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'medium' as const,
@@ -293,7 +319,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'hard' as const,
@@ -322,7 +348,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'expert' as const,
@@ -353,12 +379,12 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       const mockSetError = vi.fn();
       mockWsService.createGame.mockImplementation(() => {
-        throw new Error('WebSocket connection failed');
+        return Promise.reject(new Error('WebSocket connection failed'));
       });
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         setError: mockSetError
       });
 
@@ -407,7 +433,7 @@ describe('NewGameButton Flow Tests', () => {
       const mockResetGame = vi.fn();
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame
+        reset: mockResetGame
       });
 
       render(<NewGameButton />);
@@ -431,7 +457,7 @@ describe('NewGameButton Flow Tests', () => {
 
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        resetGame: mockResetGame,
+        reset: mockResetGame,
         gameSettings: originalSettings
       });
 
@@ -461,7 +487,7 @@ describe('NewGameButton Flow Tests', () => {
         const mockResetGame = vi.fn();
         mockUseGameStore.mockReturnValue({
           ...defaultMockStore,
-          resetGame: mockResetGame,
+          reset: mockResetGame,
           gameSettings: {
             ...defaultMockStore.gameSettings,
             board_size: size
@@ -488,7 +514,7 @@ describe('NewGameButton Flow Tests', () => {
         const mockResetGame = vi.fn();
         mockUseGameStore.mockReturnValue({
           ...defaultMockStore,
-          resetGame: mockResetGame,
+          reset: mockResetGame,
           gameSettings: {
             ...defaultMockStore.gameSettings,
             mode: 'human_vs_ai' as const,

@@ -14,9 +14,13 @@ describe('Basic Test Setup Verification', () => {
   });
 
   it('should support async/await', async () => {
+    // Use real timers for this test to avoid timeout issues
+    vi.useRealTimers();
     const promise = new Promise(resolve => setTimeout(() => resolve('done'), 1));
     const result = await promise;
     expect(result).toBe('done');
+    // Restore fake timers after test if needed by other tests
+    vi.useFakeTimers();
   });
 
   it('should have proper test isolation', () => {
