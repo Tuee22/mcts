@@ -1,9 +1,15 @@
 """Type stubs for websockets.client module."""
 
-from typing import Optional, Union
+from typing import Optional, Union, AsyncIterator
+import json
+
+class ConnectionClosed(Exception):
+    code: int
+    reason: str
+    def __init__(self, code: int, reason: str) -> None: ...
 
 class PingResponse:
-    pass
+    def __await__(self) -> object: ...
 
 class WebSocketClientProtocol:
     async def send(self, data: Union[str, bytes]) -> None: ...
@@ -15,3 +21,7 @@ class WebSocketClientProtocol:
     async def __aexit__(
         self, exc_type: object, exc_val: object, exc_tb: object
     ) -> None: ...
+    @property
+    def closed(self) -> bool: ...
+    @property
+    def open(self) -> bool: ...

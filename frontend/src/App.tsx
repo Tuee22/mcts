@@ -97,7 +97,7 @@ function App() {
               <GameBoard />
             </div>
             <div className="game-right">
-              <div className="game-info">
+              <div className="game-info" data-testid="game-info-panel">
                 <h3>Game Info</h3>
                 <div className="info-item">
                   <span className="info-label">Mode:</span>
@@ -125,7 +125,7 @@ function App() {
                 </div>
               </div>
               
-              <div className="game-controls-panel">
+              <div className="game-controls-panel" data-testid="game-controls-panel">
                 <button
                   className="retro-btn"
                   onClick={() => {
@@ -133,10 +133,11 @@ function App() {
                     wsService.disconnectFromGame();
                     reset();
                   }}
+                  data-testid="new-game-button"
                 >
                   New Game
                 </button>
-                <button 
+                <button
                   className="retro-btn"
                   onClick={() => {
                     if (gameId && gameState) {
@@ -152,6 +153,7 @@ function App() {
                       });
                     }
                   }}
+                  data-testid="copy-moves-button"
                 >
                   Copy Moves
                 </button>

@@ -235,53 +235,9 @@ class MoveResponse(BaseModel):
     move: Move
     game_status: GameStatus
     next_turn: int
-    next_player_type: PlayerType
+    next_player_type: Optional[PlayerType]
     board_display: Optional[str] = None
     winner: Optional[int] = None
     legal_moves: Optional[List[str]] = None
 
     model_config = ConfigDict(use_enum_values=True)
-
-
-class AnalysisResult(BaseModel):
-    """Position analysis result."""
-
-    evaluation: Optional[float]  # Position evaluation (-1 to 1)
-    best_move: str
-    sorted_actions: List[Dict[str, Union[str, int, float]]]  # Action, visits, equity
-    simulations: int
-    depth: int
-
-
-class WebSocketMessage(BaseModel):
-    """WebSocket message format."""
-
-    type: str  # "move", "game_state", "player_joined", "game_ended", etc.
-    data: Dict[str, Union[str, int, float, bool, None]]
-    timestamp: datetime = datetime.now(
-        timezone.utc
-    )  # Will be overridden during creation
-
-
-class MatchmakingRequest(BaseModel):
-    """Matchmaking queue request."""
-
-    player_id: str
-    player_name: str
-    settings: Optional[GameSettings] = None
-    rating: Optional[int] = None
-
-
-class PlayerStats(BaseModel):
-    """Player statistics."""
-
-    player_id: str
-    player_name: str
-    games_played: int
-    wins: int
-    losses: int
-    draws: int
-    win_rate: float
-    avg_game_length: float
-    rating: int
-    rank: Optional[int] = None

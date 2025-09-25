@@ -20,7 +20,7 @@ from backend.api.api_types import (
     PlayerDisconnectedMessage,
     WebSocketProtocol,
 )
-from backend.api.models import GameResponse, MoveResponse, WebSocketMessage
+from backend.api.models import GameResponse, MoveResponse
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 """Type stubs for FastAPI core functionality."""
 
-from typing import Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import Callable, Dict, List, Optional, Type, TypeVar, Union, Mapping
 
 T = TypeVar("T")
 
@@ -42,8 +42,22 @@ class WebSocket:
     async def receive_text(self) -> str:
         """Receive text data from the WebSocket."""
         ...
-    async def receive_json(self) -> object:
+    async def receive_json(self) -> Dict[str, object]:
         """Receive JSON data from the WebSocket."""
+        ...
+    async def send_bytes(self, data: bytes) -> None:
+        """Send binary data through the WebSocket."""
+        ...
+    async def receive_bytes(self) -> bytes:
+        """Receive binary data from the WebSocket."""
+        ...
+    @property
+    def client(self) -> object:
+        """Client information."""
+        ...
+    @property
+    def url(self) -> object:
+        """WebSocket URL."""
         ...
 
 class FastAPI:

@@ -16,7 +16,7 @@ export const GameBoard: React.FC = () => {
     : gameState;
 
   if (!displayState) {
-    return <div className="game-board-empty">No game in progress</div>;
+    return <div className="game-board-empty" data-testid="game-board-empty">No game in progress</div>;
   }
 
   const boardSize = displayState.board_size;
@@ -152,24 +152,26 @@ export const GameBoard: React.FC = () => {
   };
 
   return (
-    <div className="game-board-container">
-      <div className="game-controls">
-        <button 
+    <div className="game-board-container" data-testid="game-board-container">
+      <div className="game-controls" data-testid="game-controls">
+        <button
           className={`retro-btn ${wallPlacementMode ? 'active' : ''}`}
           onClick={toggleWallMode}
           aria-label={wallPlacementMode ? 'Switch to pawn placement mode' : 'Switch to wall placement mode'}
+          data-testid="wall-mode-toggle"
         >
           {wallPlacementMode ? 'Place Pawn' : 'Place Wall'}
         </button>
         {wallPlacementMode && (
-          <button 
+          <button
             className="retro-btn"
             onClick={toggleWallOrientation}
+            data-testid="wall-orientation-toggle"
           >
             {wallOrientation === 'horizontal' ? 'Horizontal' : 'Vertical'}
           </button>
         )}
-        <div className="walls-remaining">
+        <div className="walls-remaining" data-testid="walls-remaining">
           <div>P1 Walls: {displayState.walls_remaining[0]}</div>
           <div>P2 Walls: {displayState.walls_remaining[1]}</div>
         </div>

@@ -7,23 +7,19 @@ import pytest
 from pydantic import ValidationError
 
 from backend.api.models import (
-    AnalysisResult,
     GameCreateRequest,
     GameMode,
     GameResponse,
     GameSession,
     GameSettings,
     GameStatus,
-    MatchmakingRequest,
     MCTSSettings,
     Move,
     MoveRequest,
     MoveResponse,
     Player,
-    PlayerStats,
     PlayerType,
     Position,
-    WebSocketMessage,
 )
 
 
@@ -224,11 +220,13 @@ class TestGameSession:
 
         # Initially player 1's turn
         current = session.get_current_player()
+        assert current is not None
         assert current.name == "Alice"
 
         # Switch turn
         session.current_turn = 2
         current = session.get_current_player()
+        assert current is not None
         assert current.name == "Bob"
 
     def test_get_player(self) -> None:
@@ -349,79 +347,3 @@ class TestMoveResponse:
 
         assert response.game_status == GameStatus.COMPLETED
         assert response.winner == 1
-
-
-class TestAnalysisResult:
-    """Test AnalysisResult model."""
-
-    def test_analysis_result(self) -> None:
-        """Test analysis result."""
-        result = AnalysisResult(
-            evaluation=0.65,
-            best_move="*(4,1)",
-            sorted_actions=[
-                {"action": "*(4,1)", "visits": 500, "equity": 0.65},
-                {"action": "*(3,0)", "visits": 300, "equity": 0.55},
-            ],
-            simulations=1000,
-            depth=10,
-        )
-
-        assert result.evaluation == 0.65
-        assert result.best_move == "*(4,1)"
-        assert len(result.sorted_actions) == 2
-        assert result.simulations == 1000
-
-
-class TestWebSocketMessage:
-    """Test WebSocketMessage model."""
-
-    def test_websocket_message(self) -> None:
-        """Test WebSocket message."""
-        message = WebSocketMessage(
-            type="move", data={"action": "*(4,1)", "player": "player1"}
-        )
-
-        assert message.type == "move"
-        assert message.data["action"] == "*(4,1)"
-        assert isinstance(message.timestamp, datetime)
-
-
-class TestMatchmakingRequest:
-    """Test MatchmakingRequest model."""
-
-    def test_matchmaking_request(self) -> None:
-        """Test matchmaking request."""
-        settings = GameSettings()
-        request = MatchmakingRequest(
-            player_id="player1", player_name="Alice", settings=settings, rating=1500
-        )
-
-        assert request.player_id == "player1"
-        assert request.player_name == "Alice"
-        assert request.rating == 1500
-
-
-class TestPlayerStats:
-    """Test PlayerStats model."""
-
-    def test_player_stats(self) -> None:
-        """Test player statistics."""
-        stats = PlayerStats(
-            player_id="player1",
-            player_name="Alice",
-            games_played=100,
-            wins=60,
-            losses=35,
-            draws=5,
-            win_rate=0.6,
-            avg_game_length=25.5,
-            rating=1650,
-            rank=42,
-        )
-
-        assert stats.games_played == 100
-        assert stats.wins == 60
-        assert stats.win_rate == 0.6
-        assert stats.rating == 1650
-        assert stats.rank == 42

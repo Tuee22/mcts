@@ -36,6 +36,13 @@ from backend.api.models import (
     Player,
     PlayerType,
 )
+from backend.api.game_states import (
+    ActiveGame,
+    CompletedGame,
+    GameState,
+    WaitingGame,
+)
+from backend.api.response_builders import build_game_response
 from backend.api.websocket_manager import WebSocketManager
 from backend.api.websocket_unified import unified_ws_manager
 from backend.api.websocket_models import (
@@ -43,6 +50,69 @@ from backend.api.websocket_models import (
     WebSocketMessage,
     parse_websocket_message,
 )
+from backend.api.pure_utils import validate_websocket_data
+
+
+# Helper functions for working with GameState discriminated union
+
+
+def game_is_in_progress(game: GameState) -> bool:
+    """Check if game is in progress using pattern matching."""
+    return isinstance(game, ActiveGame)
+
+
+def game_has_player(game: GameState, player_id: str) -> bool:
+    """Check if game has player using pattern matching."""
+    match game:
+        case ActiveGame() | CompletedGame():
+            return game.player1.id == player_id or game.player2.id == player_id
+        case _:
+            return False
+
+
+def get_game_current_player(game: GameState) -> Optional[Player]:
+    """Get current player using pattern matching."""
+    match game:
+        case ActiveGame():
+            return game.get_current_player()
+        case _:
+            return None
+
+
+def get_game_current_turn(game: GameState) -> Optional[int]:
+    """Get current turn using pattern matching."""
+    match game:
+        case ActiveGame():
+            return game.current_turn
+        case CompletedGame():
+            return game.winner
+        case _:
+            return None
+
+
+def get_game_move_count(game: GameState) -> int:
+    """Get move count using pattern matching."""
+    match game:
+        case ActiveGame() | CompletedGame():
+            return len(game.move_history)
+        case _:
+            return 0
+
+
+def get_opponent_name(game: GameState, player_id: str) -> Optional[str]:
+    """Get opponent name for a player using pattern matching."""
+    match game:
+        case ActiveGame() | CompletedGame():
+            return (
+                game.player2.name
+                if game.player1.id == player_id
+                else game.player1.name
+                if game.player2.id == player_id
+                else None
+            )
+        case _:
+            return None
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -156,13 +226,15 @@ async def websocket_unified_endpoint(websocket: WebSocket) -> None:
             # Receive JSON message from client
             raw_data = await websocket.receive_json()
 
-            # Ensure raw_data is a dict before processing
-            if not isinstance(raw_data, dict):
-                logger.warning("Received non-dict message, skipping")
-                continue
+            # raw_data is guaranteed to be a dict by receive_json()
 
             # Process the message through the unified manager
-            response = await unified_ws_manager.handle_message(connection_id, raw_data)
+            # Use functional validation instead of imperative loops
+            validated_data = validate_websocket_data(raw_data)
+
+            response = await unified_ws_manager.handle_message(
+                connection_id, validated_data
+            )
 
             # Send response if one was generated
             if response:
@@ -208,7 +280,7 @@ async def create_game(request: GameCreateRequest) -> GameResponse:
         # Notify WebSocket clients about new game
         await ws_manager.broadcast_game_created(game.game_id)
 
-        return GameResponse.from_game_session(game)
+        return build_game_response(game)
     except asyncio.TimeoutError:
         logger.error("Game creation timed out")
         raise HTTPException(status_code=504, detail="Game creation timed out")
@@ -232,7 +304,7 @@ async def list_games(
             status=status, player_id=player_id, limit=limit, offset=offset
         )
         return GameListResponse(
-            games=[GameResponse.from_game_session(g) for g in games], total=len(games)
+            games=[build_game_response(g) for g in games], total=len(games)
         )
     except Exception as e:
         logger.error(f"Failed to list games: {e}")
@@ -248,7 +320,7 @@ async def get_game(game_id: str) -> GameResponse:
         game = await game_manager.get_game(game_id)
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
-        return GameResponse.from_game_session(game)
+        return build_game_response(game)
     except HTTPException:
         raise
     except Exception as e:
@@ -296,11 +368,13 @@ async def make_move(
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    if game.status != GameStatus.IN_PROGRESS:
+    if not game_is_in_progress(game):
         raise HTTPException(status_code=400, detail="Game is not in progress")
 
     # Validate it's the player's turn
-    current_player = game.get_current_player()
+    current_player = get_game_current_player(game)
+    if current_player is None:
+        raise HTTPException(status_code=400, detail="Cannot determine current player")
     if (
         current_player.type == PlayerType.HUMAN
         and current_player.id != request.player_id
@@ -341,13 +415,13 @@ async def get_legal_moves(
             raise HTTPException(status_code=404, detail="Game not found")
 
         # Optionally validate player access
-        if player_id and not game.is_player(player_id):
+        if player_id and not game_has_player(game, player_id):
             raise HTTPException(status_code=403, detail="Not a player in this game")
 
         legal_moves = await game_manager.get_legal_moves(game_id)
         return {
             "game_id": game_id,
-            "current_player": game.current_turn,
+            "current_player": get_game_current_turn(game) or 0,
             "legal_moves": legal_moves,
         }
     except HTTPException:
@@ -373,8 +447,8 @@ async def get_board_state(
         return {
             "game_id": game_id,
             "board": board_display,
-            "current_turn": game.current_turn,
-            "move_count": len(game.move_history),
+            "current_turn": get_game_current_turn(game),
+            "move_count": get_game_move_count(game),
         }
     except HTTPException:
         raise
@@ -393,7 +467,7 @@ async def resign_game(game_id: str, player_id: str) -> Dict[str, Union[str, int]
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        if not game.is_player(player_id):
+        if not game_has_player(game, player_id):
             raise HTTPException(status_code=403, detail="Not a player in this game")
 
         winner = await game_manager.resign_game(game_id, player_id)
@@ -457,7 +531,7 @@ async def get_move_hint(
         if not game:
             raise HTTPException(status_code=404, detail="Game not found")
 
-        if not game.is_player(player_id):
+        if not game_has_player(game, player_id):
             raise HTTPException(status_code=403, detail="Not a player in this game")
 
         hint = await game_manager.get_hint(game_id, simulations)
@@ -498,7 +572,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
 
     try:
         # Send initial game state directly to the new connection
-        game_response = GameResponse.from_game_session(game)
+        game_response = build_game_response(game)
 
         # Get legal moves for current position
         legal_moves = []
@@ -530,9 +604,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
 
             # Parse and validate message using Pydantic
             try:
-                if not isinstance(raw_data, dict):
-                    logger.warning("WebSocket message must be a dict")
-                    continue
+                # raw_data is guaranteed to be a dict by receive_json()
                 message = parse_websocket_message(raw_data)
             except (ValidationError, ValueError) as e:
                 logger.warning(f"Invalid WebSocket message: {e}")
@@ -555,7 +627,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str) -> None:
                     # Send updated game state
                     game = await game_manager.get_game(game_id)
                     if game:
-                        game_response = GameResponse.from_game_session(game)
+                        game_response = build_game_response(game)
                         legal_moves = []
                         try:
                             legal_moves = await game_manager.get_legal_moves(game_id)
@@ -606,11 +678,9 @@ async def join_matchmaking_queue(
 
         if match:
             # Find opponent name based on which player the current player is
-            opponent_name = (
-                match.player2.name
-                if match.player1.id == player_id
-                else match.player1.name
-            )
+            opponent_name = get_opponent_name(match, player_id)
+            if opponent_name is None:
+                raise HTTPException(status_code=500, detail="Invalid match state")
             return {
                 "status": "matched",
                 "game_id": match.game_id,
@@ -712,9 +782,7 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
 
                 # Parse and validate message using Pydantic
                 try:
-                    if not isinstance(data, dict):
-                        logger.warning("WebSocket message must be a dict")
-                        continue
+                    # data is guaranteed to be a dict by receive_json()
                     message = parse_websocket_message(data)
 
                     if message.type == "ping":
@@ -739,7 +807,7 @@ async def simple_websocket_endpoint(websocket: WebSocket) -> None:
                                 else:
                                     game = maybe_game
                                     # Send game state
-                                    game_response = GameResponse.from_game_session(game)
+                                    game_response = build_game_response(game)
                                     await websocket.send_json(
                                         {
                                             "type": "game_state",
