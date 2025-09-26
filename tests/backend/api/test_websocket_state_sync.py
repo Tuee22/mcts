@@ -16,6 +16,7 @@ from fastapi.websockets import WebSocket
 
 from backend.api.models import GameCreateRequest, GameSettings, PlayerType
 from backend.api.websocket_manager import WebSocketManager
+from backend.api.api_types import OutgoingWebSocketMessage
 
 
 class TestWebSocketStateSync:
@@ -171,7 +172,10 @@ class TestWebSocketStateSync:
         await ws_manager.connect(mock_ws2, game_id)
 
         # Broadcast a message
-        test_message = {"type": "game_update", "data": {"status": "in_progress"}}
+        test_message: OutgoingWebSocketMessage = {
+            "type": "game_update",
+            "data": {"status": "in_progress"},
+        }
         await ws_manager.broadcast_to_game(game_id, test_message)
 
         # Both connections should receive the message
@@ -259,7 +263,7 @@ class TestWebSocketErrorHandling:
         await ws_manager.connect(mock_ws, game_id)
 
         # Broadcasting should handle the error gracefully
-        test_message = {"type": "error_test", "data": {}}
+        test_message: OutgoingWebSocketMessage = {"type": "error_test", "data": {}}
 
         # This should not raise an exception
         try:

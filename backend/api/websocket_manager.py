@@ -169,6 +169,15 @@ class WebSocketManager:
         # For now, broadcast to all in game
         await self._broadcast_to_game(game_id, message)
 
+    async def broadcast_to_game(
+        self,
+        game_id: str,
+        message: OutgoingWebSocketMessage,
+        exclude: Optional[WebSocketProtocol] = None,
+    ) -> None:
+        """Public interface to broadcast a message to all connections for a specific game."""
+        await self._broadcast_to_game(game_id, message, exclude)
+
     async def _broadcast_to_game(
         self,
         game_id: str,

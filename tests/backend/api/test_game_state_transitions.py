@@ -225,8 +225,9 @@ class TestGameManagerStateConsistency:
         assert game.game_id in game_manager._games
 
         # Retrieved game should be identical
-        retrieved_game = game_manager.get_game(game.game_id)
+        retrieved_game = await game_manager.get_game(game.game_id)
         assert retrieved_game == game
+        assert isinstance(retrieved_game, ActiveGame)
 
         # State should be consistent
         assert retrieved_game.current_turn == 1
@@ -263,5 +264,5 @@ class TestGameManagerStateConsistency:
 
         # All should be retrievable
         for game in games:
-            retrieved = game_manager.get_game(game.game_id)
+            retrieved = await game_manager.get_game(game.game_id)
             assert retrieved == game
