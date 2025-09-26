@@ -71,6 +71,7 @@ from .async_fixtures import (
     browser,
     context,
     e2e_urls,
+    page,
     touch_context,
     touch_page,
 )  # noqa: F401

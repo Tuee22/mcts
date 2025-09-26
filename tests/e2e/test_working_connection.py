@@ -1,120 +1,87 @@
 """Working E2E connection tests using external servers."""
 
-import os
 from typing import Dict
 
 import pytest
-from playwright.async_api import async_playwright, expect
+from playwright.async_api import Page, expect
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_successful_connection(e2e_urls: Dict[str, str]) -> None:
+async def test_successful_connection(page: Page, e2e_urls: Dict[str, str]) -> None:
     """Test that app successfully connects to backend on load."""
+    # Navigate to frontend
+    await page.goto(e2e_urls["frontend"], timeout=30000)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true",
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
-        )
-        context = await browser.new_context(
-            viewport={"width": 1280, "height": 720}, ignore_https_errors=True
-        )
-        page = await context.new_page()
+    # Wait for page to load
+    await page.wait_for_load_state("networkidle", timeout=15000)
 
-        try:
-            # Navigate to frontend
-            await page.goto(e2e_urls["frontend"], timeout=30000)
+    # Check if we have the React app
+    title = await page.title()
+    assert title == "React App"
 
-            # Wait for page to load
-            await page.wait_for_load_state("networkidle", timeout=15000)
+    # Look for the app root element
+    app_root = page.locator("#root")
+    await expect(app_root).to_be_visible(timeout=5000)
 
-            # Check if we have the React app
-            title = await page.title()
-            assert title == "React App"
+    print("✅ Frontend loaded successfully")
 
-            # Look for the app root element
-            app_root = page.locator("#root")
-            await expect(app_root).to_be_visible(timeout=5000)
+    # Check backend health
+    response = await page.request.get(f"{e2e_urls['backend']}/health")
+    assert response.ok
+    health_data = await response.json()
+    assert health_data["status"] == "healthy"
 
-            print("✅ Frontend loaded successfully")
+    print("✅ Backend is healthy")
 
-            # Check backend health
-            response = await page.request.get(f"{e2e_urls['backend']}/health")
-            assert response.ok
-            health_data = await response.json()
-            assert health_data["status"] == "healthy"
-
-            print("✅ Backend is healthy")
-
-            # Check for connection status elements (if they exist)
-            try:
-                connection_status = page.locator('[data-testid="connection-status"]')
-                if await connection_status.count() > 0:
-                    await expect(connection_status).to_be_visible(timeout=5000)
-                    print("✅ Connection status element found")
-            except Exception:
-                print("⚠️  No connection status element found (app may not have one)")
-
-        finally:
-            await page.close()
-            await context.close()
-            await browser.close()
+    # Check for connection status elements (if they exist)
+    try:
+        connection_status = page.locator('[data-testid="connection-status"]')
+        if await connection_status.count() > 0:
+            await expect(connection_status).to_be_visible(timeout=5000)
+            print("✅ Connection status element found")
+    except Exception:
+        print("⚠️  No connection status element found (app may not have one)")
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_game_creation(e2e_urls: Dict[str, str]) -> None:
+async def test_game_creation(page: Page, e2e_urls: Dict[str, str]) -> None:
     """Test creating a new game."""
+    # Create game via API with proper JSON format
+    response = await page.request.post(
+        f"{e2e_urls['backend']}/games",
+        data={
+            "player1_name": "TestPlayer1",
+            "player2_name": "TestPlayer2",
+            "player1_type": "human",
+            "player2_type": "machine",
+            "settings": {"board_size": 9},
+        },
+        headers={"Content-Type": "application/json"},
+    )
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=os.environ.get("E2E_HEADLESS", "true").lower() == "true",
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
-        )
-        context = await browser.new_context()
-        page = await context.new_page()
+    if not response.ok:
+        error_data = await response.text()
+        print(f"❌ Error creating game: {response.status} - {error_data}")
 
-        try:
-            # Create game via API with proper JSON format
-            response = await page.request.post(
-                f"{e2e_urls['backend']}/games",
-                data={
-                    "player1_name": "TestPlayer1",
-                    "player2_name": "TestPlayer2",
-                    "player1_type": "human",
-                    "player2_type": "machine",
-                    "settings": {"board_size": 9},
-                },
-                headers={"Content-Type": "application/json"},
-            )
+    assert response.ok
+    game_data = await response.json()
+    assert game_data["status"] in ["waiting", "in_progress"]
+    assert "game_id" in game_data
 
-            if not response.ok:
-                error_data = await response.text()
-                print(f"❌ Error creating game: {response.status} - {error_data}")
+    print(f"✅ Game created with ID: {game_data['game_id']}")
+    print(f"   Status: {game_data['status']}")
 
-            assert response.ok
-            game_data = await response.json()
-            assert game_data["status"] in ["waiting", "in_progress"]
-            assert "game_id" in game_data
-
-            print(f"✅ Game created with ID: {game_data['game_id']}")
-            print(f"   Status: {game_data['status']}")
-
-            # Safely get player names with type checking
-            player1_name = "Unknown"
-            player2_name = "Unknown"
-            if isinstance(game_data.get("player1"), dict):
-                player1_data = game_data["player1"]
-                if isinstance(player1_data, dict):
-                    player1_name = str(player1_data.get("name", "Unknown"))
-            if isinstance(game_data.get("player2"), dict):
-                player2_data = game_data["player2"]
-                if isinstance(player2_data, dict):
-                    player2_name = str(player2_data.get("name", "Unknown"))
-            print(f"   Players: {player1_name} vs {player2_name}")
-
-        finally:
-            await page.close()
-            await context.close()
-            await browser.close()
+    # Safely get player names with type checking
+    player1_name = "Unknown"
+    player2_name = "Unknown"
+    if isinstance(game_data.get("player1"), dict):
+        player1_data = game_data["player1"]
+        if isinstance(player1_data, dict):
+            player1_name = str(player1_data.get("name", "Unknown"))
+    if isinstance(game_data.get("player2"), dict):
+        player2_data = game_data["player2"]
+        if isinstance(player2_data, dict):
+            player2_name = str(player2_data.get("name", "Unknown"))
+    print(f"   Players: {player1_name} vs {player2_name}")

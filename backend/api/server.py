@@ -124,18 +124,31 @@ ws_manager: Optional[WebSocketManager] = None
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     global game_manager, ws_manager
+
+    # Initialize managers
     game_manager = GameManager()
     ws_manager = WebSocketManager()
 
-    # Only start background task processor in production (not during tests)
-    import os
+    # Determine which tasks to start using functional pattern matching
+    from backend.api.cleanup_config import CleanupConfig, RunMode
 
-    if os.environ.get("PYTEST_CURRENT_TEST") is None:
-        asyncio.create_task(game_manager.process_ai_moves())
+    config = CleanupConfig.from_environment()
+
+    # Pattern matching for task startup based on runtime mode
+    match config.mode:
+        case RunMode.PRODUCTION:
+            # Production: both AI processing and cleanup
+            asyncio.create_task(game_manager.process_ai_moves())
+            asyncio.create_task(game_manager.cleanup_inactive_games())
+            logger.info(f"Started production tasks: AI processing + cleanup")
+        case RunMode.TEST:
+            # Test: only cleanup (no AI processing to avoid interference)
+            asyncio.create_task(game_manager.cleanup_inactive_games())
+            logger.info(f"Started test tasks: cleanup only")
 
     yield
 
-    # Cleanup
+    # Cleanup (same for all modes)
     await game_manager.cleanup()
     await ws_manager.disconnect_all()
     await unified_ws_manager.cleanup()

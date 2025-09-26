@@ -6,8 +6,8 @@ This module defines type-safe game states that make illegal states unrepresentab
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from typing import List, Literal, Union
 
 from backend.api.models import BoardState, GameMode, GameSettings, Move, Player
@@ -21,6 +21,11 @@ class WaitingGame:
     mode: GameMode
     settings: GameSettings
     created_at: datetime
+    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def with_updated_activity(self) -> WaitingGame:
+        """Return new game with updated last_activity timestamp."""
+        return replace(self, last_activity=datetime.now(timezone.utc))
 
 
 @dataclass(frozen=True)
@@ -37,6 +42,7 @@ class ActiveGame:
     settings: GameSettings
     created_at: datetime
     started_at: datetime
+    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def get_current_player(self) -> Player:
         """Get the current player based on turn."""
@@ -55,6 +61,10 @@ class ActiveGame:
         else:
             raise ValueError(f"Player {player_id} not found in game")
 
+    def with_updated_activity(self) -> ActiveGame:
+        """Return new game with updated last_activity timestamp."""
+        return replace(self, last_activity=datetime.now(timezone.utc))
+
 
 @dataclass(frozen=True)
 class CompletedGame:
@@ -72,6 +82,7 @@ class CompletedGame:
     created_at: datetime
     started_at: datetime
     ended_at: datetime
+    last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def get_winner_player(self) -> Player:
         """Get the winning player object."""

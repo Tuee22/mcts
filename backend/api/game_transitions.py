@@ -72,6 +72,7 @@ def resign_game_transition(
     resigning_player = game.get_player_by_id(resigning_player_id)
     winner: Literal[1, 2] = 2 if resigning_player == game.player1 else 1
 
+    # Create completed game with activity timestamp using functional pattern
     completed = CompletedGame(
         game_id=game.game_id,
         mode=game.mode,
@@ -85,6 +86,7 @@ def resign_game_transition(
         created_at=game.created_at,
         started_at=game.started_at,
         ended_at=datetime.now(timezone.utc),
+        last_activity=datetime.now(timezone.utc),
     )
 
     return NonMoveTransitionResult(new_state=completed, ai_should_move=False)
@@ -106,6 +108,7 @@ def _create_completed_game_transition(
         "checkmate" if not next_legal_moves else "evaluation"
     )
 
+    # Create completed game with updated activity timestamp
     completed = CompletedGame(
         game_id=game.game_id,
         mode=game.mode,
@@ -119,6 +122,7 @@ def _create_completed_game_transition(
         created_at=game.created_at,
         started_at=game.started_at,
         ended_at=datetime.now(timezone.utc),
+        last_activity=datetime.now(timezone.utc),
     )
 
     return MoveTransitionResult(
@@ -131,15 +135,17 @@ def _create_completed_game_transition(
 def _create_continued_game_transition(
     game: ActiveGame, move: Move, board_state: BoardState
 ) -> MoveTransitionResult:
-    """Create next active game state transition."""
+    """Create next active game state transition with updated activity."""
     next_turn = game.get_next_turn()
     next_player = game.player1 if next_turn == 1 else game.player2
 
+    # Update all game state including last_activity using functional patterns
     continued = replace(
         game,
         current_turn=next_turn,
         move_history=[*game.move_history, move],
         board_state=board_state,
+        last_activity=datetime.now(timezone.utc),
     )
 
     return MoveTransitionResult(

@@ -111,7 +111,7 @@ class _patch:
         new_callable: Optional[_ZeroArgCallableProtocol] = None,
         **kwargs: object,
     ) -> None: ...
-    def __enter__(self) -> object: ...
+    def __enter__(self) -> MagicMock: ...
     def __exit__(
         self,
         exc_type: Optional[type],
@@ -143,7 +143,42 @@ def patch_object(
     autospec: Optional[object] = None,
     new_callable: Optional[_ZeroArgCallableProtocol] = None,
     **kwargs: object,
-) -> _patch: ...
+) -> MagicMock: ...
+
+class _patch_dict:
+    def __init__(
+        self,
+        in_dict: Dict[str, object],
+        values: Optional[Dict[str, object]] = None,
+        clear: bool = False,
+        **kwargs: object,
+    ) -> None: ...
+    def __enter__(self) -> Dict[str, object]: ...
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None: ...
+
+# Add patch.dict as a function
+@overload
+def patch_dict(
+    in_dict: Dict[str, str],
+    values: Optional[Dict[str, str]] = None,
+    clear: bool = False,
+    **kwargs: object,
+) -> _patch_dict: ...
+@overload
+def patch_dict(
+    in_dict: object,  # Support os.environ and other dict-like objects
+    values: Optional[Dict[str, str]] = None,
+    clear: bool = False,
+    **kwargs: object,
+) -> _patch_dict: ...
+
+# Add patch.dict as an attribute on the patch function
+# This is handled by the patch_dict function above
 
 class PropertyMock(MagicMock):
     """A mock for properties."""
@@ -182,6 +217,7 @@ __all__ = [
     "PropertyMock",
     "patch",
     "patch_object",
+    "patch_dict",
     "call",
     "_Call",
     "create_autospec",

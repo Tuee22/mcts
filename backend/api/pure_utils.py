@@ -6,7 +6,8 @@ All functions in this module are pure and use functional programming patterns.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, TypeVar, Union
+from typing import Callable, Dict, List, Optional, TypeVar, Union, Tuple
+from datetime import datetime, timezone
 
 # Type variables for generic functions
 T = TypeVar("T")
@@ -82,3 +83,86 @@ def count_where(items: List[T], predicate: Callable[[T], bool]) -> int:
     Functional replacement for counting loops.
     """
     return sum(1 for item in items if predicate(item))
+
+
+# ==================== Game Cleanup Utilities ====================
+
+
+def partition_by_age(
+    items: Dict[str, T],
+    get_timestamp: Callable[[T], datetime],
+    now: datetime,
+    max_age_seconds: int,
+) -> Tuple[List[str], List[str]]:
+    """
+    Partition items into active and inactive based on age.
+
+    Pure function that separates items by whether they exceed the max age.
+    Returns (active_ids, inactive_ids).
+    """
+
+    def is_inactive(item: T) -> bool:
+        return (now - get_timestamp(item)).total_seconds() > max_age_seconds
+
+    inactive = [k for k, v in items.items() if is_inactive(v)]
+    active = [k for k in items.keys() if k not in inactive]
+
+    return active, inactive
+
+
+def filter_dict(
+    dictionary: Dict[K, V], predicate: Callable[[K, V], bool]
+) -> Dict[K, V]:
+    """
+    Create new dict with only items matching predicate.
+
+    Pure function for functional dictionary filtering.
+    """
+    return {k: v for k, v in dictionary.items() if predicate(k, v)}
+
+
+def calculate_age_seconds(game: T, get_timestamp: Callable[[T], datetime]) -> float:
+    """
+    Calculate age of an item in seconds.
+
+    Pure function for age calculation.
+    """
+    now = datetime.now(timezone.utc)
+    return (now - get_timestamp(game)).total_seconds()
+
+
+def categorize_age(age_seconds: float) -> str:
+    """
+    Categorize age into human-readable buckets.
+
+    Pure function for age categorization using functional patterns.
+    """
+    return (
+        "under_1_min"
+        if age_seconds < 60
+        else "1_to_5_min"
+        if age_seconds < 300
+        else "5_to_30_min"
+        if age_seconds < 1800
+        else "over_30_min"
+    )
+
+
+def get_last_activity_timestamp(game: object) -> datetime:
+    """
+    Extract last activity timestamp from a game object.
+
+    Uses fallback chain for backward compatibility.
+    """
+    # Try last_activity first, with type check
+    last_activity = getattr(game, "last_activity", None)
+    if isinstance(last_activity, datetime):
+        return last_activity
+
+    # Fallback to created_at, with type check
+    created_at = getattr(game, "created_at", None)
+    if isinstance(created_at, datetime):
+        return created_at
+
+    # Final fallback to current time
+    return datetime.now(timezone.utc)

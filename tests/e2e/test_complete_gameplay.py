@@ -3,6 +3,8 @@ E2E tests for complete gameplay scenarios.
 
 These tests verify full game flows from start to finish, including
 player moves, wall placements, turn management, and victory conditions.
+
+This version uses the generic page fixture and runs on all 3 browsers.
 """
 
 import asyncio
@@ -10,7 +12,7 @@ from typing import Dict, List, Optional, Tuple, TypedDict
 from playwright.async_api import Locator
 
 import pytest
-from playwright.async_api import Page, async_playwright, expect
+from playwright.async_api import Page, expect
 
 
 class GameCreationResult(TypedDict):
@@ -27,275 +29,439 @@ class GameCreationResult(TypedDict):
 class TestCompleteGameplay:
     """Tests for complete game scenarios from start to finish."""
 
-    async def test_human_vs_human_complete_game(self, e2e_urls: Dict[str, str]) -> None:
+    async def test_human_vs_human_complete_game(
+        self, page: Page, e2e_urls: Dict[str, str]
+    ) -> None:
         """
         Test a complete Human vs Human game from start to victory.
 
         This test simulates two human players taking turns, moving pieces,
         placing walls, and ultimately reaching a victory condition.
         """
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
+        # Monitor console messages and errors to debug WebSocket communication
+        console_messages: List[str] = []
+        # Note: Page event listeners removed due to MyPy strict mode compatibility
 
-            # Monitor console messages and errors to debug WebSocket communication
-            console_messages: List[str] = []
-            # Note: Page event listeners removed due to MyPy strict mode compatibility
+        # Setup game
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
 
-            try:
-                # Setup game
-                await page.goto(e2e_urls["frontend"])
-                await page.wait_for_load_state("networkidle")
+        # Force reload to ensure fresh JavaScript
+        await page.reload()
+        await page.wait_for_load_state("networkidle")
 
-                # Force reload to ensure fresh JavaScript
-                await page.reload()
-                await page.wait_for_load_state("networkidle")
+        # Wait for connection
+        await self._wait_for_connection(page)
 
-                # Wait for connection
-                await self._wait_for_connection(page)
+        # Configure Human vs Human game
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
 
-                # Configure Human vs Human game
-                await self._setup_game(page, mode="human_vs_human", board_size=5)
+        # Start the game using REST API workaround
+        game_id = await self._create_game_via_api(page)
+        assert game_id is not None, "Failed to create game via API"
 
-                # Start the game using REST API workaround
-                game_id = await self._create_game_via_api(page)
-                assert game_id is not None, "Failed to create game via API"
+        # Wait for the frontend to load the game
+        game_container = await self._wait_for_game_board(page)
+        assert game_container is not None, "Failed to load game board"
 
-                # Wait for the frontend to load the game
-                game_container = await self._wait_for_game_board(page)
-                assert game_container is not None, "Failed to load game board"
+        # Debug: Check what's in the game container
+        await page.wait_for_timeout(2000)  # Give more time
+        print("🔍 Contents after game start:")
+        print(f"  Game container count: {await game_container.count()}")
 
-                # Debug: Check what's in the game container
-                await page.wait_for_timeout(2000)  # Give more time
-                print("🔍 Contents after game start:")
-                print(f"  Game container count: {await game_container.count()}")
+        # Check for various possible board selectors
+        board_selectors = [
+            ".game-board",
+            ".game-board-container",
+            '[class*="board"]',
+            ".board",
+        ]
+        for selector in board_selectors:
+            count = await page.locator(selector).count()
+            print(f"  {selector}: {count} elements")
 
-                # Check for various possible board selectors
-                board_selectors = [
-                    ".game-board",
-                    ".game-board-container",
-                    '[class*="board"]',
-                    ".board",
-                ]
-                for selector in board_selectors:
-                    count = await page.locator(selector).count()
-                    print(f"  {selector}: {count} elements")
+        # Also check the page title/content to see if we're in the right place
+        title = await page.title()
+        print(f"  Page title: {title}")
 
-                # Also check the page title/content to see if we're in the right place
-                title = await page.title()
-                print(f"  Page title: {title}")
+        # Debug output instead of screenshot
+        print("  Debug: Game creation completed, checking board state")
 
-                # Debug output instead of screenshot
-                print("  Debug: Game creation completed, checking board state")
+        # Wait for the actual game board to load (not the empty state)
+        # The game gets created but we need to wait for the game state to arrive via WebSocket
+        print("⏳ Waiting for game state to load...")
 
-                # Wait for the actual game board to load (not the empty state)
-                # The game gets created but we need to wait for the game state to arrive via WebSocket
-                print("⏳ Waiting for game state to load...")
-
-                # Wait for the game-board (not game-board-empty) to appear
-                try:
-                    actual_board = page.locator(".game-board")
-                    await expect(actual_board).to_be_visible(timeout=10000)
-                    print("✅ Game board loaded successfully")
-                except (TimeoutError, AssertionError) as e:
-                    # Check if it's still in empty state
-                    empty_board = page.locator(".game-board-empty")
-                    if await empty_board.count() > 0:
-                        print(
-                            f"❌ Game board still in empty state - WebSocket game state not received: {e}"
-                        )
-                        # Wait a bit more and try again
-                        await page.wait_for_timeout(3000)
-                        actual_board = page.locator(".game-board")
-                        if await actual_board.count() == 0:
-                            # Still no real board, let's see what we have
-                            print("🔍 Still no game board, checking current state...")
-                            page_content = await page.content()
-                            print(
-                                f"  Page contains 'No game in progress': {'No game in progress' in page_content}"
-                            )
-                            raise AssertionError(
-                                "Game state not loaded - WebSocket issue or backend problem"
-                            )
-
-                board = page.locator(".game-board")
-
-                # Get player positions
-                player1_piece = page.locator(".player.player-0")
-                player2_piece = page.locator(".player.player-1")
-
-                # Verify both players are on the board
-                await expect(player1_piece).to_be_visible()
-                await expect(player2_piece).to_be_visible()
-
-                # Simulate several moves
-                moves_made = []
-
-                # Player 1 move
-                await self._make_move(page, player=0, target_cell="cell-2-0")
-                moves_made.append("Player 1: Move to (2,0)")
-
-                # Player 2 move
-                await self._make_move(page, player=1, target_cell="cell-2-4")
-                moves_made.append("Player 2: Move to (2,4)")
-
-                # Player 1 places wall
-                await self._place_wall(
-                    page, player=0, wall_type="horizontal", position="wall-h-2-1"
-                )
-                moves_made.append("Player 1: Horizontal wall at (2,1)")
-
-                # Player 2 places wall
-                await self._place_wall(
-                    page, player=1, wall_type="vertical", position="wall-v-1-2"
-                )
-                moves_made.append("Player 2: Vertical wall at (1,2)")
-
-                # Continue playing until victory (simplified for test)
-                # Player 1 tries to reach the opposite side
-                await self._make_move(page, player=0, target_cell="cell-3-0")
-                await self._make_move(page, player=1, target_cell="cell-1-4")
-                await self._make_move(
-                    page, player=0, target_cell="cell-4-0"
-                )  # Victory move
-
-                # Simulate victory condition by updating the DOM
-                await page.evaluate(
-                    """
-                    () => {
-                        try {
-                            // Update the current player display to show victory
-                            const currentPlayerElement = document.querySelector('.current-player');
-                            if (currentPlayerElement) {
-                                currentPlayerElement.textContent = 'Player 1 won!';
-                            }
-                            
-                            // Also add a victory modal
-                            const gameBoard = document.querySelector('.game-board');
-                            if (gameBoard) {
-                                const victoryModal = document.createElement('div');
-                                victoryModal.className = 'game-over';
-                                victoryModal.innerHTML = '<p>Player 1 wins!</p>';
-                                victoryModal.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 2px solid black; z-index: 1000;';
-                                gameBoard.appendChild(victoryModal);
-                            }
-                            
-                            console.log('Victory condition simulated');
-                        } catch (error) {
-                            console.error('Error simulating victory:', error);
-                        }
-                    }
-                """
-                )
-
-                # Debug: Check console messages before victory check
+        # Wait for the game-board (not game-board-empty) to appear
+        try:
+            actual_board = page.locator(".game-board")
+            await expect(actual_board).to_be_visible(timeout=10000)
+            print("✅ Game board loaded successfully")
+        except (TimeoutError, AssertionError) as e:
+            # Check if it's still in empty state
+            empty_board = page.locator(".game-board-empty")
+            if await empty_board.count() > 0:
                 print(
-                    f"\n🔍 Console messages before victory check ({len(console_messages)} total):"
+                    f"❌ Game board still in empty state - WebSocket game state not received: {e}"
                 )
-                for msg in console_messages[-5:]:  # Show last 5 messages
-                    print(f"  {msg}")
+                # Wait a bit more and try again
+                await page.wait_for_timeout(3000)
+                actual_board = page.locator(".game-board")
+                if await actual_board.count() == 0:
+                    # Still no real board, let's see what we have
+                    print("🔍 Still no game board, checking current state...")
+                    page_content = await page.content()
+                    print(
+                        f"  Page contains 'No game in progress': {'No game in progress' in page_content}"
+                    )
+                    raise AssertionError(
+                        "Game state not loaded - WebSocket issue or backend problem"
+                    )
 
-                # Check for victory condition
-                victory_modal = page.locator(".game-over")
-                winner_text = page.locator(".game-over p")
+        board = page.locator(".game-board")
 
-                # One of these should indicate game end
-                if await victory_modal.count() > 0:
-                    await expect(victory_modal).to_be_visible(timeout=5000)
-                    winner = await winner_text.text_content()
-                    assert winner is not None and (
-                        "Player 1" in winner or "Player 2" in winner
-                    ), f"Victory modal doesn't show winner: {winner}"
-                    print(f"✅ Game completed with winner: {winner}")
-                else:
-                    # Alternative: Check if game state shows winner
-                    game_status = page.locator(".current-player")
-                    if await game_status.count() > 0:
-                        status_text = await game_status.text_content()
-                        assert status_text is not None and (
-                            "won" in status_text.lower()
-                            or "victory" in status_text.lower()
-                        ), f"Game doesn't show victory status: {status_text}"
+        # Get player positions
+        player1_piece = page.locator(".player.player-0")
+        player2_piece = page.locator(".player.player-1")
 
-                print(f"✅ Human vs Human game completed. Moves: {len(moves_made)}")
+        # Verify both players are on the board
+        await expect(player1_piece).to_be_visible()
+        await expect(player2_piece).to_be_visible()
 
-                # Debug: Print console messages to understand WebSocket issues
-                print("\n🔍 Console messages during test:")
-                for msg in console_messages[-10:]:  # Show last 10 messages
-                    print(f"  {msg}")
+        # Simulate several moves
+        moves_made = []
 
-            finally:
-                await browser.close()
+        # Player 1 move
+        await self._make_move(page, player=0, target_cell="cell-2-0")
+        moves_made.append("Player 1: Move to (2,0)")
 
-    async def test_human_vs_ai_complete_game(self, e2e_urls: Dict[str, str]) -> None:
+        # Player 2 move
+        await self._make_move(page, player=1, target_cell="cell-2-4")
+        moves_made.append("Player 2: Move to (2,4)")
+
+        # Player 1 places wall
+        await self._place_wall(
+            page, player=0, wall_type="horizontal", position="wall-h-2-1"
+        )
+        moves_made.append("Player 1: Horizontal wall at (2,1)")
+
+        # Player 2 places wall
+        await self._place_wall(
+            page, player=1, wall_type="vertical", position="wall-v-1-2"
+        )
+        moves_made.append("Player 2: Vertical wall at (1,2)")
+
+        # Continue playing until victory (simplified for test)
+        # Player 1 tries to reach the opposite side
+        await self._make_move(page, player=0, target_cell="cell-3-0")
+        await self._make_move(page, player=1, target_cell="cell-1-4")
+        await self._make_move(page, player=0, target_cell="cell-4-0")  # Victory move
+
+        # Simulate victory condition by updating the DOM
+        await page.evaluate(
+            """
+            () => {
+                try {
+                    // Update the current player display to show victory
+                    const currentPlayerElement = document.querySelector('.current-player');
+                    if (currentPlayerElement) {
+                        currentPlayerElement.textContent = 'Player 1 won!';
+                    }
+
+                    // Also add a victory modal
+                    const gameBoard = document.querySelector('.game-board');
+                    if (gameBoard) {
+                        const victoryModal = document.createElement('div');
+                        victoryModal.className = 'game-over';
+                        victoryModal.innerHTML = '<p>Player 1 wins!</p>';
+                        victoryModal.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 2px solid black; z-index: 1000;';
+                        gameBoard.appendChild(victoryModal);
+                    }
+
+                    console.log('Victory condition simulated');
+                } catch (error) {
+                    console.error('Error simulating victory:', error);
+                }
+            }
+        """
+        )
+
+        # Debug: Check console messages before victory check
+        print(
+            f"\n🔍 Console messages before victory check ({len(console_messages)} total):"
+        )
+        for msg in console_messages[-5:]:  # Show last 5 messages
+            print(f"  {msg}")
+
+        # Check for victory condition
+        victory_modal = page.locator(".game-over")
+        winner_text = page.locator(".game-over p")
+
+        # One of these should indicate game end
+        if await victory_modal.count() > 0:
+            await expect(victory_modal).to_be_visible(timeout=5000)
+            winner = await winner_text.text_content()
+            assert winner is not None and (
+                "Player 1" in winner or "Player 2" in winner
+            ), f"Victory modal doesn't show winner: {winner}"
+            print(f"✅ Game completed with winner: {winner}")
+        else:
+            # Alternative: Check if game state shows winner
+            game_status = page.locator(".current-player")
+            if await game_status.count() > 0:
+                status_text = await game_status.text_content()
+                assert status_text is not None and (
+                    "won" in status_text.lower() or "victory" in status_text.lower()
+                ), f"Game doesn't show victory status: {status_text}"
+
+        print(f"✅ Human vs Human game completed. Moves: {len(moves_made)}")
+
+        # Debug: Print console messages to understand WebSocket issues
+        print("\n🔍 Console messages during test:")
+        for msg in console_messages[-10:]:  # Show last 10 messages
+            print(f"  {msg}")
+
+    async def test_human_vs_ai_complete_game(
+        self, page: Page, e2e_urls: Dict[str, str]
+    ) -> None:
         """
         Test a complete Human vs AI game.
 
         This verifies that AI moves are properly triggered and displayed,
         and that the game flows correctly with mixed human/AI players.
         """
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
+        # Setup game
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
 
+        # Configure Human vs AI game
+        await self._setup_game(
+            page, mode="human_vs_ai", ai_difficulty="medium", board_size=5
+        )
+
+        # Start the game
+        console_messages: List[str] = []
+        game_container = await self._start_game(page, console_messages)
+        assert game_container is not None, "Failed to start game"
+        print(f"✅ Game started successfully")
+
+        # Make human move
+        await self._make_move(page, player=0, target_cell="cell-1-0")
+
+        # Wait for AI move - since data-testid doesn't exist, just wait
+        await page.wait_for_timeout(3000)  # Give time for AI to respond
+
+        # For now, assume AI made a move - we'll implement proper detection later
+        print(f"✅ Waited for AI move")
+
+        # Simulate a few Human vs AI moves and then declare victory
+        # Since the React frontend is broken, simulate the game flow
+        print("🔄 Simulating Human vs AI gameplay...")
+
+        # Make a few human moves
+        for move_num in range(3):
+            legal_moves = await self._get_legal_move_indicators(page)
+            if legal_moves and len(legal_moves) > move_num:
+                await legal_moves[move_num].click()
+                await page.wait_for_timeout(500)
+                print(f"✅ Human move {move_num + 1} completed")
+
+            # Simulate AI move by updating the display
+            await page.evaluate(
+                f"""
+                () => {{
+                    const currentPlayer = document.querySelector('.current-player');
+                    if (currentPlayer) {{
+                        currentPlayer.textContent = 'Current: AI is thinking...';
+                        setTimeout(() => {{
+                            currentPlayer.textContent = 'Current: Player 1';
+                        }}, 1000);
+                    }}
+                }}
+            """
+            )
+            await page.wait_for_timeout(1500)
+            print(f"✅ AI move {move_num + 1} simulated")
+
+        # Simulate game end with Player 1 victory
+        await page.evaluate(
+            """
+            () => {
+                const gameBoard = document.querySelector('.game-board');
+                if (gameBoard) {
+                    const victoryDiv = document.createElement('div');
+                    victoryDiv.className = 'game-over';
+                    victoryDiv.style.cssText = 'text-align: center; padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; margin-top: 10px;';
+                    victoryDiv.innerHTML = '<h3>🎉 Game Over!</h3><p>Player 1 (Human) Wins!</p>';
+                    gameBoard.appendChild(victoryDiv);
+
+                    const currentPlayer = document.querySelector('.current-player');
+                    if (currentPlayer) {
+                        currentPlayer.textContent = 'Game Complete';
+                    }
+                }
+            }
+        """
+        )
+
+        await page.wait_for_timeout(1000)
+
+        # Verify game over state
+        game_over = page.locator(".game-over")
+        await expect(game_over).to_be_visible()
+        print("✅ Human vs AI game completed with victory simulation")
+        print("✅ Human vs AI game completed successfully")
+
+    async def test_ai_vs_ai_observation(
+        self, page: Page, e2e_urls: Dict[str, str]
+    ) -> None:
+        """
+        Test AI vs AI game observation mode.
+
+        This verifies that users can watch two AIs play against each other,
+        with proper move visualization and game flow.
+        """
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+
+        # Configure AI vs AI game
+        await self._setup_game(
+            page, mode="ai_vs_ai", ai_difficulty="medium", board_size=5
+        )
+
+        # Start the game
+        console_messages: List[str] = []
+        game_container = await self._start_game(page, console_messages)
+        assert game_container is not None, "Failed to start game"
+
+        # Simulate AI vs AI observation mode
+        print("🔄 Simulating AI vs AI observation...")
+        moves_observed = 10  # Simulate 10 AI moves observed
+
+        for move_num in range(moves_observed):
+            # Simulate AI move display
+            ai_player = 1 if move_num % 2 == 0 else 2
+            await page.evaluate(
+                f"""
+                () => {{
+                    const currentPlayer = document.querySelector('.current-player');
+                    if (currentPlayer) {{
+                        currentPlayer.textContent = 'Current: AI {ai_player} is thinking...';
+                        setTimeout(() => {{
+                            currentPlayer.textContent = 'Current: AI {3 - ai_player}';
+                        }}, 500);
+                    }}
+                }}
+            """
+            )
+            await page.wait_for_timeout(800)
+            print(f"AI vs AI: Move {move_num + 1} completed")
+
+        # Simulate game end
+        await page.evaluate(
+            """
+            () => {
+                const gameBoard = document.querySelector('.game-board');
+                if (gameBoard) {
+                    const victoryDiv = document.createElement('div');
+                    victoryDiv.className = 'game-over';
+                    victoryDiv.style.cssText = 'text-align: center; padding: 20px; background: #e1f5fe; border: 1px solid #81d4fa; border-radius: 5px; margin-top: 10px;';
+                    victoryDiv.innerHTML = '<h3>🤖 AI vs AI Complete!</h3><p>AI 1 Wins!</p>';
+                    gameBoard.appendChild(victoryDiv);
+                }
+            }
+        """
+        )
+
+        print(f"✅ AI vs AI game ended after {moves_observed} moves (simulated)")
+        assert moves_observed > 0, "No AI moves were observed"
+
+        # Verify game controls are in observation mode
+        board_cells = page.locator(".game-cell")
+        if await board_cells.count() > 0:
+            # Cells should not be clickable in AI vs AI mode
+            first_cell = board_cells.first
             try:
-                # Setup game
-                await page.goto(e2e_urls["frontend"])
-                await page.wait_for_load_state("networkidle")
-                await self._wait_for_connection(page)
-
-                # Configure Human vs AI game
-                await self._setup_game(
-                    page, mode="human_vs_ai", ai_difficulty="medium", board_size=5
+                is_clickable = await first_cell.evaluate(  # type: ignore
+                    "el => window.getComputedStyle(el).cursor === 'pointer'"
                 )
+                # In simulation mode, just log that cells exist but aren't meant to be clicked
+                print(
+                    f"ℹ️ AI vs AI mode: cells exist but should not be clickable (simulated mode)"
+                )
+            except AttributeError:
+                print("ℹ️ Cannot check cell cursor style - assume correct behavior")
 
-                # Start the game
-                console_messages: List[str] = []
-                game_container = await self._start_game(page, console_messages)
-                assert game_container is not None, "Failed to start game"
-                print(f"✅ Game started successfully")
+        print("✅ AI vs AI observation mode working correctly")
 
-                # Make human move
-                await self._make_move(page, player=0, target_cell="cell-1-0")
+    async def test_quick_victory_scenario(
+        self, page: Page, e2e_urls: Dict[str, str]
+    ) -> None:
+        """
+        Test a quick victory scenario with minimal moves.
 
-                # Wait for AI move - since data-testid doesn't exist, just wait
-                await page.wait_for_timeout(3000)  # Give time for AI to respond
+        This verifies that victory conditions are properly detected
+        even in the shortest possible games.
+        """
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
 
-                # For now, assume AI made a move - we'll implement proper detection later
-                print(f"✅ Waited for AI move")
+        # Setup small board for quick game
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        console_messages: List[str] = []
+        game_container = await self._start_game(page, console_messages)
 
-                # Simulate a few Human vs AI moves and then declare victory
-                # Since the React frontend is broken, simulate the game flow
-                print("🔄 Simulating Human vs AI gameplay...")
+        # Execute a series of moves for quick victory with proper turn simulation
+        # This simulates optimal play for fastest win
+        quick_moves = [
+            ("cell-1-0", 0),  # P1 forward
+            ("cell-3-4", 1),  # P2 sideways
+            ("cell-2-0", 0),  # P1 forward
+            ("cell-3-3", 1),  # P2 sideways
+            ("cell-3-0", 0),  # P1 forward
+            ("cell-3-2", 1),  # P2 sideways
+            ("cell-4-0", 0),  # P1 reaches goal - victory!
+        ]
 
-                # Make a few human moves
-                for move_num in range(3):
-                    legal_moves = await self._get_legal_move_indicators(page)
-                    if legal_moves and len(legal_moves) > move_num:
-                        await legal_moves[move_num].click()
-                        await page.wait_for_timeout(500)
-                        print(f"✅ Human move {move_num + 1} completed")
+        for move_index, (cell_id, expected_player) in enumerate(quick_moves):
+            # Update current player display to match expected turn
+            await page.evaluate(
+                f"""
+                () => {{
+                    const currentPlayer = document.querySelector('.current-player');
+                    if (currentPlayer) {{
+                        currentPlayer.textContent = 'Current: Player {expected_player + 1}';
+                    }}
+                }}
+            """
+            )
 
-                    # Simulate AI move by updating the display
-                    await page.evaluate(
-                        f"""
-                        () => {{
-                            const currentPlayer = document.querySelector('.current-player');
-                            if (currentPlayer) {{
-                                currentPlayer.textContent = 'Current: AI is thinking...';
-                                setTimeout(() => {{
-                                    currentPlayer.textContent = 'Current: Player 1';
-                                }}, 1000);
-                            }}
-                        }}
-                    """
-                    )
-                    await page.wait_for_timeout(1500)
-                    print(f"✅ AI move {move_num + 1} simulated")
+            # Small delay to let DOM update
+            await page.wait_for_timeout(100)
 
-                # Simulate game end with Player 1 victory
+            current_player = await self._get_current_player(page)
+            assert (
+                current_player == expected_player
+            ), f"Wrong player turn. Expected {expected_player}, got {current_player}"
+
+            # Extract coordinates from cell_id format "cell-x-y"
+            parts = cell_id.split("-")
+            if len(parts) == 3:
+                x, y = int(parts[1]), int(parts[2])
+                # Find cell at specific grid position
+                cell = page.locator(".game-cell").nth(y * 9 + x)  # Assuming 9x9 board
+            else:
+                # Fallback to any available cell
+                cell = page.locator(".game-cell").first
+            if await cell.count() > 0:
+                await cell.click()
+                await page.wait_for_timeout(500)
+
+            # Check for victory and simulate if it's the final move
+            if move_index == len(quick_moves) - 1:  # Final move
+                # Simulate victory condition
                 await page.evaluate(
                     """
                     () => {
@@ -304,298 +470,88 @@ class TestCompleteGameplay:
                             const victoryDiv = document.createElement('div');
                             victoryDiv.className = 'game-over';
                             victoryDiv.style.cssText = 'text-align: center; padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; margin-top: 10px;';
-                            victoryDiv.innerHTML = '<h3>🎉 Game Over!</h3><p>Player 1 (Human) Wins!</p>';
-                            gameBoard.appendChild(victoryDiv);
-                            
-                            const currentPlayer = document.querySelector('.current-player');
-                            if (currentPlayer) {
-                                currentPlayer.textContent = 'Game Complete';
-                            }
-                        }
-                    }
-                """
-                )
-
-                await page.wait_for_timeout(1000)
-
-                # Verify game over state
-                game_over = page.locator(".game-over")
-                await expect(game_over).to_be_visible()
-                print("✅ Human vs AI game completed with victory simulation")
-                print("✅ Human vs AI game completed successfully")
-
-            finally:
-                await browser.close()
-
-    async def test_ai_vs_ai_observation(self, e2e_urls: Dict[str, str]) -> None:
-        """
-        Test AI vs AI game observation mode.
-
-        This verifies that users can watch two AIs play against each other,
-        with proper move visualization and game flow.
-        """
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
-
-            try:
-                await page.goto(e2e_urls["frontend"])
-                await page.wait_for_load_state("networkidle")
-                await self._wait_for_connection(page)
-
-                # Configure AI vs AI game
-                await self._setup_game(
-                    page, mode="ai_vs_ai", ai_difficulty="medium", board_size=5
-                )
-
-                # Start the game
-                console_messages: List[str] = []
-                game_container = await self._start_game(page, console_messages)
-                assert game_container is not None, "Failed to start game"
-
-                # Simulate AI vs AI observation mode
-                print("🔄 Simulating AI vs AI observation...")
-                moves_observed = 10  # Simulate 10 AI moves observed
-
-                for move_num in range(moves_observed):
-                    # Simulate AI move display
-                    ai_player = 1 if move_num % 2 == 0 else 2
-                    await page.evaluate(
-                        f"""
-                        () => {{
-                            const currentPlayer = document.querySelector('.current-player');
-                            if (currentPlayer) {{
-                                currentPlayer.textContent = 'Current: AI {ai_player} is thinking...';
-                                setTimeout(() => {{
-                                    currentPlayer.textContent = 'Current: AI {3 - ai_player}';
-                                }}, 500);
-                            }}
-                        }}
-                    """
-                    )
-                    await page.wait_for_timeout(800)
-                    print(f"AI vs AI: Move {move_num + 1} completed")
-
-                # Simulate game end
-                await page.evaluate(
-                    """
-                    () => {
-                        const gameBoard = document.querySelector('.game-board');
-                        if (gameBoard) {
-                            const victoryDiv = document.createElement('div');
-                            victoryDiv.className = 'game-over';
-                            victoryDiv.style.cssText = 'text-align: center; padding: 20px; background: #e1f5fe; border: 1px solid #81d4fa; border-radius: 5px; margin-top: 10px;';
-                            victoryDiv.innerHTML = '<h3>🤖 AI vs AI Complete!</h3><p>AI 1 Wins!</p>';
+                            victoryDiv.innerHTML = '<h2>Game Over!</h2><p>Player 1 Wins! Quick Victory!</p>';
                             gameBoard.appendChild(victoryDiv);
                         }
                     }
                 """
                 )
+                await page.wait_for_timeout(500)
+                print(f"✅ Quick victory achieved in {len(quick_moves)} moves")
+                break
 
-                print(f"✅ AI vs AI game ended after {moves_observed} moves (simulated)")
-                assert moves_observed > 0, "No AI moves were observed"
+            if await self._check_game_ended(page):
+                print(f"✅ Quick victory achieved in {move_index + 1} moves")
+                break
 
-                # Verify game controls are in observation mode
-                board_cells = page.locator(".game-cell")
-                if await board_cells.count() > 0:
-                    # Cells should not be clickable in AI vs AI mode
-                    first_cell = board_cells.first
-                    try:
-                        is_clickable = await first_cell.evaluate(  # type: ignore
-                            "el => window.getComputedStyle(el).cursor === 'pointer'"
-                        )
-                        # In simulation mode, just log that cells exist but aren't meant to be clicked
-                        print(
-                            f"ℹ️ AI vs AI mode: cells exist but should not be clickable (simulated mode)"
-                        )
-                    except AttributeError:
-                        print(
-                            "ℹ️ Cannot check cell cursor style - assume correct behavior"
-                        )
+        # Verify game is in completed state
+        assert await self._check_game_ended(page), "Game didn't end after reaching goal"
 
-                print("✅ AI vs AI observation mode working correctly")
-
-            finally:
-                await browser.close()
-
-    async def test_quick_victory_scenario(self, e2e_urls: Dict[str, str]) -> None:
-        """
-        Test a quick victory scenario with minimal moves.
-
-        This verifies that victory conditions are properly detected
-        even in the shortest possible games.
-        """
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
-
-            try:
-                await page.goto(e2e_urls["frontend"])
-                await page.wait_for_load_state("networkidle")
-                await self._wait_for_connection(page)
-
-                # Setup small board for quick game
-                await self._setup_game(page, mode="human_vs_human", board_size=5)
-                console_messages: List[str] = []
-                game_container = await self._start_game(page, console_messages)
-
-                # Execute a series of moves for quick victory with proper turn simulation
-                # This simulates optimal play for fastest win
-                quick_moves = [
-                    ("cell-1-0", 0),  # P1 forward
-                    ("cell-3-4", 1),  # P2 sideways
-                    ("cell-2-0", 0),  # P1 forward
-                    ("cell-3-3", 1),  # P2 sideways
-                    ("cell-3-0", 0),  # P1 forward
-                    ("cell-3-2", 1),  # P2 sideways
-                    ("cell-4-0", 0),  # P1 reaches goal - victory!
-                ]
-
-                for move_index, (cell_id, expected_player) in enumerate(quick_moves):
-                    # Update current player display to match expected turn
-                    await page.evaluate(
-                        f"""
-                        () => {{
-                            const currentPlayer = document.querySelector('.current-player');
-                            if (currentPlayer) {{
-                                currentPlayer.textContent = 'Current: Player {expected_player + 1}';
-                            }}
-                        }}
-                    """
-                    )
-
-                    # Small delay to let DOM update
-                    await page.wait_for_timeout(100)
-
-                    current_player = await self._get_current_player(page)
-                    assert (
-                        current_player == expected_player
-                    ), f"Wrong player turn. Expected {expected_player}, got {current_player}"
-
-                    # Extract coordinates from cell_id format "cell-x-y"
-                    parts = cell_id.split("-")
-                    if len(parts) == 3:
-                        x, y = int(parts[1]), int(parts[2])
-                        # Find cell at specific grid position
-                        cell = page.locator(".game-cell").nth(
-                            y * 9 + x
-                        )  # Assuming 9x9 board
-                    else:
-                        # Fallback to any available cell
-                        cell = page.locator(".game-cell").first
-                    if await cell.count() > 0:
-                        await cell.click()
-                        await page.wait_for_timeout(500)
-
-                    # Check for victory and simulate if it's the final move
-                    if move_index == len(quick_moves) - 1:  # Final move
-                        # Simulate victory condition
-                        await page.evaluate(
-                            """
-                            () => {
-                                const gameBoard = document.querySelector('.game-board');
-                                if (gameBoard) {
-                                    const victoryDiv = document.createElement('div');
-                                    victoryDiv.className = 'game-over';
-                                    victoryDiv.style.cssText = 'text-align: center; padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; margin-top: 10px;';
-                                    victoryDiv.innerHTML = '<h2>Game Over!</h2><p>Player 1 Wins! Quick Victory!</p>';
-                                    gameBoard.appendChild(victoryDiv);
-                                }
-                            }
-                        """
-                        )
-                        await page.wait_for_timeout(500)
-                        print(f"✅ Quick victory achieved in {len(quick_moves)} moves")
-                        break
-
-                    if await self._check_game_ended(page):
-                        print(f"✅ Quick victory achieved in {move_index + 1} moves")
-                        break
-
-                # Verify game is in completed state
-                assert await self._check_game_ended(
-                    page
-                ), "Game didn't end after reaching goal"
-
-            finally:
-                await browser.close()
-
-    async def test_complex_50_move_game(self, e2e_urls: Dict[str, str]) -> None:
+    async def test_complex_50_move_game(
+        self, page: Page, e2e_urls: Dict[str, str]
+    ) -> None:
         """
         Test a complex game with many moves and wall placements.
 
         This stress tests the game flow with a longer, more complex game
         including multiple walls and strategic positioning.
         """
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context()
-            page = await context.new_page()
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
 
-            try:
-                await page.goto(e2e_urls["frontend"])
-                await page.wait_for_load_state("networkidle")
-                await self._wait_for_connection(page)
+        # Setup larger board for complex game
+        await self._setup_game(page, mode="human_vs_ai", board_size=9)
+        console_messages: List[str] = []
+        game_container = await self._start_game(page, console_messages)
 
-                # Setup larger board for complex game
-                await self._setup_game(page, mode="human_vs_ai", board_size=9)
-                console_messages: List[str] = []
-                game_container = await self._start_game(page, console_messages)
+        moves_made = 0
+        walls_placed = 0
+        max_moves = 50
 
-                moves_made = 0
-                walls_placed = 0
-                max_moves = 50
+        for i in range(max_moves):
+            if await self._check_game_ended(page):
+                print(f"Game ended after {moves_made} moves and {walls_placed} walls")
+                break
 
-                for i in range(max_moves):
-                    if await self._check_game_ended(page):
-                        print(
-                            f"Game ended after {moves_made} moves and {walls_placed} walls"
-                        )
-                        break
+            current_player = await self._get_current_player(page)
 
-                    current_player = await self._get_current_player(page)
-
-                    if current_player == 0:  # Human turn
-                        # Alternate between moves and walls
-                        if i % 3 == 0 and walls_placed < 10:
-                            # Try to place a wall
-                            success = await self._place_random_wall(page)
-                            if success:
-                                walls_placed += 1
-                        else:
-                            # Make a move
-                            legal_moves = await self._get_legal_move_indicators(page)
-                            if legal_moves:
-                                # Choose a strategic move (toward goal)
-                                await legal_moves[0].click()
-                                moves_made += 1
-
-                        await page.wait_for_timeout(500)
-                    else:  # AI turn
-                        # Wait for AI to complete its turn
-                        await page.wait_for_timeout(2000)
+            if current_player == 0:  # Human turn
+                # Alternate between moves and walls
+                if i % 3 == 0 and walls_placed < 10:
+                    # Try to place a wall
+                    success = await self._place_random_wall(page)
+                    if success:
+                        walls_placed += 1
+                else:
+                    # Make a move
+                    legal_moves = await self._get_legal_move_indicators(page)
+                    if legal_moves:
+                        # Choose a strategic move (toward goal)
+                        await legal_moves[0].click()
                         moves_made += 1
 
-                # Verify game statistics
-                move_history = page.locator(".move-history-container")
-                if await move_history.count() > 0:
-                    move_entries = page.locator(".move-history-list .move-item")
-                    total_moves = await move_entries.count()
-                    assert (
-                        total_moves >= 20
-                    ), f"Complex game too short: only {total_moves} moves"
-                    print(f"✅ Complex game completed with {total_moves} total moves")
+                await page.wait_for_timeout(500)
+            else:  # AI turn
+                # Wait for AI to complete its turn
+                await page.wait_for_timeout(2000)
+                moves_made += 1
 
-                # Check that walls were actually placed
-                wall_elements = page.locator(".game-wall, .wall-slot")
-                wall_count = await wall_elements.count()
-                assert wall_count > 0, "No walls were placed in complex game"
-                print(f"✅ {wall_count} walls on board at game end")
+        # Verify game statistics
+        move_history = page.locator(".move-history-container")
+        if await move_history.count() > 0:
+            move_entries = page.locator(".move-history-list .move-item")
+            total_moves = await move_entries.count()
+            assert (
+                total_moves >= 20
+            ), f"Complex game too short: only {total_moves} moves"
+            print(f"✅ Complex game completed with {total_moves} total moves")
 
-            finally:
-                await browser.close()
+        # Check that walls were actually placed
+        wall_elements = page.locator(".game-wall, .wall-slot")
+        wall_count = await wall_elements.count()
+        assert wall_count > 0, "No walls were placed in complex game"
+        print(f"✅ {wall_count} walls on board at game end")
 
     # Helper methods
 
@@ -674,13 +630,13 @@ class TestCompleteGameplay:
                 // Remove any existing game boards
                 const existingBoards = document.querySelectorAll('.game-board');
                 existingBoards.forEach(board => board.remove());
-                
+
                 const gameContainer = document.querySelector('.app') || document.querySelector('#root') || document.body;
                 if (gameContainer) {
                     const gameBoardHTML = `
                         <div class="game-board" style="display: block; padding: 20px;">
                             <div class="walls-remaining" style="margin-bottom: 10px;">
-                                Player 1 Walls: <span class="player1-walls">10</span> | 
+                                Player 1 Walls: <span class="player1-walls">10</span> |
                                 Player 2 Walls: <span class="player2-walls">10</span>
                             </div>
                             <div class="game-controls" style="margin-bottom: 10px;">
@@ -694,14 +650,14 @@ class TestCompleteGameplay:
                                     const col = i%5;
                                     const isPlayer1 = (row === 4 && col === 2);
                                     const isPlayer2 = (row === 0 && col === 2);
-                                    
+
                                     let cellContent = '';
                                     if (isPlayer1) {
                                         cellContent = '<div class="player player-0" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: blue; border-radius: 50%; pointer-events: none;"></div>';
                                     } else if (isPlayer2) {
                                         cellContent = '<div class="player player-1" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: red; border-radius: 50%; pointer-events: none;"></div>';
                                     }
-                                    
+
                                     return `<div class="game-cell legal" data-cell="${row}-${col}" style="width: 50px; height: 50px; border: 1px solid #ccc; background: #f9f9f9; position: relative; cursor: pointer;">${cellContent}</div>`;
                                 }).join('')}
                             </div>
@@ -716,7 +672,7 @@ class TestCompleteGameplay:
                             <div class="current-player" style="margin-top: 20px;">Current: Player 1</div>
                         </div>
                     `;
-                    
+
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = gameBoardHTML;
                     gameContainer.appendChild(tempDiv.firstElementChild);
@@ -753,9 +709,9 @@ class TestCompleteGameplay:
                             board_size: 5
                         }
                     };
-                    
+
                     console.log('Creating game via API with request:', gameRequest);
-                    
+
                     const response = await fetch('/games', {
                         method: 'POST',
                         headers: {
@@ -763,15 +719,15 @@ class TestCompleteGameplay:
                         },
                         body: JSON.stringify(gameRequest)
                     });
-                    
+
                     if (!response.ok) {
                         console.error('Game creation failed:', response.status, response.statusText);
                         return { success: false, error: `HTTP ${response.status}` };
                     }
-                    
+
                     const gameData = await response.json();
                     console.log('Game created successfully:', gameData);
-                    
+
                     return { success: true, game_id: gameData.game_id, data: gameData };
                 } catch (error) {
                     console.error('Error creating game:', error);
@@ -835,7 +791,7 @@ class TestCompleteGameplay:
             () => {{
                 try {{
                     console.log('Injecting game state for game: {game_id}');
-                    
+
                     // Create a mock game state that matches the expected format
                     const mockGameState = {{
                         board_size: 5,
@@ -850,7 +806,7 @@ class TestCompleteGameplay:
                         winner: null,
                         move_history: []
                     }};
-                    
+
                     // Try to find and update the React store
                     // Look for common store patterns
                     const rootElement = document.getElementById('root');
@@ -858,13 +814,13 @@ class TestCompleteGameplay:
                         console.log('Found React fiber, attempting store update...');
                         // This would require deep React internals knowledge
                     }}
-                    
+
                     // Alternative: try to trigger a re-render by modifying the DOM
                     // Add the game board HTML directly
                     const gameContainer = document.querySelector('.app') || document.querySelector('#root') || document.body;
                     if (gameContainer) {{
                         console.log('Adding game board HTML directly...');
-                        
+
                         const gameBoardHTML = `
                             <div class="game-board" style="display: block; padding: 20px;">
                                 <div class="game-grid" style="display: grid; grid-template-columns: repeat(5, 50px); grid-template-rows: repeat(5, 50px); gap: 2px; position: relative;">
@@ -873,29 +829,29 @@ class TestCompleteGameplay:
                                         const col = i%5;
                                         const isPlayer1 = (row === 4 && col === 2); // Bottom center
                                         const isPlayer2 = (row === 0 && col === 2); // Top center
-                                        
+
                                         let cellContent = '';
                                         if (isPlayer1) {{
                                             cellContent = '<div class="player player-0" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: blue; border-radius: 50%; pointer-events: none;"></div>';
                                         }} else if (isPlayer2) {{
                                             cellContent = '<div class="player player-1" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: red; border-radius: 50%; pointer-events: none;"></div>';
                                         }}
-                                        
+
                                         return `<div class="game-cell legal" data-cell="${{row}}-${{col}}" style="width: 50px; height: 50px; border: 1px solid #ccc; background: #f9f9f9; position: relative; cursor: pointer;">${{cellContent}}</div>`;
                                     }}).join('')}}
                                 </div>
                                 <div class="current-player" style="margin-top: 20px; font-size: 18px;">Current: Player 1</div>
                             </div>
                         `;
-                        
+
                         // Insert the game board
                         const tempDiv = document.createElement('div');
                         tempDiv.innerHTML = gameBoardHTML;
                         gameContainer.appendChild(tempDiv.firstElementChild);
-                        
+
                         console.log('Game board HTML injected');
                     }}
-                    
+
                 }} catch (error) {{
                     console.error('Error injecting game state:', error);
                 }}
@@ -987,7 +943,7 @@ class TestCompleteGameplay:
                     wallDiv.className = 'game-wall placed';
                     wallDiv.style.cssText = 'width: 50px; height: 6px; background: #8B4513; margin: 2px; display: inline-block;';
                     wallDiv.setAttribute('data-wall-type', 'horizontal');
-                    
+
                     // Add to a walls container or create one
                     let wallsContainer = gameBoard.querySelector('.walls-container');
                     if (!wallsContainer) {
@@ -996,7 +952,7 @@ class TestCompleteGameplay:
                         wallsContainer.style.cssText = 'margin-top: 10px;';
                         gameBoard.appendChild(wallsContainer);
                     }
-                    
+
                     wallsContainer.appendChild(wallDiv);
                     return true;
                 }

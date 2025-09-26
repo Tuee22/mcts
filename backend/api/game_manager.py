@@ -393,6 +393,83 @@ class GameManager:
             list(self._games.values()), lambda g: isinstance(g, ActiveGame)
         )
 
+    async def cleanup_inactive_games(self) -> None:
+        """
+        Background task using functional patterns for automatic game cleanup.
+
+        Runs continuously in server lifespan to remove inactive games based on
+        configurable timeouts that automatically detect test vs production mode.
+        """
+        from backend.api.cleanup_config import CleanupConfig
+        from backend.api.pure_utils import get_last_activity_timestamp
+
+        config = CleanupConfig.from_environment()
+
+        logger.info(
+            f"Starting cleanup task: mode={config.mode.value}, "
+            f"timeout={config.inactivity_timeout}s, "
+            f"interval={config.cleanup_interval}s"
+        )
+
+        # Pure function to identify inactive games
+        def find_inactive_games(
+            games: Dict[str, GameState], now: datetime, timeout: int
+        ) -> List[str]:
+            """Pure function to find inactive game IDs."""
+            return [
+                game_id
+                for game_id, game in games.items()
+                if (now - get_last_activity_timestamp(game)).total_seconds() > timeout
+            ]
+
+        # Pure function to calculate inactive duration
+        def inactive_duration(game: GameState, now: datetime) -> float:
+            """Calculate seconds since last activity."""
+            return (now - get_last_activity_timestamp(game)).total_seconds()
+
+        # Async cleanup with logging (side effect)
+        async def cleanup_game(game_id: str, duration: float) -> None:
+            """Clean up a single game with proper resource cleanup."""
+            # Note: Individual MCTS cleanup not needed - registry handles lifecycle
+            # Just log the cleanup for monitoring
+            logger.info(
+                f"Auto-cleaned game {game_id} " f"(inactive for {duration:.0f}s)"
+            )
+
+        while True:
+            try:
+                await asyncio.sleep(config.cleanup_interval)
+
+                now = datetime.now(timezone.utc)
+
+                # Find inactive games (pure)
+                inactive_ids = find_inactive_games(
+                    self._games, now, config.inactivity_timeout
+                )
+
+                # Calculate durations for logging (pure)
+                durations = {
+                    game_id: inactive_duration(self._games[game_id], now)
+                    for game_id in inactive_ids
+                }
+
+                # Perform cleanup (side effects)
+                for game_id in inactive_ids:
+                    await cleanup_game(game_id, durations[game_id])
+                    del self._games[game_id]  # Only mutation
+
+                # Log summary if any cleaned
+                inactive_count = len(inactive_ids)
+                if inactive_count > 0:
+                    logger.info(
+                        f"Cleaned {inactive_count} inactive games, "
+                        f"{len(self._games)} games remaining"
+                    )
+
+            except Exception as e:
+                logger.error(f"Cleanup task error: {e}")
+                # Continue running even if cleanup fails
+
 
 # Pure helper functions
 
