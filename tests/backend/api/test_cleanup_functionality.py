@@ -5,7 +5,9 @@ Tests for the automatic game cleanup functionality.
 import asyncio
 import os
 import pytest
-from unittest.mock import patch_dict
+from unittest.mock import patch
+
+patch_dict = patch.dict
 from datetime import datetime, timezone, timedelta
 
 from backend.api.cleanup_config import CleanupConfig, RunMode

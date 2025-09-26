@@ -8,7 +8,9 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, cast
-from unittest.mock import Mock, patch, patch_dict
+from unittest.mock import Mock, patch
+
+patch_dict = patch.dict
 
 import pytest
 

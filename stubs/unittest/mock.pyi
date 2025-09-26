@@ -15,6 +15,7 @@ from typing import (
     Union,
     overload,
 )
+import builtins
 
 T = TypeVar("T")
 F = TypeVar("F")
@@ -153,27 +154,51 @@ class _patch:
     @overload
     def __call__(self, *args: object, **kwargs: object) -> object: ...
 
-def patch(
-    target: str,
-    new: object = ...,
-    spec: Optional[object] = None,
-    create: bool = False,
-    spec_set: Optional[object] = None,
-    autospec: Optional[object] = None,
-    new_callable: Optional[_ZeroArgCallableProtocol] = None,
-    **kwargs: object,
-) -> _patch: ...
-def patch_object(
-    target: object,
-    attribute: str,
-    new: object = ...,
-    spec: Optional[object] = None,
-    create: bool = False,
-    spec_set: Optional[object] = None,
-    autospec: Optional[object] = None,
-    new_callable: Optional[_ZeroArgCallableProtocol] = None,
-    **kwargs: object,
-) -> MagicMock: ...
+class _PatchFunction:
+    """Patch function that also has dict and object attributes."""
+
+    def __call__(
+        self,
+        target: str,
+        new: builtins.object = ...,
+        spec: Optional[builtins.object] = None,
+        create: bool = False,
+        spec_set: Optional[builtins.object] = None,
+        autospec: Optional[builtins.object] = None,
+        new_callable: Optional[_ZeroArgCallableProtocol] = None,
+        **kwargs: builtins.object,
+    ) -> _patch: ...
+    def dict(
+        self,
+        in_dict: builtins.object,
+        values: Optional[Dict[str, builtins.object]] = None,
+        clear: bool = False,
+        **kwargs: builtins.object,
+    ) -> _patch_dict: ...
+    def object(
+        self,
+        target: builtins.object,
+        attribute: str,
+        new: builtins.object = ...,
+        spec: Optional[builtins.object] = None,
+        create: bool = False,
+        spec_set: Optional[builtins.object] = None,
+        autospec: Optional[builtins.object] = None,
+        new_callable: Optional[_ZeroArgCallableProtocol] = None,
+        **kwargs: builtins.object,
+    ) -> _patch: ...
+    def multiple(
+        self,
+        target: str,
+        spec: Optional[builtins.object] = None,
+        create: bool = False,
+        spec_set: Optional[builtins.object] = None,
+        autospec: Optional[builtins.object] = None,
+        new_callable: Optional[_ZeroArgCallableProtocol] = None,
+        **kwargs: builtins.object,
+    ) -> _patch: ...
+
+patch: _PatchFunction
 
 class _patch_dict:
     def __init__(
@@ -190,22 +215,6 @@ class _patch_dict:
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None: ...
-
-# Add patch.dict as a function
-@overload
-def patch_dict(
-    in_dict: Dict[str, str],
-    values: Optional[Dict[str, str]] = None,
-    clear: bool = False,
-    **kwargs: object,
-) -> _patch_dict: ...
-@overload
-def patch_dict(
-    in_dict: object,  # Support os.environ and other dict-like objects
-    values: Optional[Dict[str, str]] = None,
-    clear: bool = False,
-    **kwargs: object,
-) -> _patch_dict: ...
 
 # Add patch.dict as an attribute on the patch function
 # This is handled by the patch_dict function above
@@ -239,16 +248,21 @@ def create_autospec(
     """Create a mock with the same interface as the spec object."""
     ...
 
-# Export all main classes and functions
+# Export all main classes and functions (matching unittest.mock.__all__)
 __all__ = [
-    "MagicMock",
     "Mock",
-    "AsyncMock",
-    "PropertyMock",
+    "MagicMock",
     "patch",
-    "patch_object",
-    "patch_dict",
+    "sentinel",
+    "DEFAULT",
+    "ANY",
     "call",
-    "_Call",
     "create_autospec",
+    "AsyncMock",
+    "FILTER_DIR",
+    "NonCallableMock",
+    "NonCallableMagicMock",
+    "mock_open",
+    "PropertyMock",
+    "seal",
 ]
