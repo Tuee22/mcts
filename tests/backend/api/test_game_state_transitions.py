@@ -22,9 +22,7 @@ class TestGameStateTransitions:
     """Test game state management issues that cause e2e failures."""
 
     async def test_new_game_creation_transitions_properly(
-        self,
-        test_client: TestClient,
-        pvp_game_request: GameCreateRequest
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
     ) -> None:
         """
         Test that creating a new game properly transitions states.
@@ -61,9 +59,7 @@ class TestGameStateTransitions:
         assert game_state["board_state"] is not None
 
     async def test_rapid_new_game_creation_race_condition(
-        self,
-        test_client: TestClient,
-        pvp_game_request: GameCreateRequest
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
     ) -> None:
         """
         Test rapid game creation to reproduce race conditions.
@@ -92,9 +88,7 @@ class TestGameStateTransitions:
             assert get_response.status_code == 200
 
     async def test_game_state_after_new_game_action(
-        self,
-        test_client: TestClient,
-        pvp_game_request: GameCreateRequest
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
     ) -> None:
         """
         Test game state after simulating "New Game" button click.
@@ -112,10 +106,7 @@ class TestGameStateTransitions:
         # Make a move to change the game state
         move_response = test_client.post(
             f"/games/{first_game_id}/moves",
-            json={
-                "player_id": first_game_data["player1"]["id"],
-                "action": "*(4,1)"
-            }
+            json={"player_id": first_game_data["player1"]["id"], "action": "*(4,1)"},
         )
         # This might fail due to game logic, that's okay for this test
 
@@ -140,9 +131,7 @@ class TestGameStateTransitions:
         assert retrieved_state["status"] == "in_progress"
 
     async def test_game_deletion_and_recreation_cycle(
-        self,
-        test_client: TestClient,
-        pvp_game_request: GameCreateRequest
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
     ) -> None:
         """
         Test the cycle of creating, deleting, and recreating games.
@@ -173,9 +162,7 @@ class TestGameStateTransitions:
         assert new_game_data["current_turn"] == 1
 
     async def test_concurrent_game_operations(
-        self,
-        test_client: TestClient,
-        pvp_game_request: GameCreateRequest
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
     ) -> None:
         """
         Test concurrent game operations that might cause state issues.
@@ -218,9 +205,7 @@ class TestGameManagerStateConsistency:
     """Test GameManager internal state consistency issues."""
 
     async def test_game_manager_game_storage_consistency(
-        self,
-        game_manager: GameManager,
-        default_game_settings: GameSettings
+        self, game_manager: GameManager, default_game_settings: GameSettings
     ) -> None:
         """
         Test that GameManager maintains consistent internal state.
@@ -233,7 +218,7 @@ class TestGameManagerStateConsistency:
             player2_type=PlayerType.HUMAN,
             player1_name="Alice",
             player2_name="Bob",
-            settings=default_game_settings
+            settings=default_game_settings,
         )
 
         assert isinstance(game, ActiveGame)
@@ -248,9 +233,7 @@ class TestGameManagerStateConsistency:
         assert len(retrieved_game.move_history) == 0
 
     async def test_game_manager_concurrent_access(
-        self,
-        game_manager: GameManager,
-        default_game_settings: GameSettings
+        self, game_manager: GameManager, default_game_settings: GameSettings
     ) -> None:
         """
         Test GameManager under concurrent access patterns.
@@ -265,7 +248,7 @@ class TestGameManagerStateConsistency:
                 player2_type=PlayerType.HUMAN,
                 player1_name=f"Player{i}_1",
                 player2_name=f"Player{i}_2",
-                settings=default_game_settings
+                settings=default_game_settings,
             )
             tasks.append(task)
 
