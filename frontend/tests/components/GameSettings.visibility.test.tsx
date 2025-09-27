@@ -176,42 +176,39 @@ describe('GameSettings Visibility Logic', () => {
       expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
     });
 
-    it('should show connection warning in expanded panel when disconnected', async () => {
+    it('should show disabled toggle button when disconnected', async () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        gameId: null, // No game, so panel shows by default
+        gameId: null, // No game, but disconnected shows toggle button to prevent race conditions
         isConnected: false
       });
 
       render(<GameSettings />);
 
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      expect(screen.getByText('⚠️ Connection Required')).toBeInTheDocument();
-      expect(screen.getByText('Please connect to the server before configuring game settings.')).toBeInTheDocument();
+      // Should show toggle button, not settings panel
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      expect(toggleButton).toBeInTheDocument();
+      expect(toggleButton).toBeDisabled();
+      expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
     });
 
-    it('should disable all settings when disconnected', () => {
+    it('should show toggle button instead of panel when disconnected', () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        gameId: null, // Show panel by default
+        gameId: null, // No game and disconnected - show toggle button to prevent race conditions
         isConnected: false
       });
 
       render(<GameSettings />);
 
-      const modeButtons = [
-        screen.getByTestId('mode-human-vs-human'),
-        screen.getByTestId('mode-human-vs-ai'),
-        screen.getByTestId('mode-ai-vs-ai')
-      ];
+      // Should show disabled toggle button instead of settings panel
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      expect(toggleButton).toBeInTheDocument();
+      expect(toggleButton).toBeDisabled();
 
-      modeButtons.forEach(button => {
-        expect(button).toBeDisabled();
-      });
-
-      const startButton = screen.getByTestId('start-game-button');
-      expect(startButton).toBeDisabled();
-      expect(startButton).toHaveTextContent('Disconnected');
+      // Should NOT show the full settings panel
+      expect(screen.queryByTestId('mode-human-vs-human')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('start-game-button')).not.toBeInTheDocument();
     });
   });
 

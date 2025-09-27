@@ -35,11 +35,15 @@ class TestRaceConditions:
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create initial game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
-        await settings_button.click()
-
+        # Create initial game - handle both scenarios (settings button or direct panel)
         start_button = page.locator('[data-testid="start-game-button"]')
+
+        # If settings panel is not visible, click the settings button to open it
+        if await start_button.count() == 0:
+            settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+            await settings_button.click()
+            start_button = page.locator('[data-testid="start-game-button"]')
+
         await start_button.click()
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
@@ -50,6 +54,7 @@ class TestRaceConditions:
 
         # Rapid sequence: New Game -> Settings almost simultaneously
         new_game_button = page.locator('button:has-text("New Game")')
+        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
 
         # Start both actions concurrently
         new_game_task = asyncio.create_task(new_game_button.click())

@@ -188,21 +188,21 @@ describe('GameSettings Component', () => {
   });
 
   describe('Connection Status', () => {
-    it('disables settings when not connected', () => {
+    it('shows disabled toggle button when not connected', () => {
       mockGameStore.isConnected = false;
 
       render(<GameSettings />);
 
-      // When disconnected and no gameId, shows connection warning and disabled controls
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      expect(screen.getByText('⚠️ Connection Required')).toBeInTheDocument();
+      // When disconnected and no gameId, shows disabled toggle button (prevents race conditions)
+      const toggleButton = screen.getByText('⚙️ Game Settings');
+      expect(toggleButton).toBeInTheDocument();
+      expect(toggleButton).toBeDisabled();
+      expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
 
-      // All buttons should be disabled
-      const humanVsHumanButton = screen.getByTestId('mode-human-vs-human');
-      const startGameButton = screen.getByTestId('start-game-button');
-      expect(humanVsHumanButton).toBeDisabled();
-      expect(startGameButton).toBeDisabled();
-      expect(startGameButton).toHaveTextContent('Disconnected');
+      // Should NOT show the full settings panel
+      expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mode-human-vs-human')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('start-game-button')).not.toBeInTheDocument();
     });
 
     it('disables toggle button when not connected and game is active', () => {
