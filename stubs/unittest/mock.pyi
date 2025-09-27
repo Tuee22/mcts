@@ -37,6 +37,7 @@ class AsyncCallableMock:
     def assert_called_once(self) -> None: ...
     def assert_not_called(self) -> None: ...
     side_effect: object
+    call_args_list: List[_Call]
 
 class _Call:
     """Represents a call to a mock."""
@@ -46,6 +47,10 @@ class _Call:
     ) -> None: ...
     def __getitem__(self, key: int) -> Tuple[object, ...]: ...
     def __iter__(self) -> object: ...
+
+    # Call attributes
+    args: Tuple[object, ...]
+    kwargs: Dict[str, object]
 
 class MagicMock:
     def __init__(

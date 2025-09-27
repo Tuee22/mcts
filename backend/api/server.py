@@ -99,6 +99,17 @@ def get_game_move_count(game: GameState) -> int:
             return 0
 
 
+def get_game_status(game: GameState) -> str:
+    """Get game status using pattern matching."""
+    match game:
+        case ActiveGame():
+            return GameStatus.IN_PROGRESS.value
+        case CompletedGame():
+            return GameStatus.COMPLETED.value
+        case WaitingGame():
+            return GameStatus.WAITING.value
+
+
 def get_opponent_name(game: GameState, player_id: str) -> Optional[str]:
     """Get opponent name for a player using pattern matching."""
     match game:
@@ -447,7 +458,7 @@ async def get_legal_moves(
 @app.get("/games/{game_id}/board")
 async def get_board_state(
     game_id: str, player_id: Optional[str] = None, flip: bool = False
-) -> Dict[str, Union[str, int, Optional[str]]]:
+) -> Dict[str, Union[str, int, Optional[str], Optional[int]]]:
     """Get the current board state visualization."""
     if game_manager is None:
         raise HTTPException(status_code=500, detail="Server not initialized")
@@ -462,6 +473,7 @@ async def get_board_state(
             "board": board_display,
             "current_turn": get_game_current_turn(game),
             "move_count": get_game_move_count(game),
+            "status": get_game_status(game),
         }
     except HTTPException:
         raise

@@ -7,7 +7,7 @@ and API response consistency.
 """
 
 import time
-from typing import Any, Dict, List
+from typing import Dict, List
 from unittest.mock import patch
 
 import pytest
@@ -379,7 +379,6 @@ class TestErrorRecovery:
         invalid_requests = [
             ("GET", f"/games/invalid-game-id", None),
             ("GET", f"/games/{valid_id}/invalid-endpoint", None),
-            ("POST", "/games", {"invalid": "data"}),
         ]
 
         for method, path, data in invalid_requests:
@@ -393,6 +392,15 @@ class TestErrorRecovery:
                 404,
                 422,
             ], f"Request {method} {path} should return client error, got {response.status_code}"
+
+        # Test POST with truly invalid enum value (should return 422)
+        invalid_post_response = test_client.post(
+            "/games",
+            json={"player1_type": "invalid_enum_value", "player2_type": "human"},
+        )
+        assert (
+            invalid_post_response.status_code == 422
+        ), f"Invalid enum should return 422, got {invalid_post_response.status_code}"
 
         # Valid game should still be accessible and unchanged
         check_response = test_client.get(f"/games/{valid_id}")
@@ -412,16 +420,22 @@ class TestErrorRecovery:
         This ensures that error conditions don't leave the server in
         a state that affects subsequent valid operations.
         """
-        # Try to create games with invalid data
+        # Try to create games with truly invalid data (invalid enum values)
         invalid_data_sets = [
-            {},  # Empty
-            {"player1_type": "invalid"},  # Invalid enum
-            {"player1_type": "human", "player2_type": "invalid"},  # Partial invalid
+            {"player1_type": "invalid_enum"},  # Invalid enum
+            {
+                "player1_type": "human",
+                "player2_type": "invalid_enum",
+            },  # Partial invalid
         ]
 
         for invalid_data in invalid_data_sets:
             response = test_client.post("/games", json=invalid_data)
             assert response.status_code == 422  # Validation error
+
+        # Empty data should actually succeed because all fields have defaults
+        empty_response = test_client.post("/games", json={})
+        assert empty_response.status_code == 200  # Should succeed with defaults
 
         # Server should still be able to handle valid requests
         valid_response = test_client.post("/games", json=pvp_game_request.model_dump())
@@ -539,3 +553,309 @@ class TestPerformanceUnderLoad:
             assert (
                 max_deviation < 0.5
             ), f"Response time inconsistency: {max_deviation:.3f}s deviation"
+
+
+class TestConnectionE2EFailureReproduction:
+    """
+    Test connection scenarios that reproduce e2e failures.
+
+    These tests focus on connection persistence and API availability during
+    the rapid UI transitions that cause Settings button timeouts.
+    """
+
+    def test_connection_persistence_during_ui_changes(
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
+    ) -> None:
+        """
+        Test connection state during rapid UI state changes.
+
+        This reproduces the e2e scenario where the Settings button timeout
+        might be caused by connection/session state issues during rapid
+        game creation and navigation.
+        """
+        # Create initial game
+        response1 = test_client.post("/games", json=pvp_game_request.model_dump())
+        assert response1.status_code == 200
+        game1_data = response1.json()
+        game1_id = game1_data["game_id"]
+
+        # Verify connection is stable
+        check_response = test_client.get(f"/games/{game1_id}")
+        assert check_response.status_code == 200
+
+        # Rapidly create new game (simulates New Game click)
+        response2 = test_client.post("/games", json=pvp_game_request.model_dump())
+        assert response2.status_code == 200
+        game2_data = response2.json()
+        game2_id = game2_data["game_id"]
+
+        # Now test if connection state affects access to game data
+        # This is crucial for Settings button availability
+        rapid_requests = [
+            f"/games/{game1_id}",  # Old game should still be accessible
+            f"/games/{game2_id}",  # New game should be accessible
+            "/games",  # Game list should include both
+            f"/games/{game2_id}/board",  # New game details for Settings
+        ]
+
+        start_time = time.time()
+        for request_path in rapid_requests:
+            response = test_client.get(request_path)
+            assert response.status_code == 200, f"Failed request: {request_path}"
+
+            # Verify response contains expected data
+            data = response.json()
+            assert isinstance(data, dict)
+
+            # Check that each response has the minimum structure needed
+            if "games" in data:
+                # Game list response
+                assert isinstance(data["games"], list)
+                assert len(data["games"]) >= 2  # Should have both games
+            elif "game_id" in data:
+                # Individual game response - different endpoints have different structures
+                assert isinstance(data["game_id"], str)
+
+                # The issue! Different endpoints return different data structures:
+                # - /games/{id} has "status" field
+                # - /games/{id}/board has "board", "current_turn", etc. but NO "status"
+                # This inconsistency could explain the e2e Settings button timeout!
+
+                # Verify consistent API structure - all game endpoints should have status
+                if "status" in data:
+                    # All game-related endpoints should now have status field
+                    assert isinstance(data["status"], str)
+                    if "board" in data:
+                        # This is from /games/{id}/board endpoint - now includes status!
+                        assert "current_turn" in data
+                        assert "move_count" in data
+                    # This status field consistency helps frontend button logic work reliably
+                else:
+                    # Missing status field is problematic for UI consistency
+                    pytest.fail(
+                        f"Missing status field in game endpoint response: {data.keys()}"
+                    )
+
+        end_time = time.time()
+
+        # All requests should complete quickly
+        assert end_time - start_time < 2.0, "Connection state checks too slow"
+
+        # Final verification that both games remain accessible
+        final_check1 = test_client.get(f"/games/{game1_id}")
+        final_check2 = test_client.get(f"/games/{game2_id}")
+
+        assert final_check1.status_code == 200
+        assert final_check2.status_code == 200
+
+    def test_api_availability_during_transitions(
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
+    ) -> None:
+        """
+        Test API endpoint availability during rapid transitions.
+
+        This reproduces whether rapid game creation affects the availability
+        of API endpoints that the Settings UI relies on.
+        """
+        # Test baseline API availability
+        baseline_endpoints = [
+            "/games",
+            "/health"
+            if hasattr(test_client, "get")
+            else "/games",  # Use available endpoint
+        ]
+
+        for endpoint in baseline_endpoints:
+            response = test_client.get(endpoint)
+            if endpoint == "/health":
+                # Health endpoint might not exist, that's ok
+                assert response.status_code in [200, 404]
+            else:
+                assert response.status_code == 200
+
+        # Rapidly create multiple games
+        created_games = []
+        for i in range(3):
+            response = test_client.post("/games", json=pvp_game_request.model_dump())
+            assert response.status_code == 200
+            created_games.append(response.json())
+
+        # Test that API endpoints remain available and functional
+        # This is what the Settings button depends on
+        critical_endpoints = [
+            "/games",  # Game list for Settings UI
+        ]
+
+        # Add individual game endpoints
+        for game_data in created_games:
+            game_id = game_data["game_id"]
+            critical_endpoints.extend(
+                [
+                    f"/games/{game_id}",
+                    f"/games/{game_id}/board",
+                ]
+            )
+
+        # Test all endpoints rapidly
+        start_time = time.time()
+        failed_endpoints: List[tuple[str, int] | tuple[str, str]] = []
+
+        for endpoint in critical_endpoints:
+            try:
+                response = test_client.get(endpoint)
+                if response.status_code != 200:
+                    failed_endpoints.append((endpoint, response.status_code))
+            except Exception as e:
+                failed_endpoints.append((endpoint, f"Exception: {e}"))
+
+        end_time = time.time()
+
+        # No endpoints should have failed
+        assert len(failed_endpoints) == 0, f"Failed endpoints: {failed_endpoints}"
+
+        # All checks should complete reasonably quickly
+        assert end_time - start_time < 3.0, "API availability checks too slow"
+
+    def test_session_consistency_during_rapid_operations(
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
+    ) -> None:
+        """
+        Test session/state consistency during rapid operations.
+
+        This reproduces whether rapid game operations cause session or
+        connection state to become inconsistent, affecting UI element availability.
+        """
+        # Create initial game
+        response1 = test_client.post("/games", json=pvp_game_request.model_dump())
+        assert response1.status_code == 200
+        initial_game = response1.json()
+
+        # Perform rapid operations that simulate the e2e failure sequence
+        operations = []
+
+        # Rapid game creation (New Game clicks)
+        for i in range(2):
+            response = test_client.post("/games", json=pvp_game_request.model_dump())
+            assert response.status_code == 200
+            operations.append(("create", response.json()))
+
+        # Rapid game list requests (Settings UI loading)
+        for i in range(3):
+            response = test_client.get("/games")
+            assert response.status_code == 200
+            operations.append(("list", response.json()))
+
+        # Rapid individual game requests (Settings displaying game details)
+        for op_type, data in operations:
+            if op_type == "create":
+                game_id = data["game_id"]
+                response = test_client.get(f"/games/{game_id}")
+                assert response.status_code == 200
+                operations.append(("detail", response.json()))
+
+        # Verify that all operations maintained consistent session state
+        game_ids_from_creates = set()
+        game_ids_from_lists = set()
+        game_ids_from_details = set()
+
+        for op_type, data in operations:
+            if op_type == "create":
+                game_ids_from_creates.add(data["game_id"])
+            elif op_type == "list":
+                games_list = data.get("games", [])
+                if isinstance(games_list, list):
+                    for game in games_list:
+                        if isinstance(game, dict) and "game_id" in game:
+                            game_ids_from_lists.add(game["game_id"])
+            elif op_type == "detail":
+                game_ids_from_details.add(data["game_id"])
+
+        # All game IDs should be consistent across operation types
+        # If session state is broken, some games might "disappear" from lists
+        assert game_ids_from_creates.issubset(
+            game_ids_from_lists
+        ), "Some created games missing from game lists"
+        assert game_ids_from_creates.issubset(
+            game_ids_from_details
+        ), "Some created games not retrievable via detail endpoints"
+
+        # Include the initial game
+        all_expected_games = game_ids_from_creates | {initial_game["game_id"]}
+        assert all_expected_games.issubset(
+            game_ids_from_lists
+        ), "Session state inconsistency: not all games visible in lists"
+
+    def test_concurrent_connection_stability(
+        self, test_client: TestClient, pvp_game_request: GameCreateRequest
+    ) -> None:
+        """
+        Test connection stability under concurrent load.
+
+        This simulates the load that occurs when the UI makes multiple
+        simultaneous requests while determining button states.
+        """
+        # Create a game to work with
+        response = test_client.post("/games", json=pvp_game_request.model_dump())
+        assert response.status_code == 200
+        game_data = response.json()
+        game_id = game_data["game_id"]
+
+        # Simulate concurrent requests that the UI might make
+        # when determining whether Settings button should be available
+        concurrent_endpoints = [
+            "/games",  # Check game list
+            f"/games/{game_id}",  # Check current game
+            f"/games/{game_id}/board",  # Check game state
+            f"/games/{game_id}/legal-moves",  # Check game status
+        ]
+
+        # Make multiple rounds of concurrent requests
+        all_response_times = []
+        failed_requests: List[tuple[int, str, int] | tuple[int, str, str]] = []
+
+        for round_num in range(3):
+            round_start = time.time()
+
+            # Make all requests in rapid succession
+            for endpoint in concurrent_endpoints:
+                request_start = time.time()
+                try:
+                    response = test_client.get(endpoint)
+                    request_end = time.time()
+
+                    if response.status_code != 200:
+                        failed_requests.append(
+                            (round_num, endpoint, response.status_code)
+                        )
+                    else:
+                        all_response_times.append(request_end - request_start)
+
+                except Exception as e:
+                    failed_requests.append((round_num, endpoint, f"Exception: {e}"))
+
+            round_end = time.time()
+            round_time = round_end - round_start
+
+            # Each round should complete quickly
+            assert round_time < 2.0, f"Round {round_num} took {round_time:.3f}s"
+
+        # No requests should have failed
+        assert len(failed_requests) == 0, f"Failed requests: {failed_requests}"
+
+        # Individual requests should be fast
+        if all_response_times:
+            avg_response_time = sum(all_response_times) / len(all_response_times)
+            max_response_time = max(all_response_times)
+
+            assert (
+                avg_response_time < 0.5
+            ), f"Average response time too slow: {avg_response_time:.3f}s"
+            assert (
+                max_response_time < 1.0
+            ), f"Maximum response time too slow: {max_response_time:.3f}s"
+
+        # Connection should remain stable - final verification
+        final_response = test_client.get(f"/games/{game_id}")
+        assert final_response.status_code == 200
+        final_data = final_response.json()
+        assert final_data["game_id"] == game_id
