@@ -213,7 +213,9 @@ class TestWebSocketStateSync:
 
         game_data = response.json()
         game_id = game_data["game_id"]
-        player_id = game_data["player1"]["id"]
+        player1 = game_data["player1"]
+        assert isinstance(player1, dict)
+        player_id = player1["id"]
 
         # Connect to WebSocket
         with test_client.websocket_connect(f"/games/{game_id}/ws") as websocket:
