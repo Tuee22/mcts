@@ -1,6 +1,6 @@
 """Type stubs for _pytest.config."""
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 class Config:
     """Pytest configuration object."""

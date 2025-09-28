@@ -1,7 +1,6 @@
 """Type stubs for pytest to eliminate Any types."""
 
 from typing import (
-    Any,
     Callable,
     Dict,
     Generator,

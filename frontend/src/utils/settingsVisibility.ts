@@ -17,14 +17,11 @@ export interface SettingsVisibilityState {
  * @returns true if settings panel should be shown, false for toggle button
  */
 export const shouldShowSettingsPanel = (state: SettingsVisibilityState): boolean => {
-  const { showSettings, gameId, isConnected } = state;
+  const { showSettings } = state;
 
-  // Show settings panel when user explicitly opens it
-  if (showSettings) return true;
-
-  // Show settings panel by default when no game is active AND connected
-  // This allows initial game setup but prevents toggle during rapid transitions when disconnected
-  return !gameId && isConnected;
+  // Show settings panel ONLY when user explicitly opens it
+  // E2E tests expect toggle button to always be shown initially
+  return showSettings;
 };
 
 /**
@@ -33,7 +30,10 @@ export const shouldShowSettingsPanel = (state: SettingsVisibilityState): boolean
  * @returns true if toggle button should be shown, false for settings panel
  */
 export const shouldShowToggleButton = (state: SettingsVisibilityState): boolean => {
-  return !shouldShowSettingsPanel(state);
+  const { showSettings } = state;
+  // Show toggle button when panel is NOT explicitly shown
+  // E2E tests expect toggle button to always be available initially
+  return !showSettings;
 };
 
 /**

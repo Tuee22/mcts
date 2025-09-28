@@ -1,6 +1,6 @@
 """Type stubs for _pytest.hookspec."""
 
-from typing import Any, Callable, Generator, Optional
+from typing import Callable, Generator, Optional
 
 from _pytest.reports import TestReport
 

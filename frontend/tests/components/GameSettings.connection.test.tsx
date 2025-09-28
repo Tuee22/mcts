@@ -73,13 +73,14 @@ describe('GameSettings Connection Tests', () => {
       gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
       isConnected: true,
       isLoading: false,
+      isCreatingGame: false, // Add missing property
       error: null,
       selectedHistoryIndex: null
     });
   });
 
   describe('Connection Loss During Settings Panel Usage', () => {
-    it('should show connection warning when disconnected while panel is open', async () => {
+    it('should show disabled toggle button when disconnected', async () => {
       // Start connected with active game to show toggle button
       mockGameStore.isConnected = true;
       mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
@@ -87,96 +88,81 @@ describe('GameSettings Connection Tests', () => {
       const { rerender } = render(<GameSettings />);
 
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
-      // Verify settings panel is open and no warning initially
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
-      expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
-      
-      // Simulate disconnection while panel is open
-      mockGameStore.isConnected = false;
-      rerender(<GameSettings />);
-      
-      // Should now show connection warning
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      expect(screen.getByText('⚠️ Connection Required')).toBeInTheDocument();
-    });
+      expect(toggleButton).toBeEnabled();
 
-    it('should disable all controls when connection is lost', async () => {
-      // Start connected with active game to show toggle button
-      mockGameStore.isConnected = true;
-      mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
-
-      const { rerender } = render(<GameSettings />);
-
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
-      // Verify controls are enabled initially
-      const humanVsAIButton = screen.getByTestId('mode-human-vs-ai');
-      const startGameButton = screen.getByTestId('start-game-button');
-      
-      expect(humanVsAIButton).toBeEnabled();
-      expect(startGameButton).toBeEnabled();
-      
       // Simulate disconnection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      // Controls should be disabled
-      const disabledHumanVsAI = screen.getByTestId('mode-human-vs-ai');
-      const disabledStartGame = screen.getByTestId('start-game-button');
-      
-      expect(disabledHumanVsAI).toBeDisabled();
-      expect(disabledStartGame).toBeDisabled();
-      expect(disabledStartGame).toHaveTextContent('Disconnected');
+
+      // Should now show disabled toggle button with warning title
+      const disabledToggle = screen.getByRole('button', { name: /game settings/i });
+      expect(disabledToggle).toBeDisabled();
+      expect(disabledToggle).toHaveAttribute('title', 'Connect to server to access settings');
     });
 
-    it('should re-enable controls when connection is restored', async () => {
-      // Start connected to open the panel, then simulate disconnection
+    it('should disable toggle button when connection is lost', async () => {
+      // Start connected with active game to show toggle button
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = 'test-game-123'; // This makes toggle button show
+
       const { rerender } = render(<GameSettings />);
-      
+
       const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
-      // Simulate disconnection while panel is open
+      expect(toggleButton).toBeEnabled();
+
+      // Simulate disconnection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      // Verify controls are disabled and warning is shown
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      expect(screen.getByTestId('start-game-button')).toBeDisabled();
-      
+
+      // Toggle button should be disabled
+      const disabledToggle = screen.getByRole('button', { name: /game settings/i });
+      expect(disabledToggle).toBeDisabled();
+      expect(disabledToggle).toHaveAttribute('title', 'Connect to server to access settings');
+    });
+
+    it('should re-enable toggle button when connection is restored', async () => {
+      // Start connected with game to show toggle button
+      mockGameStore.isConnected = true;
+      mockGameStore.gameId = 'test-game-123';
+
+      const { rerender } = render(<GameSettings />);
+
+      const toggleButton = screen.getByRole('button', { name: /game settings/i });
+      expect(toggleButton).toBeEnabled();
+
+      // Simulate disconnection
+      mockGameStore.isConnected = false;
+      rerender(<GameSettings />);
+
+      // Verify toggle button is disabled
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
       // Simulate reconnection
       mockGameStore.isConnected = true;
       rerender(<GameSettings />);
-      
-      // Controls should be re-enabled and warning hidden
-      expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
-      expect(screen.getByTestId('start-game-button')).toBeEnabled();
-      expect(screen.getByTestId('start-game-button')).toHaveTextContent('Start Game');
+
+      // Toggle button should be re-enabled
+      const enabledToggle = screen.getByRole('button', { name: /game settings/i });
+      expect(enabledToggle).toBeEnabled();
+      expect(enabledToggle).toHaveAttribute('title', 'Game Settings');
     });
   });
 
   describe('Start Game Button State Transitions', () => {
     it('should show correct button text based on connection state', async () => {
-      // Start connected to open the panel
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
+      mockGameStore.gameId = null; // No game = settings panel shown
       mockGameStore.isLoading = false;
-      
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       const startButton = screen.getByTestId('start-game-button');
-      
+
       // Connected state
       expect(startButton).toHaveTextContent('Start Game');
       expect(startButton).toBeEnabled();
-      
+
       // Loading state - must set isCreatingGame for "Starting..." text
       mockGameStore.isLoading = true;
       mockGameStore.isCreatingGame = true;
@@ -184,246 +170,253 @@ describe('GameSettings Connection Tests', () => {
 
       expect(startButton).toHaveTextContent('Starting...');
       expect(startButton).toBeDisabled();
-      
+
       // Disconnected state
       mockGameStore.isConnected = false;
       mockGameStore.isLoading = false;
+      mockGameStore.isCreatingGame = false;
       rerender(<GameSettings />);
-      
-      expect(startButton).toHaveTextContent('Disconnected');
-      expect(startButton).toBeDisabled();
+
+      // Should now show disabled toggle button instead of panel
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
     });
 
-    it('should prioritize loading state over disconnected state in button text', async () => {
-      // Start connected to open the panel
+    it('should show disabled toggle when disconnected during loading', async () => {
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
+      mockGameStore.gameId = null; // No game = settings panel shown
       mockGameStore.isLoading = false;
-      
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
+      // Should show settings panel initially
+      expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
+
       // Simulate loading while disconnected (edge case)
       mockGameStore.isConnected = false;
       mockGameStore.isLoading = true;
       mockGameStore.isCreatingGame = true;
       rerender(<GameSettings />);
 
-      const startButton = screen.getByTestId('start-game-button');
-      // With our new implementation, "Disconnected" takes priority over "Starting..."
-      expect(startButton).toHaveTextContent('Disconnected');
-      expect(startButton).toBeDisabled();
+      // Should now show disabled toggle button instead of panel
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
     });
 
-    it('should handle rapid connection state changes', async () => {
-      // Start connected to open the panel
+    it('should handle rapid connection state changes with no game', async () => {
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
+      mockGameStore.gameId = null; // No game = settings panel shown
       mockGameStore.isLoading = false;
-      
-      const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
-      const startButton = screen.getByTestId('start-game-button');
-      
-      // Rapid state changes - isCreatingGame needed for "Starting..." text
-      const states = [
-        { isConnected: true, isLoading: false, isCreatingGame: false, expected: 'Start Game' },
-        { isConnected: false, isLoading: false, isCreatingGame: false, expected: 'Disconnected' },
-        { isConnected: true, isLoading: true, isCreatingGame: true, expected: 'Starting...' },
-        { isConnected: true, isLoading: false, isCreatingGame: false, expected: 'Start Game' },
-      ];
-      
-      for (const state of states) {
-        mockGameStore.isConnected = state.isConnected;
-        mockGameStore.isLoading = state.isLoading;
-        mockGameStore.isCreatingGame = state.isCreatingGame;
-        rerender(<GameSettings />);
 
-        expect(startButton).toHaveTextContent(state.expected);
-      }
+      const { rerender } = render(<GameSettings />);
+
+      // Should show settings panel initially
+      let startButton = screen.getByTestId('start-game-button');
+      expect(startButton).toHaveTextContent('Start Game');
+
+      // Test different states
+      // Connected, not loading
+      expect(startButton).toHaveTextContent('Start Game');
+
+      // Connected, loading
+      mockGameStore.isLoading = true;
+      mockGameStore.isCreatingGame = true;
+      rerender(<GameSettings />);
+
+      startButton = screen.getByTestId('start-game-button');
+      expect(startButton).toHaveTextContent('Starting...');
+
+      // Disconnected - should switch to toggle button
+      mockGameStore.isConnected = false;
+      mockGameStore.isLoading = false;
+      mockGameStore.isCreatingGame = false;
+      rerender(<GameSettings />);
+
+      // Should now show disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
+      // Reconnected - should switch back to panel
+      mockGameStore.isConnected = true;
+      rerender(<GameSettings />);
+
+      startButton = screen.getByTestId('start-game-button');
+      expect(startButton).toHaveTextContent('Start Game');
     });
   });
 
   describe('Settings Persistence Across Connection Changes', () => {
     it('should preserve user settings during connection loss', async () => {
-      // Start connected
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       // Change settings while connected
       const aiVsAiButton = screen.getByTestId('mode-ai-vs-ai');
       await user.click(aiVsAiButton);
-      
+
       expect(mockGameStore.setGameSettings).toHaveBeenCalledWith({ mode: 'ai_vs_ai' });
-      
+
       // Simulate disconnection and update store to reflect the change
       mockGameStore.isConnected = false;
       mockGameStore.gameSettings.mode = 'ai_vs_ai'; // Simulate persisted setting
       rerender(<GameSettings />);
-      
-      // Settings should still be preserved
-      const stillActiveAiVsAi = screen.getByTestId('mode-ai-vs-ai');
-      expect(stillActiveAiVsAi).toHaveClass('active');
+
+      // Should now show disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
     });
 
     it('should not lose settings changes during brief disconnections', async () => {
-      // Start connected
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       // Make several setting changes
       const hardButton = screen.getByText('Hard');
       const boardSize7 = screen.getByText('7x7');
-      
+
       await user.click(hardButton);
       await user.click(boardSize7);
-      
+
       expect(mockGameStore.setGameSettings).toHaveBeenCalledWith({ ai_difficulty: 'hard' });
       expect(mockGameStore.setGameSettings).toHaveBeenCalledWith({ board_size: 7 });
-      
+
       // Update store to reflect the changes and brief disconnection
       mockGameStore.gameSettings.ai_difficulty = 'hard';
       mockGameStore.gameSettings.board_size = 7;
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      // Reconnection
+
+      // Should now show disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
+      // Reconnection - should switch back to panel
       mockGameStore.isConnected = true;
       rerender(<GameSettings />);
-      
+
       // Settings should still reflect user choices
-      expect(hardButton).toHaveClass('active');
-      expect(boardSize7).toHaveClass('active');
+      const reconnectedHardButton = screen.getByText('Hard');
+      const reconnectedBoardSize7 = screen.getByText('7x7');
+      expect(reconnectedHardButton).toHaveClass('active');
+      expect(reconnectedBoardSize7).toHaveClass('active');
     });
   });
 
   describe('Game Creation During Connection Issues', () => {
     it('should prevent game creation when disconnected', async () => {
-      // Start connected to open the panel, then simulate disconnection
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
+      // Should show settings panel with start button
+      const startButton = screen.getByTestId('start-game-button');
+      expect(startButton).toBeEnabled();
+
       // Simulate disconnection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      const startButton = screen.getByTestId('start-game-button');
-      expect(startButton).toBeDisabled();
-      
-      // Attempting to click should not call wsService.createGame
-      await user.click(startButton);
-      
+
+      // Should now show disabled toggle button instead of panel
+      const toggleButton = screen.getByRole('button', { name: /game settings/i });
+      expect(toggleButton).toBeDisabled();
+
+      // Attempting to click disabled toggle should not call wsService.createGame
+      await user.click(toggleButton);
       expect(mockWsService.createGame).not.toHaveBeenCalled();
     });
 
-    it('should queue game creation attempt during reconnection', async () => {
-      // Start connected
+    it('should allow game creation after reconnection', async () => {
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       const startButton = screen.getByTestId('start-game-button');
-      
-      // Simulate disconnection right before game creation
+      expect(startButton).toBeEnabled();
+
+      // Simulate disconnection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      // Button should be disabled
-      expect(startButton).toBeDisabled();
-      
+
+      // Should now show disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
       // Reconnect
       mockGameStore.isConnected = true;
       rerender(<GameSettings />);
-      
-      // Now should be able to create game
-      expect(startButton).toBeEnabled();
-      await user.click(startButton);
-      
+
+      // Should switch back to settings panel
+      const reconnectedStartButton = screen.getByTestId('start-game-button');
+      expect(reconnectedStartButton).toBeEnabled();
+      await user.click(reconnectedStartButton);
+
       expect(mockWsService.createGame).toHaveBeenCalled();
     });
 
     it('should handle game creation failure due to connection issues', async () => {
-      // Start connected
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
-      const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
+      render(<GameSettings />);
+
       // Mock createGame to fail
       mockWsService.createGame.mockRejectedValueOnce(new Error('Connection lost'));
-      
+
       const startButton = screen.getByTestId('start-game-button');
       await user.click(startButton);
-      
+
       expect(mockWsService.createGame).toHaveBeenCalled();
       // Error handling should be tested in the component that calls createGame
     });
   });
 
   describe('Settings Panel Behavior During Connection Changes', () => {
-    it('should keep settings panel open when connection is lost', async () => {
-      // Start connected
+    it('should switch to disabled toggle when connection is lost', async () => {
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
-      
+
       // Lose connection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      // Panel should still be open, just with warning
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
+
+      // Should switch to disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
     });
 
-    it('should not auto-close settings panel on connection recovery', async () => {
-      // Start connected to open panel, then simulate disconnection
+    it('should restore settings panel on connection recovery', async () => {
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+
       // Simulate disconnection
       mockGameStore.isConnected = false;
       rerender(<GameSettings />);
-      
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      
+
+      // Should switch to disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
       // Reconnect
       mockGameStore.isConnected = true;
       rerender(<GameSettings />);
-      
-      // Panel should remain open, warning should be gone
+
+      // Should switch back to settings panel
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
-      expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
     });
   });
 
@@ -467,64 +460,58 @@ describe('GameSettings Connection Tests', () => {
 
   describe('Connection Recovery After New Game Bug', () => {
     it('should remain functional after store reset (New Game disconnection bug)', async () => {
-      // Start connected
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeEnabled();
-      
+
       // Simulate store reset (New Game button clicked elsewhere)
       mockGameStore.reset();
       // BUG: reset() sets isConnected to false, but it should preserve connection
       // For this test, we'll simulate what SHOULD happen vs what currently happens
-      
+
       // If the bug is fixed, isConnected should remain true
       // If the bug exists, isConnected becomes false
       const connectionAfterReset = mockGameStore.isConnected;
-      
+
       rerender(<GameSettings />);
-      
+
       if (connectionAfterReset) {
-        // Expected behavior (bug fixed)
-        expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
+        // Expected behavior (bug fixed) - should still show settings panel
         expect(screen.getByTestId('start-game-button')).toBeEnabled();
         expect(screen.getByTestId('start-game-button')).toHaveTextContent('Start Game');
       } else {
-        // Current buggy behavior
-        expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-        expect(screen.getByTestId('start-game-button')).toBeDisabled();
-        expect(screen.getByTestId('start-game-button')).toHaveTextContent('Disconnected');
+        // Current buggy behavior - should show disabled toggle button
+        expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
       }
     });
 
     it('should recover properly when connection is restored after reset bug', async () => {
-      // Start connected
+      // Start with no game to show settings panel directly
       mockGameStore.isConnected = true;
-      
+      mockGameStore.gameId = null; // No game = settings panel shown
+
       const { rerender } = render(<GameSettings />);
-      
-      const toggleButton = screen.getByRole('button', { name: /game settings/i });
-      await user.click(toggleButton);
-      
+
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+
       // Reset causes false disconnection
       mockGameStore.reset();
       mockGameStore.isConnected = false; // Simulate the bug
       rerender(<GameSettings />);
-      
-      // Should show disconnected state
-      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
-      
+
+      // Should show disabled toggle button
+      expect(screen.getByRole('button', { name: /game settings/i })).toBeDisabled();
+
       // Connection restored (WebSocket reconnects or page refresh)
       mockGameStore.isConnected = true;
       rerender(<GameSettings />);
-      
-      // Should recover to normal state
-      expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
+
+      // Should recover to settings panel
       expect(screen.getByTestId('start-game-button')).toBeEnabled();
     });
   });

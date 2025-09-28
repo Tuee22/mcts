@@ -1,6 +1,6 @@
 """Type stubs for _pytest.fixtures."""
 
-from typing import Any, Callable, Dict, Iterator, List, Optional, TypeVar, Union
+from typing import Callable, Dict, Iterator, List, Optional, TypeVar, Union
 
 _T = TypeVar("_T")
 

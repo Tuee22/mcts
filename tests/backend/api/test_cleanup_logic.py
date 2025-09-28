@@ -7,7 +7,7 @@ This module tests all pure functions and logic used in the cleanup system.
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, cast
+from typing import Dict, List
 from unittest.mock import Mock, patch
 
 patch_dict = patch.dict

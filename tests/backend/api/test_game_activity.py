@@ -7,7 +7,7 @@ throughout the game lifecycle.
 
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional, cast
+from typing import Optional
 from unittest.mock import patch, AsyncMock
 
 patch_object = patch.object
