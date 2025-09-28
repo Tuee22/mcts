@@ -76,8 +76,8 @@ export const GameSettings: React.FC = () => {
     }
   };
 
-  // Use extracted visibility logic for better testability
-  if (shouldShowToggleButton(visibilityState)) {
+  // Show toggle button when: 1) game exists, or 2) disconnected, and settings aren't explicitly shown
+  if ((gameId || !isConnected) && !showSettings) {
     return (
       <button
         className="retro-btn toggle-settings"

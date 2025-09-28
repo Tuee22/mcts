@@ -130,7 +130,7 @@ function App() {
                   <span className="info-value game-id">{gameId?.slice(0, 8)}</span>
                 </div>
               </div>
-              
+
               <div className="game-controls-panel" data-testid="game-controls-panel">
                 <NewGameButton />
                 <button
