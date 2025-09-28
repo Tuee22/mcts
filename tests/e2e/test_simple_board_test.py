@@ -3,6 +3,7 @@
 import pytest
 from playwright.async_api import Page, expect
 from typing import Dict
+from .e2e_helpers import handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -24,23 +25,8 @@ async def test_simple_board_load(async_page: Page, e2e_urls: Dict[str, str]) -> 
         await expect(connection_text).to_have_text("Connected", timeout=10000)
         print("✅ Connected to WebSocket")
 
-    # Look for settings button
-    settings_button = async_page.locator('button:has-text("⚙️ Game Settings")')
-    await expect(settings_button).to_be_visible(timeout=5000)
-    print("✅ Settings button found")
-
-    # Click settings
-    await settings_button.click()
-    await async_page.wait_for_timeout(1000)
-
-    # Look for start game button
-    start_button = async_page.locator('[data-testid="start-game-button"]')
-    await expect(start_button).to_be_visible(timeout=5000)
-    print("✅ Start Game button found")
-
-    # Click start game
-    await start_button.click()
-    await async_page.wait_for_timeout(3000)
+    # Use helper function to handle settings interaction
+    await handle_settings_interaction(async_page, should_click_start_game=True)
 
     # Look for game board
     game_board = async_page.locator(".game-board")

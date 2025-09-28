@@ -3,6 +3,7 @@
 import pytest
 from playwright.async_api import Page, expect
 from typing import Dict
+from .e2e_helpers import handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -19,11 +20,8 @@ async def test_debug_game_start(async_page: Page, e2e_urls: Dict[str, str]) -> N
         await expect(connection_text).to_have_text("Connected", timeout=10000)
         print("✅ Connected to WebSocket")
 
-    # Click settings
-    settings_button = async_page.locator('button:has-text("⚙️ Game Settings")')
-    await expect(settings_button).to_be_visible(timeout=5000)
-    await settings_button.click()
-    await async_page.wait_for_timeout(1000)
+    # Handle settings interaction
+    await handle_settings_interaction(async_page, should_click_start_game=False)
 
     # Select human vs human mode
     mode_button = async_page.locator('[data-testid="mode-human-vs-human"]')
