@@ -5,7 +5,7 @@ These tests focus on reproducing button availability and state issues
 such as "Start Game button stuck as disabled" and missing buttons.
 """
 
-from typing import Any, Dict
+from typing import Dict
 from unittest.mock import AsyncMock, patch
 
 import pytest

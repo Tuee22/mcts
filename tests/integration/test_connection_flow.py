@@ -8,7 +8,7 @@ and connection state synchronization that could affect E2E test stability.
 import asyncio
 import json
 import time
-from typing import Dict, List, Optional, Union, Protocol, Any, AsyncGenerator, Mapping
+from typing import Dict, List, Optional, Union, Protocol, AsyncGenerator, Mapping
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

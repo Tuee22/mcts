@@ -5,7 +5,7 @@ Provides consistent mock data and responses across all test types to ensure
 compatibility with the new REST API structure.
 """
 
-from typing import Callable, Dict, List, Optional, TypedDict, cast
+from typing import Callable, Dict, List, Optional, TypedDict
 from datetime import datetime
 import uuid
 
@@ -233,11 +233,17 @@ class TestFixturesFactory:
             message["game_id"] = game_id
 
         if data:
-            # Cast message to a regular dict to allow arbitrary updates
+            # Convert to regular dict to allow arbitrary updates
             message_dict = dict(message)
             message_dict.update(data)
-            # Cast the dict to WebSocketMessageDict
-            return cast(WebSocketMessageDict, message_dict)
+            # Construct WebSocketMessageDict with proper field assignment
+            result = WebSocketMessageDict()
+            # Only assign known fields to maintain type safety
+            if "type" in message_dict and isinstance(message_dict["type"], str):
+                result["type"] = message_dict["type"]
+            if "game_id" in message_dict and isinstance(message_dict["game_id"], str):
+                result["game_id"] = message_dict["game_id"]
+            return result
 
         return message
 

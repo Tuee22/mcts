@@ -8,7 +8,7 @@ to disappear in E2E tests, making them unable to find the "⚙️ Game Settings"
 import asyncio
 import pytest
 from playwright.async_api import Page, expect, Locator
-from typing import List, Dict, Any, Optional, Callable, Awaitable, Union
+from typing import List, Dict, Optional, Callable, Awaitable, Union
 from typing_extensions import TypedDict
 
 

@@ -17,7 +17,7 @@ V = TypeVar("V")
 
 def validate_websocket_data(
     raw_data: object,
-) -> Dict[str, Union[str, int, float, bool]]:
+) -> Dict[str, Union[str, int, float, bool, Dict[str, object]]]:
     """
     Validate and transform WebSocket message data functionally.
 

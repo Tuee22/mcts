@@ -8,7 +8,7 @@ that cause E2E failures. They focus on DOM timing and component lifecycle issues
 import asyncio
 import pytest
 from playwright.async_api import Page, expect, Request, Response
-from typing import List, Dict, Any
+from typing import List, Dict
 
 
 class TestGameSettingsComponentRaces:

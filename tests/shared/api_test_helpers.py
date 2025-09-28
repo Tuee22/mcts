@@ -7,7 +7,7 @@ that was created during the backend refactoring.
 
 import asyncio
 import json
-from typing import Dict, List, Optional, Callable, Union, TypedDict, cast, Protocol
+from typing import Dict, List, Optional, Callable, Union, TypedDict, Protocol
 from unittest.mock import AsyncMock, MagicMock
 import httpx
 
@@ -178,9 +178,7 @@ class APITestValidator:
         game_state = response["game_state"]
         if not isinstance(game_state, dict):
             return False
-        return APITestValidator.validate_game_response(
-            cast(Dict[str, object], game_state)
-        )
+        return APITestValidator.validate_game_response(dict(game_state))
 
     @staticmethod
     def validate_websocket_message(
@@ -214,7 +212,7 @@ class TestScenarioRunner:
         game_response = TestFixturesFactory.create_game_response(
             game_id=expected_game_id
         )
-        self.api.set_response("POST", "/games", cast(Dict[str, object], game_response))
+        self.api.set_response("POST", "/games", dict(game_response))
 
         # Connect WebSocket
         self.ws.connect()
@@ -237,9 +235,7 @@ class TestScenarioRunner:
         move_response = TestFixturesFactory.create_move_response(
             player_id=player_id, action=action
         )
-        self.api.set_response(
-            "POST", f"/games/{game_id}/moves", cast(Dict[str, object], move_response)
-        )
+        self.api.set_response("POST", f"/games/{game_id}/moves", dict(move_response))
 
         # Make move via REST API
         move_data = {"player_id": player_id, "action": action}
@@ -316,11 +312,9 @@ def with_game_setup(
             from .fixtures_factory import TestFixturesFactory
 
             game_response = TestFixturesFactory.create_game_response(game_id=game_id)
+            test_env["api_client"].set_response("POST", "/games", dict(game_response))
             test_env["api_client"].set_response(
-                "POST", "/games", cast(Dict[str, object], game_response)
-            )
-            test_env["api_client"].set_response(
-                "GET", f"/games/{game_id}", cast(Dict[str, object], game_response)
+                "GET", f"/games/{game_id}", dict(game_response)
             )
 
             # Create the game

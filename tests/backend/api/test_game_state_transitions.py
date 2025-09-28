@@ -6,7 +6,7 @@ and related state transition issues found in e2e tests.
 """
 
 import asyncio
-from typing import Dict, Any
+from typing import Dict
 from unittest.mock import AsyncMock, patch
 
 import pytest

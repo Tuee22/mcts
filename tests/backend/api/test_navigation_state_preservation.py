@@ -6,7 +6,7 @@ during browser navigation, causing UI elements to become unavailable.
 """
 
 import time
-from typing import Any, Dict, List
+from typing import Dict, List
 from unittest.mock import patch
 
 import pytest
