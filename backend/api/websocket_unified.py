@@ -9,7 +9,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Annotated, Dict, List, Optional, Set, Union, TypedDict
+from typing import Annotated, Any, Dict, List, Optional, Set, Union, TypedDict
 from datetime import datetime
 from enum import Enum
 
@@ -19,11 +19,22 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
+# Type aliases for WebSocket message data handling
+# Raw message data from WebSocket can contain nested dicts for ping data
+WSMessageDataValue = Union[str, int, float, bool, Dict[str, object]]
+WSMessageData = Dict[str, WSMessageDataValue]
+
+
 # TypedDict classes for message data payloads
 class PingData(TypedDict, total=False):
     """Data for ping messages."""
 
-    pass
+    # Common ping fields used in tests
+    recovery_test: bool
+    message_id: int
+    final_check: bool
+    client: int
+    op: int
 
 
 class JoinGameData(TypedDict):
@@ -336,13 +347,19 @@ class UnifiedWebSocketManager:
             await self._leave_game_room(connection_id, game_id)
 
     async def handle_message(
-        self, connection_id: str, message_data: Dict[str, Union[str, int, float, bool]]
+        self, connection_id: str, message_data: WSMessageData
     ) -> Optional[WSResponse]:
         """
         Handle incoming WebSocket message.
         Returns a response if this is a request-response type message.
         """
         try:
+            # Special handling for ping messages to preserve data structure
+            if message_data.get("type") == "ping":
+                # Return None so we can handle ping response specially in the server
+                await self._handle_ping_raw_direct(connection_id, message_data)
+                return None
+
             message = WSMessage.model_validate(message_data)
             logger.debug(f"Received message from {connection_id}: {message.type}")
 
@@ -380,6 +397,95 @@ class UnifiedWebSocketManager:
                 error=str(e),
             )
 
+    async def _handle_ping_raw(
+        self, connection_id: str, message_data: WSMessageData
+    ) -> WSResponse:
+        """Handle ping message with raw data to preserve structure."""
+        async with self._lock:
+            connection_info = self.connections.get(connection_id)
+            if connection_info:
+                connection_info.last_ping = datetime.utcnow()
+
+        # Prepare pong response with echoed data
+        response_data: Dict[str, object] = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "connection_id": connection_id,
+        }
+
+        # Include any data from the original ping message
+        ping_data = message_data.get("data")
+        if ping_data is not None:
+            # Handle large messages by limiting echoed data size
+            if isinstance(ping_data, dict):
+                for key, value in ping_data.items():
+                    if key != "timestamp":  # Don't override our timestamp
+                        # Limit large string values to prevent memory issues
+                        if isinstance(value, str) and len(value) > 10000:
+                            response_data[key] = value[:1000] + "...[truncated]"
+                        else:
+                            response_data[key] = value
+            else:
+                response_data["echo"] = ping_data
+
+        return WSResponse(
+            id=message_data.get("id", str(uuid.uuid4())),
+            type=MessageType.PONG,
+            data=response_data,
+        )
+
+    async def _handle_ping_raw_direct(
+        self, connection_id: str, message_data: WSMessageData
+    ) -> None:
+        """Handle ping message with raw data and send response directly."""
+        async with self._lock:
+            connection_info = self.connections.get(connection_id)
+            if connection_info:
+                connection_info.last_ping = datetime.utcnow()
+
+        # Prepare pong response with echoed data as plain dict
+        response_data: Dict[str, object] = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "connection_id": connection_id,
+        }
+
+        # Include any data from the original ping message
+        ping_data = message_data.get("data")
+        if ping_data is not None and isinstance(ping_data, dict):
+            for key, value in ping_data.items():
+                if key != "timestamp":  # Don't override our timestamp
+                    # Limit large string values to prevent memory issues
+                    if isinstance(value, str) and len(value) > 10000:
+                        response_data[key] = value[:1000] + "...[truncated]"
+                    else:
+                        response_data[key] = value
+
+        # Create plain dict response (no Pydantic models)
+        pong_response: Dict[str, object] = {
+            "id": message_data.get("id", str(uuid.uuid4())),
+            "type": "pong",
+            "data": response_data,
+            "success": True,
+            "error": None,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        # Send response directly to avoid Pydantic conversion
+        await self._send_raw_to_connection(connection_id, pong_response)
+
+    async def _send_raw_to_connection(
+        self, connection_id: str, message_dict: Dict[str, object]
+    ) -> None:
+        """Send raw dict message to a specific connection without Pydantic conversion."""
+        async with self._lock:
+            connection = self.connections.get(connection_id)
+            if connection:
+                try:
+                    await connection.websocket.send_json(message_dict)
+                except Exception as e:
+                    logger.error(f"Failed to send raw message to {connection_id}: {e}")
+                    # Remove failed connection
+                    await self.disconnect(connection_id)
+
     async def _handle_ping(self, connection_id: str, message: WSMessage) -> WSResponse:
         """Handle ping message."""
         async with self._lock:
@@ -388,9 +494,7 @@ class UnifiedWebSocketManager:
                 connection_info.last_ping = datetime.utcnow()
 
         # Echo back any data sent in the ping message
-        response_data: Dict[str, Union[str, int, float, bool]] = {
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        response_data: Dict[str, object] = {"timestamp": datetime.utcnow().isoformat()}
 
         # Include any data from the original ping message
         if message.data:

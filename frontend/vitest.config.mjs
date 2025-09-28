@@ -52,28 +52,54 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 10000,
     teardownTimeout: 5000,
+
+    // Improved test isolation settings
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true,
-        execArgv: ['--max-old-space-size=8192', '--expose-gc'],
-        maxWorkers: 1,
+        singleFork: false, // Enable proper process isolation
+        execArgv: ['--max-old-space-size=4096', '--expose-gc'],
+        maxWorkers: 2, // Allow limited parallelization
+        minWorkers: 1,
       }
     },
+
+    // Mock and state management
+    restoreMocks: true, // Automatically restore mocks between tests
+    clearMocks: true,   // Clear mock state between tests
+    resetMocks: false,  // Don't reset implementation, just state
+    mockReset: false,   // Keep manual control over mock resets
+
     retry: 0,
     bail: 0,
     logHeapUsage: true,
-    isolate: true,
+    isolate: true, // Keep test isolation enabled
     watch: false,
+
+    // Test execution settings
     sequence: {
-      concurrent: false,
-      shuffle: false,
+      concurrent: false, // Disable concurrent execution for now
+      shuffle: false,    // Keep deterministic order
+      hooks: 'stack',    // Run hooks in stack order
     },
+
+    // Module resolution
     deps: {
       moduleDirectories: [
         'node_modules',
         '/opt/mcts/frontend-build/node_modules'
-      ]
+      ],
+      optimizer: {
+        web: {
+          // External dependencies that should not be bundled
+          exclude: [
+            'react',
+            'react-dom',
+            '@testing-library/react',
+            '@testing-library/dom'
+          ]
+        }
+      }
     },
     coverage: {
       provider: 'v8',

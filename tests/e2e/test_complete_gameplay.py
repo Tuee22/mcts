@@ -383,7 +383,7 @@ class TestCompleteGameplay:
             # Cells should not be clickable in AI vs AI mode
             first_cell = board_cells.first
             try:
-                is_clickable = await first_cell.evaluate(  # type: ignore
+                is_clickable = await first_cell.evaluate(
                     "el => window.getComputedStyle(el).cursor === 'pointer'"
                 )
                 # In simulation mode, just log that cells exist but aren't meant to be clicked

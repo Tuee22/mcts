@@ -137,12 +137,27 @@ describe('WebSocket Service Connection Tests', () => {
 
   describe('Connection establishment', () => {
     it('should establish connection successfully', async () => {
+      // Set up a proper mock WebSocket that will trigger onopen
+      const mockConstructor = vi.fn((url: string) => {
+        const instance = new MockWebSocket(url);
+        mockWebSocketInstance = instance;
+        return instance;
+      });
+
+      vi.stubGlobal('WebSocket', mockConstructor);
+
+      // Ensure WebSocket constants are available
+      Object.defineProperty(global.WebSocket, 'CONNECTING', { value: 0 });
+      Object.defineProperty(global.WebSocket, 'OPEN', { value: 1 });
+      Object.defineProperty(global.WebSocket, 'CLOSING', { value: 2 });
+      Object.defineProperty(global.WebSocket, 'CLOSED', { value: 3 });
+
       const connectPromise = wsService.connect('ws://localhost:8000/ws');
 
-      // Wait for connection to complete
+      // Wait for connection to complete (MockWebSocket takes 10ms to open)
       await new Promise(resolve => setTimeout(resolve, 20));
 
-      // Just test that the service reports connected - the mock tracking isn't working correctly
+      // The service should report connected after the mock opens
       expect(wsService.isConnected()).toBe(true);
     });
 

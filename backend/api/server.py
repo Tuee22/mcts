@@ -44,7 +44,7 @@ from backend.api.game_states import (
 )
 from backend.api.response_builders import build_game_response
 from backend.api.websocket_manager import WebSocketManager
-from backend.api.websocket_unified import unified_ws_manager
+from backend.api.websocket_unified import unified_ws_manager, WSMessageData
 from backend.api.websocket_models import (
     PongMessage,
     WebSocketMessage,
@@ -252,9 +252,26 @@ async def websocket_unified_endpoint(websocket: WebSocket) -> None:
 
             # raw_data is guaranteed to be a dict by receive_json()
 
+            # Special handling for ping messages: copy root-level fields to data
+            if raw_data.get("type") == "ping":
+                data_field = raw_data.get("data", {})
+                if isinstance(data_field, dict):
+                    # Copy all root-level fields (except standard ones) to data
+                    for key, value in raw_data.items():
+                        if key not in {"type", "id", "data", "error", "timestamp"}:
+                            data_field[key] = value
+                    raw_data["data"] = data_field
+
             # Process the message through the unified manager
-            # Use functional validation instead of imperative loops
-            validated_data = validate_websocket_data(raw_data)
+            # Skip validation for ping messages to preserve data structure
+            validated_data: WSMessageData
+            if raw_data.get("type") == "ping":
+                # For ping messages, pass raw data directly to preserve dict structure
+                validated_data = raw_data  # type: ignore[assignment]
+            else:
+                # Use functional validation for other message types
+                validated_basic = validate_websocket_data(raw_data)
+                validated_data = validated_basic  # type: ignore[assignment]
 
             response = await unified_ws_manager.handle_message(
                 connection_id, validated_data
@@ -774,138 +791,6 @@ async def get_player_stats(player_id: str) -> Dict[str, Union[str, int, float]]:
 
 
 # ==================== Simple WebSocket for Frontend ====================
-
-
-@app.websocket("/ws")
-async def simple_websocket_endpoint(websocket: WebSocket) -> None:
-    """Simple WebSocket connection for frontend."""
-    await websocket.accept()
-
-    try:
-        # Send connection confirmation
-        from backend.api.websocket_models import ConnectMessage
-
-        connect_response = ConnectMessage(type="connect")
-        await websocket.send_json(connect_response.model_dump())
-
-        # Keep connection alive
-        while True:
-            try:
-                # Try to receive JSON message first
-                try:
-                    data = await websocket.receive_json()
-                except ValueError:
-                    # If JSON parsing fails, try to receive as text
-                    try:
-                        text_data = await websocket.receive_text()
-                        logger.warning(f"Invalid JSON in text message: {text_data}")
-                        continue
-                    except Exception:
-                        # If text also fails, just log the error and continue
-                        logger.warning("Failed to parse message as JSON or text")
-                        continue
-
-                # Parse and validate message using Pydantic
-                try:
-                    # data is guaranteed to be a dict by receive_json()
-                    message = parse_websocket_message(data)
-
-                    if message.type == "ping":
-                        response = PongMessage(type="pong")
-                        await websocket.send_json(response.model_dump())
-                    # Note: create_game removed - now handled via REST API POST /games
-                    elif message.type == "join_game":
-                        # Handle joining an existing game
-                        if game_manager is None:
-                            await websocket.send_json(
-                                {"type": "error", "error": "Server not initialized"}
-                            )
-                        else:
-                            try:
-                                maybe_game = await game_manager.get_game(
-                                    message.game_id
-                                )
-                                if maybe_game is None:
-                                    await websocket.send_json(
-                                        {"type": "error", "error": "Game not found"}
-                                    )
-                                else:
-                                    game = maybe_game
-                                    # Send game state
-                                    game_response = build_game_response(game)
-                                    await websocket.send_json(
-                                        {
-                                            "type": "game_state",
-                                            "data": {
-                                                "game_id": game_response.game_id,
-                                                "status": game_response.status,
-                                                "current_turn": game_response.current_turn,
-                                                "board_display": game_response.board_display,
-                                                "player1": {
-                                                    "id": game_response.player1.id,
-                                                    "name": game_response.player1.name,
-                                                },
-                                                "player2": {
-                                                    "id": game_response.player2.id,
-                                                    "name": game_response.player2.name,
-                                                },
-                                                "winner": game_response.winner,
-                                                "board_size": 9,  # Default board size - could be made configurable
-                                                "legal_moves": [],
-                                            },
-                                        }
-                                    )
-                            except Exception as e:
-                                logger.error(f"Failed to join game via WebSocket: {e}")
-                                await websocket.send_json(
-                                    {
-                                        "type": "error",
-                                        "error": f"Failed to join game: {str(e)}",
-                                    }
-                                )
-                    elif message.type == "get_ai_move":
-                        # Handle AI move request
-                        if game_manager is None:
-                            await websocket.send_json(
-                                {"type": "error", "error": "Server not initialized"}
-                            )
-                        else:
-                            try:
-                                # Trigger AI move processing
-                                await game_manager.trigger_ai_move(message.game_id)
-                                await websocket.send_json(
-                                    {
-                                        "type": "ai_move_requested",
-                                        "game_id": message.game_id,
-                                    }
-                                )
-                            except Exception as e:
-                                logger.error(
-                                    f"Failed to get AI move via WebSocket: {e}"
-                                )
-                                await websocket.send_json(
-                                    {
-                                        "type": "error",
-                                        "error": f"Failed to get AI move: {str(e)}",
-                                    }
-                                )
-                    # Note: move handling removed - use REST API POST /games/{id}/moves or game-specific WebSocket
-
-                except (ValidationError, ValueError) as e:
-                    logger.warning(f"Invalid WebSocket message: {e}")
-                    continue
-
-            except WebSocketDisconnect:
-                logger.info("WebSocket client disconnected")
-                break
-            except Exception as e:
-                logger.error(f"WebSocket message error: {e}")
-                break
-
-    except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected")
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
 
 
 # ==================== Health Check ====================

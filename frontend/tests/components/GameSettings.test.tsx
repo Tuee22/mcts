@@ -26,7 +26,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
   const useGameStoreMock = vi.fn(() => store);
   // CRITICAL: getState must return the same store object with all methods
   useGameStoreMock.getState = vi.fn(() => store);
-  
+
   return {
     mockGameStore: store,
     mockUseGameStore: useGameStoreMock
@@ -61,16 +61,27 @@ describe('GameSettings Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
     // Reset the game store state for each test
-    Object.assign(mockGameStore, {
-      gameId: null,
-      gameState: null,
-      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-      isConnected: true,
-      isLoading: false,
-      error: null,
-      selectedHistoryIndex: null
-    });
+    // Use individual property assignment to ensure proper reset
+    mockGameStore.gameId = null;
+    mockGameStore.gameState = null;
+    mockGameStore.gameSettings = { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 };
+    mockGameStore.isConnected = true;
+    mockGameStore.isLoading = false;
+    mockGameStore.error = null;
+    mockGameStore.selectedHistoryIndex = null;
+
+    // Also reset function mocks
+    mockGameStore.setGameId.mockReset();
+    mockGameStore.setGameState.mockReset();
+    mockGameStore.setGameSettings.mockReset();
+    mockGameStore.setIsConnected.mockReset();
+    mockGameStore.setIsLoading.mockReset();
+    mockGameStore.setError.mockReset();
+    mockGameStore.setSelectedHistoryIndex.mockReset();
+    mockGameStore.addMoveToHistory.mockReset();
+    mockGameStore.reset.mockReset();
   });
 
   // Helper function to expand settings panel (assumes component is already rendered with toggle button)

@@ -23,6 +23,7 @@ const { mockStoreState, mockGameStore, mockUseGameStore, updateStoreAndRerender 
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
     isConnected: false,
     isLoading: false,
+    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
   };
@@ -33,6 +34,7 @@ const { mockStoreState, mockGameStore, mockUseGameStore, updateStoreAndRerender 
     setGameSettings: vi.fn((settings) => { storeState.gameSettings = { ...storeState.gameSettings, ...settings }; }),
     setIsConnected: vi.fn((connected) => { storeState.isConnected = connected; }),
     setIsLoading: vi.fn((loading) => { storeState.isLoading = loading; }),
+    setIsCreatingGame: vi.fn((creating) => { storeState.isCreatingGame = creating; }),
     setError: vi.fn((error) => { storeState.error = error; }),
     setSelectedHistoryIndex: vi.fn((index) => { storeState.selectedHistoryIndex = index; }),
     addMoveToHistory: vi.fn(),
@@ -41,6 +43,7 @@ const { mockStoreState, mockGameStore, mockUseGameStore, updateStoreAndRerender 
       storeState.gameState = null;
       storeState.gameSettings = { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 };
       storeState.isLoading = false;
+      storeState.isCreatingGame = false;
       storeState.selectedHistoryIndex = null;
       // Preserve connection state and error state as per fixed reset behavior
     })
@@ -321,10 +324,11 @@ describe('App Connection Recovery Tests', () => {
     });
 
     it('should prevent multiple game creation attempts during loading', async () => {
-      // Set initial state: connected but loading
+      // Set initial state: connected but loading and creating game
       updateStoreAndRerender({
         isConnected: true,
         isLoading: true,
+        isCreatingGame: true,
         gameId: null
       });
 

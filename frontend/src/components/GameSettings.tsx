@@ -13,8 +13,9 @@ import { createGameCreationSettings, GameSettingsInput } from '../utils/aiConfig
 import './GameSettings.css';
 
 export const GameSettings: React.FC = () => {
-  const { gameSettings, setGameSettings, isLoading, isConnected, gameId } = useGameStore();
+  const { gameSettings, setGameSettings, isLoading, isConnected, gameId, isCreatingGame } = useGameStore();
   const [showSettings, setShowSettings] = useState(false);
+  const { setIsCreatingGame } = useGameStore();
 
   const visibilityState: SettingsVisibilityState = {
     showSettings,
@@ -38,21 +39,41 @@ export const GameSettings: React.FC = () => {
     setGameSettings({ board_size: size });
   };
 
-  const startNewGame = () => {
+  const startNewGame = async () => {
     if (!isConnected) {
       return;
     }
 
-    const settingsInput: GameSettingsInput = {
-      mode: gameSettings.mode,
-      ai_difficulty: gameSettings.ai_difficulty,
-      ai_time_limit: gameSettings.ai_time_limit,
-      board_size: gameSettings.board_size
-    };
+    // Prevent multiple simultaneous game creation attempts
+    if (isLoading) {
+      return;
+    }
 
-    const gameCreationSettings = createGameCreationSettings(settingsInput);
-    wsService.createGame(gameCreationSettings);
-    setShowSettings(false);
+    try {
+      // Mark that we're actively creating a game
+      setIsCreatingGame(true);
+
+      const settingsInput: GameSettingsInput = {
+        mode: gameSettings.mode,
+        ai_difficulty: gameSettings.ai_difficulty,
+        ai_time_limit: gameSettings.ai_time_limit,
+        board_size: gameSettings.board_size
+      };
+
+      const gameCreationSettings = createGameCreationSettings(settingsInput);
+      await wsService.createGame(gameCreationSettings);
+      setShowSettings(false);
+    } catch (error) {
+      // Error handling is done by the WebSocket service through the store
+      // Just ensure we don't stay in loading state
+      console.error('Failed to create game:', error);
+      // Force clear loading state if we're still loading after error
+      const { setIsLoading } = useGameStore.getState();
+      setIsLoading(false);
+    } finally {
+      // Always clear the creating game flag
+      setIsCreatingGame(false);
+    }
   };
 
   // Use extracted visibility logic for better testability
@@ -82,6 +103,7 @@ export const GameSettings: React.FC = () => {
       settings={settingsData}
       isConnected={isConnected}
       isLoading={isLoading}
+      isCreatingGame={isCreatingGame}
       gameId={gameId}
       onModeChange={handleModeChange}
       onDifficultyChange={handleDifficultyChange}

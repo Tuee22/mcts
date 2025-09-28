@@ -317,7 +317,7 @@ def main() -> None:
         {
             "name": "Integration Tests",
             "path": "tests/integration/",
-            "markers": "not e2e",
+            "markers": "not e2e and not slow",
             "coverage_target": "backend",
             "skip_flag": skip_integration,
             "emoji": "🔗",

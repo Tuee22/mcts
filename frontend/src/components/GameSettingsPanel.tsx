@@ -12,6 +12,7 @@ export interface GameSettingsPanelProps {
   settings: GameSettingsData;
   isConnected: boolean;
   isLoading: boolean;
+  isCreatingGame: boolean;
   gameId: string | null;
   onModeChange: (mode: GameMode) => void;
   onDifficultyChange: (difficulty: 'easy' | 'medium' | 'hard' | 'expert') => void;
@@ -29,6 +30,7 @@ export const GameSettingsPanel: React.FC<GameSettingsPanelProps> = ({
   settings,
   isConnected,
   isLoading,
+  isCreatingGame,
   gameId,
   onModeChange,
   onDifficultyChange,
@@ -197,10 +199,10 @@ export const GameSettingsPanel: React.FC<GameSettingsPanelProps> = ({
         <button
           className="retro-btn start-game"
           onClick={onStartGame}
-          disabled={isLoading || !isConnected}
+          disabled={!isConnected || isCreatingGame}
           data-testid="start-game-button"
         >
-          {isLoading ? 'Starting...' : !isConnected ? 'Disconnected' : 'Start Game'}
+          {!isConnected ? 'Disconnected' : isCreatingGame ? 'Starting...' : 'Start Game'}
         </button>
         {gameId && onCancel && (
           <button

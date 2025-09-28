@@ -387,7 +387,7 @@ class TestBoardInteractions:
 
             # Test hover interaction on a legal move
             first_legal = legal_moves.first
-            await first_legal.hover()  # type: ignore
+            await first_legal.hover()
             await async_page.wait_for_timeout(300)
             print("✅ Legal move hover interaction working")
 
@@ -436,7 +436,7 @@ class TestBoardInteractions:
             # Test tap on first cell
             first_cell = game_cells.first
             try:
-                await first_cell.tap()  # type: ignore
+                await first_cell.tap()
                 print("✅ Cell tap interaction working")
             except AttributeError:
                 await first_cell.click()

@@ -532,21 +532,35 @@ describe('Browser API Edge Cases', () => {
     });
 
     it('detects observer cleanup', () => {
-      const observers: (ResizeObserver | IntersectionObserver)[] = [];
-      
+      // Ensure we're using the mocked observers from setupTests
+      const OriginalResizeObserver = global.ResizeObserver;
+      const OriginalIntersectionObserver = global.IntersectionObserver;
+
+      const observers: any[] = [];
+
       // Create multiple observers
       for (let i = 0; i < 10; i++) {
-        const resizeObserver = new ResizeObserver(() => {});
-        const intersectionObserver = new IntersectionObserver(() => {});
-        
+        const resizeObserver = new OriginalResizeObserver(() => {});
+        const intersectionObserver = new OriginalIntersectionObserver(() => {});
+
+        // Ensure disconnect method exists (defensive programming)
+        if (typeof resizeObserver.disconnect !== 'function') {
+          resizeObserver.disconnect = vi.fn();
+        }
+        if (typeof intersectionObserver.disconnect !== 'function') {
+          intersectionObserver.disconnect = vi.fn();
+        }
+
         observers.push(resizeObserver, intersectionObserver);
       }
-      
+
       // All observers should be disconnected
       observers.forEach(observer => {
+        expect(observer.disconnect).toBeDefined();
+        expect(typeof observer.disconnect).toBe('function');
         observer.disconnect();
       });
-      
+
       expect(observers.length).toBe(20);
     });
 

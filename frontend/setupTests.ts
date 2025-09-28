@@ -139,21 +139,42 @@ vi.mock('react-hot-toast', () => ({
 beforeAll(() => {
   // Mock browser APIs that don't exist in jsdom
   setupBrowserAPIs();
-  
+
   // Mock performance APIs
   setupPerformanceAPIs();
-  
+
   // Setup console error filtering for cleaner test output
   setupConsoleFiltering();
 });
 
+// Additional cleanup before each test to ensure fresh state
+beforeEach(() => {
+  // Ensure clean DOM before each test
+  cleanup();
+
+  // Clear document body
+  if (document.body) {
+    document.body.innerHTML = '';
+  }
+});
+
 // Cleanup after each test automatically
 afterEach(() => {
+  // Clean up React Testing Library DOM
   cleanup();
-  // Clear all mocks after each test
+
+  // Clear all mock calls and instances
   vi.clearAllMocks();
-  // Note: vi.resetModules() can be too aggressive and break test isolation
-  // Instead, rely on individual test files to properly manage their mocks
+
+  // Selectively reset modules that cause state leakage
+  // Only reset modules that don't break test isolation
+  try {
+    // Reset React-related modules that might hold state
+    vi.resetModules(['@/store/gameStore', '@/services/websocket']);
+  } catch {
+    // Module reset failed, continue
+  }
+
   // Clear timers and intervals if they are mocked
   try {
     vi.clearAllTimers();
@@ -161,10 +182,12 @@ afterEach(() => {
   } catch {
     // Timers are not mocked, skip
   }
+
   // Reset clipboard mock if it exists
   if (navigator.clipboard && 'mockReset' in navigator.clipboard) {
     (navigator.clipboard as any).mockReset();
   }
+
   // Clear any pending timeouts/intervals
   if (typeof window !== 'undefined') {
     // Clear any lingering timeouts
@@ -173,6 +196,22 @@ afterEach(() => {
       clearInterval(i);
     }
   }
+
+  // Clean up DOM state more thoroughly
+  if (document.body) {
+    document.body.innerHTML = '';
+  }
+
+  // Reset global React state if available
+  if ((globalThis as any).React) {
+    // Clear any cached React instances
+    try {
+      (globalThis as any).React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = undefined;
+    } catch {
+      // React internals not available
+    }
+  }
+
   // Force garbage collection if available
   if (global.gc) {
     global.gc();
@@ -253,8 +292,11 @@ function setupBrowserAPIs() {
       url,
       readyState: WebSocket.CONNECTING,
       send: vi.fn(),
-      close: vi.fn(() => {
-        ws.readyState = WebSocket.CLOSED;
+      close: vi.fn(function(this: any) {
+        this.readyState = WebSocket.CLOSED;
+        if (this.onclose) {
+          this.onclose(new CloseEvent('close'));
+        }
       }),
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -264,13 +306,24 @@ function setupBrowserAPIs() {
       onmessage: null,
       onerror: null
     };
-    
+
+    // Bind close method to ws instance for proper 'this' context
+    ws.close = ws.close.bind(ws);
+
+    // Ensure the close method is always available and bound
+    Object.defineProperty(ws, 'close', {
+      value: ws.close,
+      writable: false,
+      enumerable: true,
+      configurable: false
+    });
+
     // Simulate connection opening after a tick
     setTimeout(() => {
       ws.readyState = WebSocket.OPEN;
       if (ws.onopen) ws.onopen(new Event('open'));
     }, 0);
-    
+
     return ws;
   }) as any;
 
@@ -281,21 +334,29 @@ function setupBrowserAPIs() {
   Object.defineProperty(WebSocket, 'CLOSED', { value: 3 });
 
   // Mock ResizeObserver
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn()
-  }));
+  global.ResizeObserver = class ResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+
+    constructor(callback?: ResizeObserverCallback) {
+      // Store callback if needed for testing
+    }
+  } as any;
 
   // Mock IntersectionObserver
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-    root: null,
-    rootMargin: '',
-    thresholds: []
-  }));
+  global.IntersectionObserver = class IntersectionObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+    root = null;
+    rootMargin = '';
+    thresholds: number[] = [];
+
+    constructor(callback?: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      // Store callback and options if needed for testing
+    }
+  } as any;
 
   // Mock matchMedia
   Object.defineProperty(window, 'matchMedia', {
@@ -313,33 +374,205 @@ function setupBrowserAPIs() {
     }))
   });
 
-  // Mock Canvas API
-  HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation(() => ({
+  // Mock Canvas API with comprehensive implementation
+  const mockCanvasContext = {
+    // Drawing rectangles
     fillRect: vi.fn(),
     clearRect: vi.fn(),
-    getImageData: vi.fn(() => ({ data: new Array(4) })),
-    putImageData: vi.fn(),
-    createImageData: vi.fn(() => ({ data: new Array(4) })),
-    setTransform: vi.fn(),
-    drawImage: vi.fn(),
-    save: vi.fn(),
-    fillText: vi.fn(),
-    restore: vi.fn(),
+    strokeRect: vi.fn(),
+
+    // Drawing paths
     beginPath: vi.fn(),
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     closePath: vi.fn(),
     stroke: vi.fn(),
+    fill: vi.fn(),
+    clip: vi.fn(),
+    arc: vi.fn(),
+    arcTo: vi.fn(),
+    bezierCurveTo: vi.fn(),
+    quadraticCurveTo: vi.fn(),
+    rect: vi.fn(),
+    ellipse: vi.fn(),
+
+    // Text
+    fillText: vi.fn(),
+    strokeText: vi.fn(),
+    measureText: vi.fn(() => ({
+      width: 100,
+      actualBoundingBoxLeft: 0,
+      actualBoundingBoxRight: 100,
+      actualBoundingBoxAscent: 10,
+      actualBoundingBoxDescent: 2,
+      fontBoundingBoxAscent: 12,
+      fontBoundingBoxDescent: 3,
+      emHeightAscent: 10,
+      emHeightDescent: 2,
+      hangingBaseline: 8,
+      alphabeticBaseline: 0,
+      ideographicBaseline: -2
+    })),
+
+    // Transformations
     translate: vi.fn(),
     scale: vi.fn(),
     rotate: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
-    measureText: vi.fn(() => ({ width: 0 })),
     transform: vi.fn(),
-    rect: vi.fn(),
-    clip: vi.fn()
+    setTransform: vi.fn(),
+    resetTransform: vi.fn(),
+
+    // Image drawing
+    drawImage: vi.fn(),
+
+    // Pixel manipulation
+    getImageData: vi.fn(() => ({
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1,
+      colorSpace: 'srgb'
+    })),
+    putImageData: vi.fn(),
+    createImageData: vi.fn((width: number = 1, height: number = 1) => ({
+      data: new Uint8ClampedArray(width * height * 4),
+      width,
+      height,
+      colorSpace: 'srgb'
+    })),
+
+    // State
+    save: vi.fn(),
+    restore: vi.fn(),
+
+    // Gradients and patterns
+    createLinearGradient: vi.fn(() => ({
+      addColorStop: vi.fn()
+    })),
+    createRadialGradient: vi.fn(() => ({
+      addColorStop: vi.fn()
+    })),
+    createPattern: vi.fn(() => null),
+
+    // Line styles
+    setLineDash: vi.fn(),
+    getLineDash: vi.fn(() => []),
+
+    // Filters and compositing
+    filter: 'none',
+    globalAlpha: 1,
+    globalCompositeOperation: 'source-over',
+
+    // Fill and stroke styles
+    fillStyle: '#000000',
+    strokeStyle: '#000000',
+    lineWidth: 1,
+    lineCap: 'butt',
+    lineJoin: 'miter',
+    miterLimit: 10,
+    lineDashOffset: 0,
+
+    // Shadow styles
+    shadowBlur: 0,
+    shadowColor: 'rgba(0, 0, 0, 0)',
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+
+    // Text styles
+    font: '10px sans-serif',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
+    direction: 'inherit',
+    fontKerning: 'auto',
+
+    // Path2D support
+    isPointInPath: vi.fn(() => false),
+    isPointInStroke: vi.fn(() => false)
+  };
+
+  // Enhanced HTMLCanvasElement mock - always returns a context
+  HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation((contextType: string, options?: any) => {
+    if (contextType === '2d') {
+      return mockCanvasContext;
+    } else if (contextType === 'webgl' || contextType === 'webgl2') {
+      // Basic WebGL mock
+      return {
+        canvas: {},
+        drawingBufferWidth: 300,
+        drawingBufferHeight: 150,
+        getParameter: vi.fn(),
+        getExtension: vi.fn(() => null),
+        getSupportedExtensions: vi.fn(() => []),
+        createShader: vi.fn(),
+        createProgram: vi.fn(),
+        attachShader: vi.fn(),
+        linkProgram: vi.fn(),
+        useProgram: vi.fn(),
+        createBuffer: vi.fn(),
+        bindBuffer: vi.fn(),
+        bufferData: vi.fn(),
+        vertexAttribPointer: vi.fn(),
+        enableVertexAttribArray: vi.fn(),
+        drawArrays: vi.fn(),
+        viewport: vi.fn(),
+        clearColor: vi.fn(),
+        clear: vi.fn()
+      };
+    }
+    // Always return a basic context even for unknown types to prevent undefined
+    return mockCanvasContext;
+  });
+
+  // Mock canvas dimensions and properties
+  Object.defineProperty(HTMLCanvasElement.prototype, 'width', {
+    get: vi.fn(() => 300),
+    set: vi.fn(),
+    configurable: true
+  });
+
+  Object.defineProperty(HTMLCanvasElement.prototype, 'height', {
+    get: vi.fn(() => 150),
+    set: vi.fn(),
+    configurable: true
+  });
+
+  // Mock toDataURL and other canvas methods
+  HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,mock');
+  HTMLCanvasElement.prototype.toBlob = vi.fn((callback) => {
+    if (callback) {
+      callback(new Blob(['mock'], { type: 'image/png' }));
+    }
+  });
+  HTMLCanvasElement.prototype.getImageData = vi.fn(() => mockCanvasContext.getImageData());
+  HTMLCanvasElement.prototype.transferControlToOffscreen = vi.fn(() => ({
+    getContext: vi.fn(() => mockCanvasContext)
   }));
+
+  // Enhance canvas elements created in tests without breaking JSX rendering
+  const originalCreateElement = document.createElement.bind(document);
+  document.createElement = function(tagName: string, options?: any) {
+    const element = originalCreateElement.call(this, tagName, options);
+    if (tagName.toLowerCase() === 'canvas') {
+      // Enhance canvas elements with better getContext mock
+      element.getContext = vi.fn().mockImplementation((contextType: string) => {
+        if (contextType === '2d' || contextType === 'webgl' || contextType === 'webgl2') {
+          return mockCanvasContext;
+        }
+        return mockCanvasContext; // Always return context to prevent undefined
+      });
+      Object.defineProperty(element, 'width', {
+        get: () => 300,
+        set: vi.fn(),
+        configurable: true
+      });
+      Object.defineProperty(element, 'height', {
+        get: () => 150,
+        set: vi.fn(),
+        configurable: true
+      });
+    }
+    return element;
+  };
+
 
   // Mock URL.createObjectURL and URL.revokeObjectURL
   global.URL.createObjectURL = vi.fn(() => 'mock-url');
@@ -410,10 +643,17 @@ function setupConsoleFiltering() {
         message.includes('Warning: componentWillMount') ||
         message.includes('Warning: An update to') ||
         message.includes('Warning: useLayoutEffect does nothing on the server') ||
-        message.includes('Warning: `ReactDOMTestUtils.act` is deprecated')
+        message.includes('Warning: `ReactDOMTestUtils.act` is deprecated') ||
+        // Suppress expected test error messages
+        message.includes('Failed to create game:') ||
+        message.includes('Failed to create new game:') ||
+        message.includes('Connection lost') ||
+        message.includes('WebSocket connection failed') ||
+        message.includes('Error creating game:') ||
+        message.includes('Game creation failed')
       )
     ) {
-      return; // Suppress known React warnings in tests
+      return; // Suppress known React warnings and expected test errors
     }
     originalConsoleError.call(console, ...args);
   };

@@ -424,11 +424,11 @@ describe('Game Store Persistence Tests', () => {
       expect(result.current.gameState).toBeNull();
       expect(result.current.isLoading).toBe(false);
 
-      // Settings, connection, and error should be preserved (by design)
+      // Settings and connection should be preserved, error should be cleared (by design)
       expect(result.current.gameSettings.mode).toBe('ai_vs_ai');
       expect(result.current.gameSettings.board_size).toBe(7);
       expect(result.current.isConnected).toBe(true);
-      expect(result.current.error).toBe('Some error');
+      expect(result.current.error).toBe(null); // Error is cleared on reset
     });
 
     it('should allow selective state clearing', () => {

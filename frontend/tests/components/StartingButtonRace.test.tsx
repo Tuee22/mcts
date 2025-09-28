@@ -37,9 +37,11 @@ describe('Starting Button Race Condition Tests', () => {
     },
     setGameSettings: vi.fn(),
     isLoading: false,
+    isCreatingGame: false,
     isConnected: true,
     gameId: null,
-    reset: vi.fn()
+    reset: vi.fn(),
+    setIsCreatingGame: vi.fn()
   };
 
   beforeEach(() => {
@@ -65,11 +67,12 @@ describe('Starting Button Race Condition Tests', () => {
       expect(startButton).toHaveTextContent('Start Game');
       await user.click(startButton);
 
-      // Simulate loading state
+      // Simulate loading state with active game creation
       act(() => {
         mockUseGameStore.mockReturnValue({
           ...baseMockStore,
           isLoading: true,
+          isCreatingGame: true,
           reset: resetMock
         });
       });
@@ -107,6 +110,7 @@ describe('Starting Button Race Condition Tests', () => {
         mockUseGameStore.mockReturnValue({
           ...baseMockStore,
           isLoading: true,  // This is the key - loading state gets stuck
+          isCreatingGame: false,  // But we're NOT actively creating a game (race condition)
           gameId: null,     // But game is reset
           reset: resetMock
         });
@@ -137,12 +141,13 @@ describe('Starting Button Race Condition Tests', () => {
       const startButton = screen.getByTestId('start-game-button');
       await user.click(startButton);
 
-      // Simulate loading with WebSocket issue
+      // Simulate loading state (keep connection during loading)
       act(() => {
         mockUseGameStore.mockReturnValue({
           ...baseMockStore,
           isLoading: true,
-          isConnected: false  // Connection lost during creation
+          isCreatingGame: true,  // Must be actively creating to show "Starting..."
+          isConnected: true  // Keep connected during loading to show settings panel
         });
       });
       rerender(<GameSettings />);
@@ -178,11 +183,11 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate the exact sequence that causes the race condition
       const stateSequence = [
-        { ...baseMockStore, isLoading: false, gameId: null },     // Initial
-        { ...baseMockStore, isLoading: true, gameId: null },      // Start game
-        { ...baseMockStore, isLoading: false, gameId: 'game-1' }, // Game created
-        { ...baseMockStore, isLoading: true, gameId: null },      // New Game clicked (RACE CONDITION)
-        { ...baseMockStore, isLoading: false, gameId: null }      // Should recover
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },     // Initial
+        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: null },       // Start game
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: 'game-1' }, // Game created
+        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },      // New Game clicked (RACE CONDITION - stale loading)
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }      // Should recover
       ];
 
       for (const [index, state] of stateSequence.entries()) {
@@ -192,15 +197,15 @@ describe('Starting Button Race Condition Tests', () => {
         rerender(<GameSettings />);
 
         if (index === 3) {
-          // This is the problematic state - loading=true but gameId=null
-          // The button should NOT get stuck here
+          // This is the problematic state - loading=true but gameId=null, isCreatingGame=false
+          // With our fix, the button should NOT get stuck in "Starting..." state
           const buttonDuringRace = screen.getByTestId('start-game-button');
           const buttonText = buttonDuringRace.textContent;
           const isDisabled = buttonDuringRace.hasAttribute('disabled');
 
-          // Verify the race condition state
-          expect(buttonText).toBe('Starting...');
-          expect(isDisabled).toBe(true);
+          // Verify the race condition is fixed - should show "Start Game" not "Starting..."
+          expect(buttonText).toBe('Start Game');
+          expect(isDisabled).toBe(false);
         }
 
         if (index === 4) {
@@ -265,6 +270,7 @@ describe('Starting Button Race Condition Tests', () => {
         mockUseGameStore.mockReturnValue({
           ...baseMockStore,
           isLoading: true,
+          isCreatingGame: true,  // Must be actively creating to show "Starting..."
           gameId: null,
           reset: resetMock
         });
@@ -303,12 +309,12 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Rapid fire state changes (simulates real race condition timing)
       const rapidStates = [
-        { ...baseMockStore, isLoading: false, gameId: null },
-        { ...baseMockStore, isLoading: true, gameId: null },
-        { ...baseMockStore, isLoading: true, gameId: 'temp-1' },
-        { ...baseMockStore, isLoading: false, gameId: 'temp-1' },
-        { ...baseMockStore, isLoading: true, gameId: null },    // Reset during loading
-        { ...baseMockStore, isLoading: false, gameId: null }
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },
+        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: null },
+        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },   // Stuck loading without creation
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },  // Recovery
+        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },   // Reset during loading
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }
       ];
 
       let stuckStateDetected = false;

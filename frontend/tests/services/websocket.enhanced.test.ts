@@ -8,6 +8,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
     isConnected: false,
     isLoading: false,
+    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
     setGameId: vi.fn(),
@@ -15,6 +16,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     setGameSettings: vi.fn(),
     setIsConnected: vi.fn(),
     setIsLoading: vi.fn(),
+    setIsCreatingGame: vi.fn(),
     setError: vi.fn(),
     setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
@@ -45,52 +47,12 @@ import { mockInitialGameState } from '../fixtures/gameState';
 const mockSocket = createMockWebSocket();
 mockSocket._testId = 'enhanced-websocket-instance';
 
-// Track calls to the WebSocket constructor
+// Track calls to the WebSocket constructor and store mock instances
 const webSocketConstructorCalls: string[] = [];
+let mockSockets: any[] = [];
 
-global.WebSocket = vi.fn().mockImplementation((url) => {
-  webSocketConstructorCalls.push(url);
-
-  // Reset the mock socket and set the URL
-  mockSocket.reset();
-  mockSocket.url = url;
-
-  // Manually set up the handlers that the service would set up
-  // This simulates what the WebSocket service's setupEventListeners method does
-  mockSocket.onopen = () => {
-    useGameStore.getState().setIsConnected(true);
-    useGameStore.getState().setError(null);
-  };
-
-  mockSocket.onclose = () => {
-    useGameStore.getState().setIsConnected(false);
-  };
-
-  mockSocket.onerror = () => {
-    // Simulate reconnection logic - this is a simplified version
-    useGameStore.getState().setIsConnected(false);
-  };
-
-  mockSocket.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      // Handle different message types as needed for tests
-    } catch (error) {
-      // Handle parse errors
-    }
-  };
-
-  return mockSocket;
-});
-
-// Helper to get the mock socket (simplified since we only have one)
-const getLatestSocket = () => mockSocket;
-
-// Define WebSocket constants
-Object.defineProperty(WebSocket, 'CONNECTING', { value: 0 });
-Object.defineProperty(WebSocket, 'OPEN', { value: 1 });
-Object.defineProperty(WebSocket, 'CLOSING', { value: 2 });
-Object.defineProperty(WebSocket, 'CLOSED', { value: 3 });
+// Helper to get the latest mock socket
+const getLatestSocket = () => mockSockets[mockSockets.length - 1] || mockSocket;
 
 // Mock fetch globally
 const mockFetch = createMockFetch();
@@ -113,6 +75,59 @@ describe('WebSocket Service Enhanced Tests', () => {
     // Reset main mock socket
     mockSocket.reset();
     mockSocket.url = '';
+
+    // Clear mock sockets array
+    mockSockets = [];
+    webSocketConstructorCalls.length = 0;
+
+    // Set up fresh WebSocket mock using vi.stubGlobal for proper cleanup
+    vi.stubGlobal('WebSocket', vi.fn().mockImplementation((url) => {
+      webSocketConstructorCalls.push(url);
+
+      // Create a fresh mock for each WebSocket instantiation
+      const freshMockSocket = createMockWebSocket();
+      freshMockSocket.url = url;
+      mockSockets.push(freshMockSocket);
+
+      // Ensure previous sockets can be closed if they exist
+      if (mockSockets.length > 1) {
+        const prevSocket = mockSockets[mockSockets.length - 2];
+        if (!prevSocket.close || typeof prevSocket.close !== 'function') {
+          prevSocket.close = vi.fn();
+        }
+      }
+
+      // Set up the handlers that the service would set up
+      freshMockSocket.onopen = () => {
+        mockGameStore.setIsConnected(true);
+        mockGameStore.setError(null);
+      };
+
+      freshMockSocket.onclose = () => {
+        mockGameStore.setIsConnected(false);
+      };
+
+      freshMockSocket.onerror = () => {
+        mockGameStore.setIsConnected(false);
+      };
+
+      freshMockSocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // Handle different message types as needed for tests
+        } catch (error) {
+          // Handle parse errors
+        }
+      };
+
+      return freshMockSocket;
+    }));
+
+    // Define WebSocket constants for the stubbed mock
+    Object.defineProperty(global.WebSocket, 'CONNECTING', { value: 0 });
+    Object.defineProperty(global.WebSocket, 'OPEN', { value: 1 });
+    Object.defineProperty(global.WebSocket, 'CLOSING', { value: 2 });
+    Object.defineProperty(global.WebSocket, 'CLOSED', { value: 3 });
 
     // Reset fetch mock
     mockFetch.mockClear();
@@ -151,6 +166,14 @@ describe('WebSocket Service Enhanced Tests', () => {
   afterEach(() => {
     wsService.disconnect();
     consoleErrorSpy.mockRestore();
+
+    // Clean up mock sockets
+    mockSockets = [];
+    webSocketConstructorCalls.length = 0;
+
+    // Restore global mocks for proper isolation
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
   describe('connectToGame Method (Previously Untested)', () => {

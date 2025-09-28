@@ -9,6 +9,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
     isConnected: true,
     isLoading: false,
+    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
     setGameId: vi.fn(),
@@ -16,6 +17,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     setGameSettings: vi.fn(),
     setIsConnected: vi.fn(),
     setIsLoading: vi.fn(),
+    setIsCreatingGame: vi.fn(),
     setError: vi.fn(),
     setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
@@ -175,10 +177,11 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toHaveTextContent('Start Game');
       expect(startButton).toBeEnabled();
       
-      // Loading state
+      // Loading state - must set isCreatingGame for "Starting..." text
       mockGameStore.isLoading = true;
+      mockGameStore.isCreatingGame = true;
       rerender(<GameSettings />);
-      
+
       expect(startButton).toHaveTextContent('Starting...');
       expect(startButton).toBeDisabled();
       
@@ -204,10 +207,12 @@ describe('GameSettings Connection Tests', () => {
       // Simulate loading while disconnected (edge case)
       mockGameStore.isConnected = false;
       mockGameStore.isLoading = true;
+      mockGameStore.isCreatingGame = true;
       rerender(<GameSettings />);
-      
+
       const startButton = screen.getByTestId('start-game-button');
-      expect(startButton).toHaveTextContent('Starting...');
+      // With our new implementation, "Disconnected" takes priority over "Starting..."
+      expect(startButton).toHaveTextContent('Disconnected');
       expect(startButton).toBeDisabled();
     });
 
@@ -223,19 +228,20 @@ describe('GameSettings Connection Tests', () => {
       
       const startButton = screen.getByTestId('start-game-button');
       
-      // Rapid state changes
+      // Rapid state changes - isCreatingGame needed for "Starting..." text
       const states = [
-        { isConnected: true, isLoading: false, expected: 'Start Game' },
-        { isConnected: false, isLoading: false, expected: 'Disconnected' },
-        { isConnected: true, isLoading: true, expected: 'Starting...' },
-        { isConnected: true, isLoading: false, expected: 'Start Game' },
+        { isConnected: true, isLoading: false, isCreatingGame: false, expected: 'Start Game' },
+        { isConnected: false, isLoading: false, isCreatingGame: false, expected: 'Disconnected' },
+        { isConnected: true, isLoading: true, isCreatingGame: true, expected: 'Starting...' },
+        { isConnected: true, isLoading: false, isCreatingGame: false, expected: 'Start Game' },
       ];
       
       for (const state of states) {
         mockGameStore.isConnected = state.isConnected;
         mockGameStore.isLoading = state.isLoading;
+        mockGameStore.isCreatingGame = state.isCreatingGame;
         rerender(<GameSettings />);
-        
+
         expect(startButton).toHaveTextContent(state.expected);
       }
     });

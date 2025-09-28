@@ -33,8 +33,10 @@ describe('GameSettings Visibility Logic', () => {
     },
     setGameSettings: vi.fn(),
     isLoading: false,
+    isCreatingGame: false,
     isConnected: true,
-    gameId: null
+    gameId: null,
+    setIsCreatingGame: vi.fn()
   };
 
   beforeEach(() => {
@@ -213,10 +215,11 @@ describe('GameSettings Visibility Logic', () => {
   });
 
   describe('Loading state', () => {
-    it('should show loading text on start button when loading', () => {
+    it('should show loading text on start button when creating game', () => {
       mockUseGameStore.mockReturnValue({
         ...defaultMockStore,
-        isLoading: true
+        isLoading: true,
+        isCreatingGame: true
       });
 
       render(<GameSettings />);

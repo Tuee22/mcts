@@ -37,8 +37,10 @@ describe('GameSettings Race Condition Tests', () => {
     },
     setGameSettings: vi.fn(),
     isLoading: false,
+    isCreatingGame: false,
     isConnected: true,
-    gameId: null
+    gameId: null,
+    setIsCreatingGame: vi.fn()
   };
 
   beforeEach(() => {
@@ -308,13 +310,13 @@ describe('GameSettings Race Condition Tests', () => {
     it('should handle loading state changes during rapid transitions', async () => {
       const { rerender } = render(<GameSettings />);
 
-      // Rapid loading state changes
+      // Rapid loading state changes - include isCreatingGame for proper "Starting..." behavior
       const loadingStates = [
-        { ...baseMockStore, isLoading: false },
-        { ...baseMockStore, isLoading: true },
-        { ...baseMockStore, isLoading: false, gameId: 'game-1' },
-        { ...baseMockStore, isLoading: true, gameId: 'game-1' },
-        { ...baseMockStore, isLoading: false, gameId: null }
+        { ...baseMockStore, isLoading: false, isCreatingGame: false },
+        { ...baseMockStore, isLoading: true, isCreatingGame: true },
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: 'game-1' },
+        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: 'game-1' },
+        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }
       ];
 
       for (const state of loadingStates) {
@@ -324,7 +326,7 @@ describe('GameSettings Race Condition Tests', () => {
         rerender(<GameSettings />);
 
         // Verify loading states don't break UI
-        if (state.isLoading && !state.gameId) {
+        if (state.isCreatingGame && !state.gameId) {
           const startButton = screen.getByTestId('start-game-button');
           expect(startButton).toBeDisabled();
           expect(startButton).toHaveTextContent('Starting...');

@@ -66,10 +66,10 @@ class WebSocketService {
   }
 
   disconnectFromGame() {
-    if (this.gameSocket && this.gameSocket.readyState === WebSocket.OPEN) {
+    if (this.gameSocket && typeof this.gameSocket.close === 'function') {
       this.gameSocket.close();
+      this.gameSocket = null;
     }
-    this.gameSocket = null;
     this.currentGameId = null;
   }
 
@@ -435,7 +435,7 @@ class WebSocketService {
   }
 
   disconnect() {
-    if (this.socket) {
+    if (this.socket && typeof this.socket.close === 'function') {
       this.socket.close();
       this.socket = null;
     }

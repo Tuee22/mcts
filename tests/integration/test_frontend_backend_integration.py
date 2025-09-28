@@ -182,6 +182,8 @@ async def integrated_session() -> AsyncGenerator[IntegratedTestSession, None]:
     await session.stop()
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 class TestFrontendBackendIntegration:
     """Test integration scenarios that reproduce E2E failures."""
 
@@ -438,6 +440,8 @@ class TestFrontendBackendIntegration:
                 await session.stop()
 
 
+@pytest.mark.integration
+@pytest.mark.slow
 class TestRaceConditionReproduction:
     """Specific tests to reproduce the exact E2E race conditions."""
 

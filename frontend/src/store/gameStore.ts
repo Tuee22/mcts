@@ -7,6 +7,7 @@ interface GameStore {
   gameSettings: GameSettings;
   isConnected: boolean;
   isLoading: boolean;
+  isCreatingGame: boolean;
   error: string | null;
   selectedHistoryIndex: number | null;
   
@@ -15,6 +16,7 @@ interface GameStore {
   setGameSettings: (settings: Partial<GameSettings>) => void;
   setIsConnected: (connected: boolean) => void;
   setIsLoading: (loading: boolean) => void;
+  setIsCreatingGame: (creating: boolean) => void;
   setError: (error: string | null) => void;
   setSelectedHistoryIndex: (index: number | null) => void;
   addMoveToHistory: (move: Move) => void;
@@ -34,6 +36,7 @@ export const useGameStore = create<GameStore>((set) => ({
   gameSettings: defaultSettings,
   isConnected: false,
   isLoading: false,
+  isCreatingGame: false,
   error: null,
   selectedHistoryIndex: null,
   
@@ -53,6 +56,7 @@ export const useGameStore = create<GameStore>((set) => ({
   })),
   setIsConnected: (connected) => set({ isConnected: connected }),
   setIsLoading: (loading) => set({ isLoading: loading }),
+  setIsCreatingGame: (creating) => set({ isCreatingGame: creating }),
   setError: (error) => set({ error }),
   setSelectedHistoryIndex: (index) => set({ selectedHistoryIndex: index }),
   addMoveToHistory: (move) => set((state) => ({
@@ -64,15 +68,14 @@ export const useGameStore = create<GameStore>((set) => ({
   reset: () => set((state) => ({
     gameId: null,
     gameState: null,
-    isLoading: false,
+    isLoading: false,  // ALWAYS reset loading state
+    isCreatingGame: false,  // ALWAYS reset game creation state
     selectedHistoryIndex: null,
     // Design Decision: Preserve user preferences during reset
     // - gameSettings: Users expect their chosen mode/difficulty to persist when starting new games
     // - isConnected: Connection state should persist (don't disconnect on new game)
-    // - error: Preserve error information to help user understand connection issues
-    // This provides better UX than forcing users to reconfigure settings each time
     gameSettings: state.gameSettings,
     isConnected: state.isConnected,
-    error: state.error,
+    error: null,  // Clear errors on reset for fresh start
   })),
 }));

@@ -177,8 +177,8 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
         expect(getStore().gameState).toBe(null);
         expect(getStore().isLoading).toBe(false);
         expect(getStore().isConnected).toBe(true);
-        // Error state might be preserved to help user understand issues
-        expect(getStore().error).toBe(errorState);
+        // Error state is cleared on reset for fresh start (updated behavior)
+        expect(getStore().error).toBe(null);
       });
     });
   });
@@ -328,9 +328,9 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       // Reset while disconnected
       getStore().reset();
       
-      // Should preserve disconnection context but clear game data
+      // Should preserve disconnection context but clear game data and errors
       expect(getStore().isConnected).toBe(false);
-      expect(getStore().error).toBe('WebSocket connection lost');
+      expect(getStore().error).toBe(null); // Errors are cleared on reset
       expect(getStore().gameId).toBe(null);
       expect(getStore().gameState).toBe(null);
     });
@@ -458,7 +458,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       expect(getStore().gameId).toBe(null);
       expect(getStore().gameState).toBe(null);
       expect(getStore().isConnected).toBe(true);
-      expect(getStore().error).toBe('concurrent error'); // Last error preserved
+      expect(getStore().error).toBe(null); // Reset clears errors
     });
   });
 });
