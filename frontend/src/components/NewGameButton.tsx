@@ -1,7 +1,6 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 import { wsService } from '../services/websocket';
-import { createGameCreationSettings } from '../utils/aiConfig';
 
 interface NewGameButtonProps {
   className?: string;
@@ -12,47 +11,37 @@ export const NewGameButton: React.FC<NewGameButtonProps> = ({
   className = "retro-btn new-game",
   dataTestId = "new-game-button"
 }) => {
-  const {
-    gameId,
-    isConnected,
-    isLoading,
-    gameSettings,
-    reset
-  } = useGameStore();
+  const store = useGameStore();
+  const isConnected = store.isConnected();
+  const gameId = store.getCurrentGameId();
+  const isTransitioning = store.session.type === 'game-ending';
 
-  // Don't render if no active game
+  // Type-safe: Only render when game is active or ending
   if (!gameId) {
     return null;
   }
 
-  const isDisabled = !isConnected || isLoading;
+  const isDisabled = !isConnected || isTransitioning;
 
   const getTitle = () => {
     if (!isConnected) return 'Connect to server to start a new game';
-    if (isLoading) return 'Please wait, starting new game...';
+    if (isTransitioning) return 'Ending current game...';
     return 'Start a new game';
   };
 
-  const handleNewGame = async () => {
+  const handleNewGame = () => {
     if (isDisabled) return;
 
-    // Disconnect from game-specific WebSocket first to prevent race conditions
+    // Type-safe state transition: active-game -> game-ending -> no-game
+    store.dispatch({ type: 'NEW_GAME_CLICKED' });
+    
+    // Disconnect from game-specific WebSocket
     wsService.disconnectFromGame();
-    reset();
-
-    // Create new game with current settings
-    const gameCreationSettings = createGameCreationSettings({
-      mode: gameSettings.mode,
-      ai_difficulty: gameSettings.ai_difficulty,
-      ai_time_limit: gameSettings.ai_time_limit,
-      board_size: gameSettings.board_size
-    });
-
-    try {
-      await wsService.createGame(gameCreationSettings);
-    } catch (error) {
-      console.error('Failed to create new game:', error);
-    }
+    
+    // Transition to no-game state after cleanup
+    setTimeout(() => {
+      store.dispatch({ type: 'GAME_ENDING_COMPLETE' });
+    }, 100);
   };
 
   return (

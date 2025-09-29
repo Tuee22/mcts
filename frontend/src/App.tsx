@@ -6,94 +6,99 @@ import { GameBoard } from './components/GameBoard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameSettings } from './components/GameSettings';
 import { NewGameButton } from './components/NewGameButton';
+import { exhaustiveCheck } from './types/appState';
 import './App.css';
 
 function App() {
-  const {
-    gameState,
-    gameId,
-    isConnected,
-    error,
-    gameSettings,
-    setError,
-    reset
-  } = useGameStore();
-
+  const store = useGameStore();
+  const { connection, session } = store;
+  const { gameSettings } = store.settings;
+  const isConnected = store.isConnected();
+  
+  // Handle connection lifecycle
   useEffect(() => {
     wsService.connect();
+    store.dispatch({ type: 'CONNECTION_START' });
     
     return () => {
       wsService.disconnect();
+      store.dispatch({ type: 'CONNECTION_LOST' });
     };
   }, []);
 
+  // Handle notifications
   useEffect(() => {
-    if (error) {
-      toast.error(error, {
-        duration: 4000,
-        style: {
-          background: '#ff4444',
-          color: '#ffffff',
-          fontFamily: 'Press Start 2P, monospace',
-          fontSize: '10px',
-        },
-      });
-      setError(null);
-    }
-  }, [error, setError]);
+    const notifications = store.ui.notifications;
+    notifications.forEach(notification => {
+      if (notification.type === 'error') {
+        toast.error(notification.message, {
+          id: notification.id,
+          duration: 4000,
+          style: {
+            background: '#ff4444',
+            color: '#ffffff',
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: '10px',
+          },
+        });
+      }
+      // Remove notification after displaying
+      setTimeout(() => {
+        store.dispatch({ type: 'NOTIFICATION_REMOVED', id: notification.id });
+      }, 4000);
+    });
+  }, [store.ui.notifications]);
 
+  // Handle AI moves for AI games
   useEffect(() => {
-    if (gameState && gameSettings.mode === 'ai_vs_ai' && gameId && gameState.winner === null) {
-      const timer = setTimeout(() => {
-        if (gameState.current_player === 0 || gameState.current_player === 1) {
-          wsService.getAIMove(gameId);
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [gameState, gameSettings.mode, gameId]);
-
-  useEffect(() => {
-    if (gameState && gameSettings.mode === 'human_vs_ai' && gameId && gameState.winner === null) {
-      if (gameState.current_player === 1) {
+    if (session.type === 'active-game' && session.state.winner === null) {
+      const gameId = session.gameId;
+      const gameState = session.state;
+      
+      if (gameSettings.mode === 'ai_vs_ai') {
+        const timer = setTimeout(() => {
+          if (gameState.current_player === 0 || gameState.current_player === 1) {
+            wsService.getAIMove(gameId);
+          }
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else if (gameSettings.mode === 'human_vs_ai' && gameState.current_player === 1) {
         const timer = setTimeout(() => {
           wsService.getAIMove(gameId);
         }, 500);
         return () => clearTimeout(timer);
       }
     }
-  }, [gameState, gameSettings.mode, gameId]);
+  }, [session, gameSettings.mode]);
 
-  // App component render
-
-  return (
-    <div className="App">
-      <Toaster position="top-center" />
-
-      <header className="app-header">
-        <h1 className="app-title">CORRIDORS</h1>
-        <div className="connection-status" data-testid="connection-status">
-          <span
-            className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
-            data-testid="connection-indicator"
-          ></span>
-          <span className="status-text" data-testid="connection-text">
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </div>
-      </header>
-
-      <main className="app-main" data-testid="app-main">
-        {!gameId ? (
+  // Render based on session state - exhaustive pattern matching
+  const renderContent = () => {
+    switch (session.type) {
+      case 'no-game':
+        return (
           <div className="game-setup" data-testid="game-setup">
             <GameSettings />
           </div>
-        ) : !gameState ? (
+        );
+      
+      case 'creating-game':
+        return (
+          <div className="game-setup" data-testid="game-setup">
+            <GameSettings />
+            <div className="loading-message">Creating game...</div>
+          </div>
+        );
+      
+      case 'joining-game':
+        return (
           <div className="game-loading" data-testid="game-loading">
             <GameSettings />
-            <div className="loading-message">Loading game...</div>
+            <div className="loading-message">Joining game...</div>
           </div>
-        ) : (
+        );
+      
+      case 'active-game':
+        return (
           <div className="game-container" data-testid="game-container">
             <div className="game-left">
               <GameSettings />
@@ -127,7 +132,7 @@ function App() {
                 </div>
                 <div className="info-item">
                   <span className="info-label">Game ID:</span>
-                  <span className="info-value game-id">{gameId?.slice(0, 8)}</span>
+                  <span className="info-value game-id">{session.gameId.slice(0, 8)}</span>
                 </div>
               </div>
 
@@ -136,18 +141,16 @@ function App() {
                 <button
                   className="retro-btn"
                   onClick={() => {
-                    if (gameId && gameState) {
-                      const moveList = gameState.move_history.map(m => m.notation).join(' ');
-                      navigator.clipboard.writeText(moveList);
-                      toast.success('Moves copied to clipboard!', {
-                        style: {
-                          background: '#00ff00',
+                    const moveList = session.state.move_history.map(m => m.notation).join(' ');
+                    navigator.clipboard.writeText(moveList);
+                    toast.success('Moves copied to clipboard!', {
+                      style: {
+                        background: '#00ff00',
                           color: '#000000',
                           fontFamily: 'Press Start 2P, monospace',
                           fontSize: '10px',
                         },
                       });
-                    }
                   }}
                   data-testid="copy-moves-button"
                 >
@@ -156,7 +159,59 @@ function App() {
               </div>
             </div>
           </div>
-        )}
+        );
+      
+      case 'game-ending':
+        return (
+          <div className="game-loading" data-testid="game-loading">
+            <GameSettings />
+            <div className="loading-message">Ending game...</div>
+          </div>
+        );
+      
+      case 'game-over':
+        return (
+          <div className="game-container" data-testid="game-container">
+            <div className="game-left">
+              <GameSettings />
+              <MoveHistory />
+            </div>
+            <div className="game-center">
+              <GameBoard />
+              <div className="game-over-message">
+                Game Over! Winner: Player {session.winner + 1}
+              </div>
+            </div>
+            <div className="game-right">
+              <NewGameButton />
+            </div>
+          </div>
+        );
+      
+      default:
+        return exhaustiveCheck(session);
+    }
+  };
+
+  return (
+    <div className="App">
+      <Toaster position="top-center" />
+
+      <header className="app-header">
+        <h1 className="app-title">CORRIDORS</h1>
+        <div className="connection-status" data-testid="connection-status">
+          <span
+            className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
+            data-testid="connection-indicator"
+          ></span>
+          <span className="status-text" data-testid="connection-text">
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </span>
+        </div>
+      </header>
+
+      <main className="app-main" data-testid="app-main">
+        {renderContent()}
       </main>
 
       <footer className="app-footer">
