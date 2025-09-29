@@ -50,8 +50,6 @@ def test_config() -> TestConfig:
 async def test_client(test_config: TestConfig) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client for API testing."""
     # Set environment variable to indicate we're in a test
-    import os
-
     os.environ["PYTEST_CURRENT_TEST"] = "true"
 
     # Use the app directly with proper initialization

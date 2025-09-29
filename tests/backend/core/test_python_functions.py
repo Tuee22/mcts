@@ -256,7 +256,5 @@ class TestErrorHandling:
     def test_function_imports(self) -> None:
         """Test that all expected functions can be imported."""
         # These imports should work
-        from corridors import AsyncCorridorsMCTS
-
         # Basic type checks
         assert callable(AsyncCorridorsMCTS)

@@ -11,7 +11,17 @@ import sys
 import time
 from pathlib import Path
 from types import FrameType
-from typing import Dict, List, NoReturn, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypedDict
+
+try:
+    import psutil
+except ImportError:
+    psutil = None  # type: ignore
+
+try:
+    import requests
+except ImportError:
+    requests = None  # type: ignore
 
 
 # Global variable to track running processes
@@ -119,12 +129,7 @@ class TestSuite(TypedDict):
     emoji: str
 
 
-try:
-    import psutil
-
-    PSUTIL_AVAILABLE = True
-except ImportError:
-    PSUTIL_AVAILABLE = False
+PSUTIL_AVAILABLE = psutil is not None
 
 
 def find_and_kill_process(port: int) -> None:

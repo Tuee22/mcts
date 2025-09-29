@@ -2,7 +2,7 @@
 Tests specifically designed to hit error paths and exception handling.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -88,8 +88,6 @@ class TestServerExceptionPaths:
         # Mock the game to be finished
         with patch("backend.api.server.game_manager.get_game") as mock_get_game:
             # mock_get_game is an AsyncMock, not MagicMock
-            from unittest.mock import AsyncMock
-
             assert isinstance(mock_get_game, AsyncMock)
             mock_game = MagicMock()
             mock_game.status = GameStatus.COMPLETED

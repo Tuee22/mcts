@@ -51,6 +51,10 @@ from backend.api.websocket_models import (
     parse_websocket_message,
 )
 from backend.api.pure_utils import validate_websocket_data
+from backend.api.cleanup_config import CleanupConfig, RunMode
+
+# Import uvicorn for optional server launching
+import uvicorn
 
 
 # Helper functions for working with GameState discriminated union
@@ -141,8 +145,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     ws_manager = WebSocketManager()
 
     # Determine which tasks to start using functional pattern matching
-    from backend.api.cleanup_config import CleanupConfig, RunMode
-
     config = CleanupConfig.from_environment()
 
     # Pattern matching for task startup based on runtime mode
@@ -893,16 +895,12 @@ async def serve_spa(request: Request, full_path: str) -> FileResponse:
 
 def main() -> None:
     """Production server entry point."""
-    import uvicorn
-
     # Just run FastAPI directly, Socket.IO will be handled via endpoints
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
 
 def dev() -> None:
     """Development server entry point with auto-reload."""
-    import uvicorn
-
     uvicorn.run(
         "api.server:app", host="0.0.0.0", port=8000, reload=True, log_level="debug"
     )

@@ -16,6 +16,7 @@ These tests cover unusual conditions and corner cases:
 - Algorithm edge conditions
 """
 
+import signal
 from typing import List, Tuple, Optional
 from unittest.mock import MagicMock, patch
 
@@ -331,8 +332,6 @@ class TestMCTSParameterEdgeCases:
         # This should either complete normally or raise a specific timeout/runtime error
         try:
             # Use timeout to prevent hanging - pytest-timeout can help but we'll be explicit
-            import signal
-
             def timeout_handler(signum: int, frame: object) -> None:
                 raise TimeoutError(
                     "ensure_sims call timed out - likely hanging on zero increment"

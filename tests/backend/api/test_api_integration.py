@@ -4,6 +4,7 @@ REST API integration tests for the backend API endpoints.
 Tests the actual HTTP endpoints to ensure they work correctly after the API refactoring.
 """
 
+import sys
 import pytest
 from typing import Dict, List, Union
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -274,6 +275,5 @@ class TestGameRESTAPI:
 
 if __name__ == "__main__":
     # Allow running tests directly
-    import sys
 
     sys.exit(0)  # Simplified for type safety

@@ -10,7 +10,14 @@ from unittest.mock import patch
 patch_dict = patch.dict
 from datetime import datetime, timezone, timedelta
 
-from backend.api.cleanup_config import CleanupConfig, RunMode
+from backend.api.cleanup_config import (
+    CleanupConfig,
+    RunMode,
+    TEST_TIMEOUT,
+    PRODUCTION_TIMEOUT,
+    TEST_INTERVAL,
+    PRODUCTION_INTERVAL,
+)
 from backend.api.game_manager import GameManager
 from backend.api.game_states import ActiveGame
 from backend.api.models import (
@@ -92,13 +99,6 @@ class TestCleanupConfig:
 
     def test_config_constants_exist(self) -> None:
         """Test that configuration constants are defined."""
-        from backend.api.cleanup_config import (
-            TEST_TIMEOUT,
-            PRODUCTION_TIMEOUT,
-            TEST_INTERVAL,
-            PRODUCTION_INTERVAL,
-        )
-
         assert TEST_TIMEOUT == 60
         assert PRODUCTION_TIMEOUT == 3600
         assert TEST_INTERVAL == 10
@@ -109,16 +109,9 @@ class TestCleanupConfig:
         test_config = CleanupConfig.from_environment()
 
         if test_config.is_test_mode:
-            from backend.api.cleanup_config import TEST_TIMEOUT, TEST_INTERVAL
-
             assert test_config.inactivity_timeout == TEST_TIMEOUT
             assert test_config.cleanup_interval == TEST_INTERVAL
         else:
-            from backend.api.cleanup_config import (
-                PRODUCTION_TIMEOUT,
-                PRODUCTION_INTERVAL,
-            )
-
             assert test_config.inactivity_timeout == PRODUCTION_TIMEOUT
             assert test_config.cleanup_interval == PRODUCTION_INTERVAL
 

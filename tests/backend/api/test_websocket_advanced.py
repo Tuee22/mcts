@@ -3,6 +3,7 @@ Advanced WebSocket manager tests to cover remaining uncovered lines.
 """
 
 import asyncio
+from datetime import datetime
 from typing import List
 from unittest.mock import MagicMock
 
@@ -13,6 +14,7 @@ from backend.api.models import (
     GameMode,
     GameResponse,
     GameStatus,
+    Move,
     MoveResponse,
     Player,
     PlayerType,
@@ -190,10 +192,6 @@ class TestWebSocketManagerBroadcasting:
             websockets.append(ws)
 
         # Create mock move response - manually create to avoid mock typing issues
-        from datetime import datetime
-
-        from backend.api.models import Move
-
         player = Player(id="p1", name="Player1", type=PlayerType.HUMAN, is_hero=True)
         mock_move = Move(
             player_id="p1",
@@ -238,8 +236,6 @@ class TestWebSocketManagerBroadcasting:
         await ws_manager.connect(websocket, "game1")
 
         # Create real game response to avoid mock typing issues
-        from datetime import datetime
-
         player1 = Player(
             id="player1", name="Player1", type=PlayerType.HUMAN, is_hero=True
         )

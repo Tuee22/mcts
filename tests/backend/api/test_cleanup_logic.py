@@ -363,8 +363,6 @@ class TestGameManagerCleanupLogic:
         game_manager._games["inactive"] = sample_games["inactive"]
 
         # Mock the cleanup function's internal logic
-        from backend.api.pure_utils import get_last_activity_timestamp
-
         now = datetime.now(timezone.utc)
         timeout = 3600  # 1 hour
 
@@ -387,8 +385,6 @@ class TestGameManagerCleanupLogic:
         game_manager._games["inactive"] = sample_games["inactive"]
 
         # Test with 60 second timeout (test mode)
-        from backend.api.pure_utils import get_last_activity_timestamp
-
         now = datetime.now(timezone.utc)
         test_timeout = 60  # 1 minute
 
@@ -407,8 +403,6 @@ class TestGameManagerCleanupLogic:
         assert len(game_manager._games) == 0
 
         # Cleanup logic should handle empty dict
-        from backend.api.pure_utils import get_last_activity_timestamp
-
         now = datetime.now(timezone.utc)
         timeout = 3600
 
@@ -468,8 +462,6 @@ class TestCleanupConfiguration:
         """Test that cleanup task actually uses the configuration."""
         # This would require mocking the cleanup task, which is complex
         # For now, we verify the config is imported correctly
-        from backend.api.game_manager import GameManager
-
         # Verify the cleanup method exists
         manager = GameManager()
         assert hasattr(manager, "cleanup_inactive_games")

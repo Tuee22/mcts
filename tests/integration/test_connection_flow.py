@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Union, Protocol, AsyncGenerator, Mappin
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import websockets
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
@@ -46,8 +47,6 @@ class MockFrontendClient:
     async def connect(self) -> bool:
         """Establish WebSocket connection."""
         try:
-            import websockets
-
             self.websocket = await websockets.connect(self.websocket_url)
             self.is_connected = True
             self.connection_events.append("connected")

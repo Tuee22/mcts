@@ -1,6 +1,8 @@
 """Integration tests for single-server architecture (no CORS needed)."""
 
+import os
 import subprocess
+from pathlib import Path
 from typing import Dict, List
 
 import pytest
@@ -121,9 +123,6 @@ class TestSingleServerConfiguration:
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
             # Test that CSS files are served - get actual filename from build directory
-            import os
-            from pathlib import Path
-
             build_dir = Path("/app/frontend/build/static")
             if build_dir.exists():
                 # Find CSS file

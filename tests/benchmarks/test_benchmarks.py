@@ -5,6 +5,9 @@ These tests focus purely on wall-clock timing with statistical analysis.
 Run with: pytest tests/test_benchmarks.py --benchmark-only
 """
 
+import asyncio
+import io
+import sys
 from typing import Dict, List, Optional, Tuple
 
 import pytest
@@ -14,7 +17,11 @@ from pytest_benchmark.plugin import BenchmarkFixture
 # Import required modules - tests will fail properly if not available
 from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
-import asyncio
+
+try:
+    import pytest_benchmark
+except ImportError:
+    pytest_benchmark = None  # type: ignore
 
 
 def display_sorted_actions(
@@ -289,9 +296,6 @@ class TestMCTSBenchmarks:
         """Benchmark self-play game performance with computer vs computer."""
 
         def run_self_play() -> int:
-            import io
-            import sys
-
             # computer_self_play was removed in async refactor
             # Create a mock implementation for benchmarking
             def computer_self_play(
@@ -473,12 +477,8 @@ def pytest_configure(config: Config) -> None:
     """Configure benchmark settings."""
     if hasattr(config, "option") and hasattr(config.option, "benchmark_disable"):
         # Only configure if pytest-benchmark is available
-        try:
-            import pytest_benchmark
-
+        if pytest_benchmark is not None:
             config.addinivalue_line(
                 "markers",
                 "benchmark: marks tests as benchmarks (run with --benchmark-only)",
             )
-        except ImportError:
-            pass

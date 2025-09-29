@@ -22,7 +22,7 @@ These tests verify the core board logic implemented in C++:
 
 import pytest
 
-from tests.conftest import MCTSParams
+from tests.conftest import MCTSParams, MCTSTestHelper
 
 from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
@@ -237,8 +237,6 @@ class TestMCTSActions:
 
             actions = await mcts.get_sorted_actions_async(flip=True)
             for _, _, action_str in actions:
-                from tests.conftest import MCTSTestHelper
-
                 assert MCTSTestHelper.validate_action_format(action_str)
 
     @pytest.mark.asyncio

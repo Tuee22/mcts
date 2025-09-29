@@ -5,6 +5,7 @@ Automated migration script for e2e tests from async_playwright() to page fixture
 This script transforms tests to use the generic page fixture that runs on all browsers.
 """
 
+import ast
 import re
 import shutil
 import sys
@@ -187,8 +188,6 @@ class TestMigrator:
     def validate_syntax(self) -> bool:
         """Validate the migrated file syntax."""
         try:
-            import ast
-
             with open(self.test_file_path, "r", encoding="utf-8") as f:
                 content = f.read()
             ast.parse(content)

@@ -22,12 +22,17 @@ from _pytest.fixtures import FixtureRequest
 
 if TYPE_CHECKING:
     from pytest import Item
+else:
+    from pytest import Item
 
 import pytest
 import pytest_asyncio
 import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout as RequestsTimeout
+from pathlib import Path
+
+from tests.e2e.test_infrastructure import TestMetrics, TestResult
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
@@ -241,9 +246,6 @@ async def isolated_page(browser: Browser) -> AsyncGenerator[Page, None]:
 @pytest.fixture
 def test_metrics(request: FixtureRequest) -> Generator[object, None, None]:
     """Track metrics without affecting test results."""
-    from tests.e2e.test_infrastructure import TestMetrics, TestResult
-    from pathlib import Path
-
     metrics = TestMetrics(Path("test_metrics.json"))
     start_time = datetime.now()
 

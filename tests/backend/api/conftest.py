@@ -2,6 +2,7 @@
 API-specific test fixtures and configuration.
 """
 
+import os
 from typing import AsyncGenerator, Callable, Dict, Generator, List, Tuple
 from unittest.mock import MagicMock
 
@@ -29,8 +30,6 @@ from tests.mock_helpers import MockCorridorsMCTS
 def test_client() -> Generator[TestClient, None, None]:
     """Create a test client for the FastAPI app."""
     # Ensure test environment is set
-    import os
-
     os.environ["PYTEST_CURRENT_TEST"] = "1"
 
     with TestClient(app) as client:

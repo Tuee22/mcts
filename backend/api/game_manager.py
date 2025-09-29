@@ -35,7 +35,13 @@ from backend.api.models import (
     Position,
 )
 from backend.api.response_builders import build_move_response
-from backend.api.pure_utils import find_first_match, safe_get, count_where
+from backend.api.pure_utils import (
+    find_first_match,
+    safe_get,
+    count_where,
+    get_last_activity_timestamp,
+)
+from backend.api.cleanup_config import CleanupConfig
 
 logger = logging.getLogger(__name__)
 
@@ -400,9 +406,6 @@ class GameManager:
         Runs continuously in server lifespan to remove inactive games based on
         configurable timeouts that automatically detect test vs production mode.
         """
-        from backend.api.cleanup_config import CleanupConfig
-        from backend.api.pure_utils import get_last_activity_timestamp
-
         config = CleanupConfig.from_environment()
 
         logger.info(
