@@ -11,10 +11,7 @@ import logging
 import pytest
 import httpx
 import websockets
-from typing import Dict, List, Optional, Tuple, Union, AsyncGenerator, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from asyncio import Task
+from typing import Dict, List, Optional, Tuple, Union, AsyncGenerator
 from typing_extensions import TypedDict
 from unittest.mock import AsyncMock, patch
 

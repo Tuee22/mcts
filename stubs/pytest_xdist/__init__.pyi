@@ -1,10 +1,6 @@
 """Type stubs for pytest-xdist package."""
 
 from typing import Literal, Optional, List, Dict, Protocol
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import pytest
 
 # Distribution modes for pytest-xdist
 DistMode = Literal["each", "load", "loadscope", "loadfile", "loadgroup"]
