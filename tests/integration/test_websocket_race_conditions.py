@@ -240,6 +240,7 @@ async def websocket_client() -> AsyncGenerator[WebSocketTestClient, None]:
         await client.disconnect()
 
 
+@pytest.mark.integration
 class TestWebSocketRaceConditions:
     """Test race conditions in WebSocket communication."""
 
@@ -528,6 +529,7 @@ class TestWebSocketRaceConditions:
             pass
 
 
+@pytest.mark.integration
 class TestWebSocketMessageTiming:
     """Test message timing issues that affect frontend state management."""
 

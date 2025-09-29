@@ -12,6 +12,7 @@ from typing import List, Dict
 from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
+@pytest.mark.e2e
 class TestGameSettingsComponentRaces:
     """Test GameSettings component race conditions with Playwright."""
 
@@ -196,6 +197,7 @@ class TestGameSettingsComponentRaces:
         assert len(serious_errors) == 0, f"Console errors detected: {serious_errors}"
 
 
+@pytest.mark.e2e
 class TestWebSocketComponentIntegration:
     """Test WebSocket integration with component state."""
 
@@ -273,6 +275,7 @@ class TestWebSocketComponentIntegration:
             await asyncio.sleep(0.2)
 
 
+@pytest.mark.e2e
 class TestUIStateConsistency:
     """Test UI state consistency during rapid changes."""
 
@@ -362,6 +365,7 @@ class TestUIStateConsistency:
         ), f"Elements disappeared {zero_count} times: {element_states}"
 
 
+@pytest.mark.e2e
 class TestErrorHandlingRaceConditions:
     """Test error handling during race conditions."""
 

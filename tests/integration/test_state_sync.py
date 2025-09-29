@@ -149,6 +149,7 @@ def state_manager() -> MockStateManager:
     return MockStateManager()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestBasicStateSynchronization:
     """Test basic state synchronization between frontend and backend."""
@@ -243,6 +244,7 @@ class TestBasicStateSynchronization:
         assert walls_remaining[0] == 9
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestConflictDetectionAndResolution:
     """Test detection and resolution of state conflicts."""
@@ -357,6 +359,7 @@ class TestConflictDetectionAndResolution:
         assert state_manager.frontend_state["turn_timer"] == 45  # Backend won
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestStateSnapshots:
     """Test state snapshot functionality for recovery."""
@@ -433,6 +436,7 @@ class TestStateSnapshots:
         assert snapshot_2_state["turn_number"] == 4
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestNetworkInterruptionHandling:
     """Test state synchronization during network interruptions."""
@@ -550,6 +554,7 @@ class TestNetworkInterruptionHandling:
         assert state_manager.is_synchronized()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestRealTimeStateSynchronization:
     """Test real-time state synchronization scenarios."""
@@ -632,6 +637,7 @@ class TestRealTimeStateSynchronization:
         assert state_manager.is_synchronized()
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestPerformanceAndScalability:
     """Test performance aspects of state synchronization."""

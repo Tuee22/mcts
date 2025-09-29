@@ -20,6 +20,7 @@ class StateTransitionResult(TypedDict):
     settings_panel: bool
 
 
+@pytest.mark.e2e
 class TestSettingsButtonTiming:
     """Test precise timing issues with Settings button availability."""
 
@@ -347,6 +348,7 @@ class TestSettingsButtonTiming:
             ), f"Settings not accessible during {result['transition']}: {result}"
 
 
+@pytest.mark.e2e
 class TestSettingsButtonEdgeCases:
     """Test edge cases that might cause Settings button issues."""
 

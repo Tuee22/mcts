@@ -285,7 +285,9 @@ class TestE2ETestRunner:
         with patch("tests.utils.subset_runners.run_pytest_subset", mock_run):
             run_e2e_tests()
 
-            mock_run.assert_called_once_with("e2e", ["tests/e2e/"], "End-to-End Tests")
+            mock_run.assert_called_once_with(
+                "e2e", ["tests/e2e/"], "End-to-End Tests", parallel=True
+            )
 
 
 class TestFastTestRunner:

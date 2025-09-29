@@ -119,6 +119,7 @@ def mock_frontend() -> MockFrontendClient:
     return MockFrontendClient("ws://localhost:8000/ws")
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestConnectionEstablishment:
     """Test WebSocket connection establishment flow."""
@@ -226,6 +227,7 @@ class TestConnectionEstablishment:
         assert "retry_attempt_3" in mock_frontend.connection_events
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestConnectionStateSync:
     """Test connection state synchronization between frontend and backend."""
@@ -365,6 +367,7 @@ class TestConnectionStateSync:
         assert "session_info" in metadata
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestProtocolCompliance:
     """Test WebSocket protocol compliance and message validation."""
@@ -485,6 +488,7 @@ class TestProtocolCompliance:
         assert "timestamp" in data
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestErrorHandling:
     """Test error handling in connection flow."""
@@ -565,6 +569,7 @@ class TestErrorHandling:
         assert "Authentication" in data["reason"]
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 class TestPerformanceMetrics:
     """Test performance aspects of connection flow."""
