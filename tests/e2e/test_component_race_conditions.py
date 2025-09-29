@@ -9,7 +9,7 @@ import asyncio
 import pytest
 from playwright.async_api import Page, expect, Request, Response
 from typing import List, Dict
-from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class TestGameSettingsComponentRaces:

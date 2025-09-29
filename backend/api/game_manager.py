@@ -453,10 +453,17 @@ class GameManager:
                     for game_id in inactive_ids
                 }
 
-                # Perform cleanup (side effects)
-                for game_id in inactive_ids:
+                # Perform cleanup (side effects) using functional approach
+                async def cleanup_single_game(game_id: str) -> None:
                     await cleanup_game(game_id, durations[game_id])
                     del self._games[game_id]  # Only mutation
+
+                # Execute cleanups concurrently
+                if inactive_ids:
+                    await asyncio.gather(
+                        *[cleanup_single_game(game_id) for game_id in inactive_ids],
+                        return_exceptions=True,
+                    )
 
                 # Log summary if any cleaned
                 inactive_count = len(inactive_ids)

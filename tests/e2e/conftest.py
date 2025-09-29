@@ -69,7 +69,7 @@ def e2e_config() -> E2EConfig:
 
 
 # Import async fixtures for Playwright
-from .async_fixtures import (
+from tests.e2e.async_fixtures import (
     async_page,
     browser,
     context,
@@ -241,7 +241,7 @@ async def isolated_page(browser: Browser) -> AsyncGenerator[Page, None]:
 @pytest.fixture
 def test_metrics(request: FixtureRequest) -> Generator[object, None, None]:
     """Track metrics without affecting test results."""
-    from .test_infrastructure import TestMetrics, TestResult
+    from tests.e2e.test_infrastructure import TestMetrics, TestResult
     from pathlib import Path
 
     metrics = TestMetrics(Path("test_metrics.json"))

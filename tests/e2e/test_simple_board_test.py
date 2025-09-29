@@ -3,7 +3,7 @@
 import pytest
 from playwright.async_api import Page, expect
 from typing import Dict
-from .e2e_helpers import handle_settings_interaction
+from tests.e2e.e2e_helpers import handle_settings_interaction
 
 
 @pytest.mark.e2e

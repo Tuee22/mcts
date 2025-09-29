@@ -277,9 +277,15 @@ class UnifiedWebSocketManager:
             if not connection_info:
                 return
 
-            # Leave all game rooms
-            for game_id in connection_info.game_ids.copy():
-                await self._leave_game_room(connection_id, game_id)
+            # Leave all game rooms using functional approach
+            game_ids_to_leave = list(connection_info.game_ids)
+            await asyncio.gather(
+                *[
+                    self._leave_game_room(connection_id, game_id)
+                    for game_id in game_ids_to_leave
+                ],
+                return_exceptions=True,
+            )
 
         logger.info(f"WebSocket disconnected: {connection_id}")
 
@@ -646,15 +652,21 @@ class UnifiedWebSocketManager:
         if exclude_connection:
             connection_ids.discard(exclude_connection)
 
-        for connection_id in connection_ids:
-            await self._send_to_connection(connection_id, message)
+        # Send messages using functional approach
+        await asyncio.gather(
+            *[self._send_to_connection(conn_id, message) for conn_id in connection_ids],
+            return_exceptions=True,
+        )
 
     async def broadcast_to_all(self, message: WSMessage) -> None:
         """Broadcast a message to all connections."""
         connection_ids = list(self.connections.keys())
 
-        for connection_id in connection_ids:
-            await self._send_to_connection(connection_id, message)
+        # Send messages to all connections using functional approach
+        await asyncio.gather(
+            *[self._send_to_connection(conn_id, message) for conn_id in connection_ids],
+            return_exceptions=True,
+        )
 
     async def _send_to_connection(
         self, connection_id: str, message: Union[WSMessage, WSResponse]
@@ -697,10 +709,16 @@ class UnifiedWebSocketManager:
                             ):  # 3x interval threshold
                                 stale_connections.append(connection_id)
 
-                # Disconnect stale connections
-                for connection_id in stale_connections:
-                    logger.warning(f"Disconnecting stale connection: {connection_id}")
-                    await self.disconnect(connection_id)
+                # Disconnect stale connections using functional approach
+                async def disconnect_stale(conn_id: str) -> None:
+                    logger.warning(f"Disconnecting stale connection: {conn_id}")
+                    await self.disconnect(conn_id)
+
+                if stale_connections:
+                    await asyncio.gather(
+                        *[disconnect_stale(conn_id) for conn_id in stale_connections],
+                        return_exceptions=True,
+                    )
 
         except asyncio.CancelledError:
             logger.info("Heartbeat loop cancelled")
@@ -717,10 +735,13 @@ class UnifiedWebSocketManager:
         """Clean up all connections and stop background tasks."""
         await self.stop_heartbeat()
 
-        # Disconnect all connections
+        # Disconnect all connections using functional approach
         connection_ids = list(self.connections.keys())
-        for connection_id in connection_ids:
-            await self.disconnect(connection_id)
+        if connection_ids:
+            await asyncio.gather(
+                *[self.disconnect(conn_id) for conn_id in connection_ids],
+                return_exceptions=True,
+            )
 
         self.connections.clear()
         self.game_rooms.clear()

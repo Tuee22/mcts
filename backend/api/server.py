@@ -263,17 +263,16 @@ async def websocket_unified_endpoint(websocket: WebSocket) -> None:
                     raw_data["data"] = data_field
 
             # Process the message through the unified manager
-            # Skip validation for ping messages to preserve data structure
-            if isinstance(raw_data, dict) and raw_data.get("type") == "ping":
-                # For ping messages, convert safely to WSMessageData
-                validated_data: WSMessageData = {
+            # Use functional validation with ternary operator
+            validated_data: WSMessageData = (
+                {
                     k: v
                     for k, v in raw_data.items()
                     if isinstance(v, (str, int, float, bool, dict))
                 }
-            else:
-                # Use functional validation for other message types
-                validated_data = validate_websocket_data(raw_data)
+                if isinstance(raw_data, dict) and raw_data.get("type") == "ping"
+                else validate_websocket_data(raw_data)
+            )
 
             response = await unified_ws_manager.handle_message(
                 connection_id, validated_data

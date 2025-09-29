@@ -1,6 +1,6 @@
 """Test models for type-safe JSON parsing."""
 
-from .response_models import (
+from tests.models.response_models import (
     ErrorResponse,
     GameResponse,
     HealthResponse,

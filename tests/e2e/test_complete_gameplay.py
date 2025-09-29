@@ -13,7 +13,7 @@ from playwright.async_api import Locator
 
 import pytest
 from playwright.async_api import Page, expect
-from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class GameCreationResult(TypedDict):

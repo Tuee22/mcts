@@ -188,44 +188,49 @@ class WebSocketManager:
         if game_id not in self.active_connections:
             return
 
-        # Create tasks for all sends
-        tasks = []
+        # Create tasks for all sends using functional approach
         dead_connections: List[WebSocketProtocol] = []
-
-        for connection in self.active_connections[game_id]:
-            if connection != exclude:
-                tasks.append(
-                    self._send_json_safe(connection, message, dead_connections)
-                )
+        connections_to_send = [
+            conn for conn in self.active_connections[game_id] if conn != exclude
+        ]
+        tasks = [
+            self._send_json_safe(conn, message, dead_connections)
+            for conn in connections_to_send
+        ]
 
         # Send all messages concurrently
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Clean up dead connections
-        for conn in dead_connections:
-            await self.disconnect(conn, game_id)
+        # Clean up dead connections using functional approach
+        await asyncio.gather(
+            *[self.disconnect(conn, game_id) for conn in dead_connections],
+            return_exceptions=True,
+        )
 
     async def _broadcast_to_all(self, message: OutgoingWebSocketMessage) -> None:
         """Broadcast a message to all connected clients."""
-        all_connections = set()
-        for connections in self.active_connections.values():
-            all_connections.update(connections)
+        # Use functional approach to gather all connections
+        all_connections = set().union(*self.active_connections.values())
 
-        tasks = []
+        # Create tasks using list comprehension
         dead_connections: List[WebSocketProtocol] = []
-
-        for connection in all_connections:
-            tasks.append(self._send_json_safe(connection, message, dead_connections))
+        tasks = [
+            self._send_json_safe(conn, message, dead_connections)
+            for conn in all_connections
+        ]
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Clean up dead connections
-        for conn in dead_connections:
-            if conn in self.connection_games:
-                game_id = self.connection_games[conn]
-                await self.disconnect(conn, game_id)
+        # Clean up dead connections using functional approach
+        cleanup_tasks = [
+            self.disconnect(conn, self.connection_games[conn])
+            for conn in dead_connections
+            if conn in self.connection_games
+        ]
+        if cleanup_tasks:
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
     async def _send_json_safe(
         self,
@@ -261,15 +266,26 @@ class WebSocketManager:
 
     async def disconnect_all(self) -> None:
         """Disconnect all WebSocketProtocol connections (for shutdown)."""
-        all_connections: List[WebSocketProtocol] = []
-        for connections in self.active_connections.values():
-            all_connections.extend(connections)
+        # Use functional approach to flatten connections
+        all_connections = [
+            conn
+            for connections in self.active_connections.values()
+            for conn in connections
+        ]
 
-        for conn in all_connections:
+        # Process disconnections using functional approach
+        async def close_connection_safe(conn: WebSocketProtocol) -> None:
             try:
                 await conn.close()
             except Exception as e:
                 logger.error(f"Error closing WebSocketProtocol: {e}")
+
+        # Close all connections concurrently
+        if all_connections:
+            await asyncio.gather(
+                *[close_connection_safe(conn) for conn in all_connections],
+                return_exceptions=True,
+            )
 
         self.active_connections.clear()
         self.connection_games.clear()

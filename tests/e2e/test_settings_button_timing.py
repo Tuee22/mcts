@@ -10,7 +10,7 @@ import pytest
 from playwright.async_api import Page, expect, Locator
 from typing import List, Dict, Optional, Callable, Awaitable, Union
 from typing_extensions import TypedDict
-from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class StateTransitionResult(TypedDict):

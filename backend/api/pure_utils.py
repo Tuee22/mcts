@@ -154,15 +154,14 @@ def get_last_activity_timestamp(game: object) -> datetime:
 
     Uses fallback chain for backward compatibility.
     """
-    # Try last_activity first, with type check
+    # Use functional approach with ternary operators for fallback chain
     last_activity = getattr(game, "last_activity", None)
-    if isinstance(last_activity, datetime):
-        return last_activity
-
-    # Fallback to created_at, with type check
-    created_at = getattr(game, "created_at", None)
-    if isinstance(created_at, datetime):
-        return created_at
-
-    # Final fallback to current time
-    return datetime.now(timezone.utc)
+    return (
+        last_activity
+        if isinstance(last_activity, datetime)
+        else (
+            created_at
+            if isinstance(created_at := getattr(game, "created_at", None), datetime)
+            else datetime.now(timezone.utc)
+        )
+    )
