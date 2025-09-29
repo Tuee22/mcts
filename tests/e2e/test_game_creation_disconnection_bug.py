@@ -13,6 +13,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, Route, expect
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 @pytest.mark.e2e
@@ -34,7 +35,7 @@ class TestGameCreationDisconnectionBug:
 
         # Immediately try to click game settings without waiting
         # This simulates a user quickly trying to start a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
 
         # Check if button exists and try to click it immediately
         if await settings_button.count() > 0:
@@ -108,7 +109,7 @@ class TestGameCreationDisconnectionBug:
         # Try to interact with game settings while connecting
         await page.wait_for_timeout(500)  # Small delay to ensure we're mid-connection
 
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
             is_enabled = await settings_button.is_enabled()
 
@@ -206,7 +207,7 @@ class TestGameCreationDisconnectionBug:
                 ], f"Unexpected status: {status_text}"
 
             # Game creation should be disabled (but only test if we detected disconnection)
-            settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             if await settings_button.count() > 0 and status_text != "Connected":
                 is_enabled = await settings_button.is_enabled()
                 assert not is_enabled, "Bug: Game settings accessible when disconnected"
@@ -252,7 +253,7 @@ class TestGameCreationDisconnectionBug:
         await page.wait_for_load_state("networkidle")
 
         # Try to create a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0 and await settings_button.is_enabled():
             await settings_button.click()
 
@@ -309,7 +310,7 @@ class TestGameCreationDisconnectionBug:
         await page.wait_for_load_state("networkidle")
 
         # Open game settings
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
             await settings_button.click()
 

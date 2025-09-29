@@ -9,6 +9,7 @@ import asyncio
 import pytest
 from playwright.async_api import Page, expect, Request, Response
 from typing import List, Dict
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class TestGameSettingsComponentRaces:
@@ -33,7 +34,7 @@ class TestGameSettingsComponentRaces:
         # The button might appear as toggle or panel depending on timing
         try:
             # Try to find toggle button first
-            settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             await expect(settings_button).to_be_visible(timeout=3000)
 
             # Click to expand settings
@@ -65,7 +66,7 @@ class TestGameSettingsComponentRaces:
             settings_available = False
 
             # Check if toggle button exists
-            toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+            toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             if await toggle_button.count() > 0:
                 await toggle_button.click()
                 settings_available = True
@@ -116,7 +117,7 @@ class TestGameSettingsComponentRaces:
             ui_accessible = True
 
         # Check for settings toggle
-        if await page.locator('button:has-text("⚙️ Game Settings")').count() > 0:
+        if await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0:
             ui_accessible = True
 
         assert ui_accessible, "UI not accessible after connection issues"
@@ -176,7 +177,7 @@ class TestGameSettingsComponentRaces:
                 await asyncio.sleep(0.2)
 
             # Try to access settings
-            toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+            toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             if await toggle_button.count() > 0:
                 await toggle_button.click()
                 await asyncio.sleep(0.1)
@@ -224,7 +225,7 @@ class TestWebSocketComponentIntegration:
         settings_accessible = False
 
         # Check for toggle button
-        toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+        toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await toggle_button.count() > 0:
             await toggle_button.click()
             await expect(page.locator("text=Game Mode")).to_be_visible(timeout=2000)
@@ -252,7 +253,7 @@ class TestWebSocketComponentIntegration:
         # Rapid user interactions while WebSocket is active
         for i in range(3):
             # Try to access settings
-            toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+            toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             if await toggle_button.count() > 0:
                 await toggle_button.click()
 
@@ -294,9 +295,7 @@ class TestUIStateConsistency:
             has_start_button = (
                 await page.locator('[data-testid="start-game-button"]').count() > 0
             )
-            has_toggle_button = (
-                await page.locator('button:has-text("⚙️ Game Settings")').count() > 0
-            )
+            has_toggle_button = await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
             has_game_mode = await page.locator("text=Game Mode").count() > 0
 
             ui_state = {
@@ -339,9 +338,7 @@ class TestUIStateConsistency:
             start_buttons = await page.locator(
                 '[data-testid="start-game-button"]'
             ).count()
-            toggle_buttons = await page.locator(
-                'button:has-text("⚙️ Game Settings")'
-            ).count()
+            toggle_buttons = await page.locator(SETTINGS_BUTTON_SELECTOR).count()
             mode_elements = await page.locator('[data-testid*="mode-"]').count()
 
             element_count = start_buttons + toggle_buttons + mode_elements
@@ -397,7 +394,7 @@ class TestErrorHandlingRaceConditions:
 
         if await page.locator('[data-testid="start-game-button"]').count() > 0:
             settings_accessible = True
-        elif await page.locator('button:has-text("⚙️ Game Settings")').count() > 0:
+        elif await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0:
             settings_accessible = True
         elif await page.locator("text=Game Mode").count() > 0:
             settings_accessible = True
@@ -427,7 +424,7 @@ class TestErrorHandlingRaceConditions:
                     await asyncio.sleep(0.2)
 
                     # Try to access settings immediately
-                    toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+                    toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
                     if await toggle_button.count() > 0:
                         await toggle_button.click()
 

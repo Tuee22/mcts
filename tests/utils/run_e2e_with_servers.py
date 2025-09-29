@@ -126,10 +126,22 @@ def main() -> int:
             }
         )
 
-        # Run E2E tests
-        print("\n🧪 Running E2E tests...")
+        # Run E2E tests with parallel execution
+        print("\n🧪 Running E2E tests with parallel execution...")
         result = subprocess.run(
-            [sys.executable, "-m", "pytest", "tests/e2e/", "-v"],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "tests/e2e/",
+                "-v",
+                "-n",
+                "4",  # Run with 4 parallel workers
+                "--dist",
+                "loadfile",  # Distribute tests by file for better isolation
+                "--timeout",
+                "30",  # 30s timeout per test
+            ],
             cwd=os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),

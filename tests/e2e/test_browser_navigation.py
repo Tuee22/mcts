@@ -13,6 +13,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, expect, BrowserContext, Browser
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 @pytest.mark.e2e
@@ -28,7 +29,9 @@ class TestBrowserNavigation:
         """
         # Navigate to app
         await page.goto(e2e_urls["frontend"])
-        await page.wait_for_load_state("networkidle")
+
+        # Wait for app to load with explicit element wait
+        await page.wait_for_selector('[data-testid="app-main"]', timeout=10000)
 
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
@@ -37,17 +40,20 @@ class TestBrowserNavigation:
 
         # Navigate to mock external site
         await page.goto(f"{e2e_urls['frontend']}/test/external")
-        await page.wait_for_load_state("networkidle")
+        # No need to wait for networkidle on external site
 
         # Go back to app
         await page.go_back()
-        await page.wait_for_load_state("networkidle")
+
+        # Wait for app to load again after back navigation
+        await page.wait_for_selector('[data-testid="app-main"]', timeout=10000)
 
         # Should reconnect
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Settings should be functional
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        # Wait for settings button to be present before checking if it's enabled
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
+        await expect(settings_button).to_be_visible(timeout=10000)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Back navigation restored functionality")
@@ -96,7 +102,7 @@ class TestBrowserNavigation:
 
         # Both tabs should be functional independently
         # Test tab 1
-        settings_button_1 = page1.locator('button:has-text("⚙️ Game Settings")')
+        settings_button_1 = page1.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button_1.click()
 
         start_button_1 = page1.locator('[data-testid="start-game-button"]')
@@ -109,7 +115,7 @@ class TestBrowserNavigation:
         print("✅ Tab 1 can create games")
 
         # Test tab 2 independently
-        settings_button_2 = page2.locator('button:has-text("⚙️ Game Settings")')
+        settings_button_2 = page2.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button_2.click()
 
         # Change settings to different mode
@@ -136,7 +142,7 @@ class TestBrowserNavigation:
         await expect(connection_text_1).to_have_text("Connected", timeout=10000)
 
         # Verify we can interact with settings again (functional test)
-        settings_button_1_again = page1.locator('button:has-text("⚙️ Game Settings")')
+        settings_button_1_again = page1.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button_1_again).to_be_enabled(timeout=5000)
 
         # Tab 2 should be unaffected
@@ -164,7 +170,7 @@ class TestBrowserNavigation:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Create a game
-        settings_button = app_page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = app_page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = app_page.locator('[data-testid="start-game-button"]')
@@ -206,7 +212,7 @@ class TestBrowserNavigation:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Verify we can interact with settings again (functional test)
-        settings_button_again = app_page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button_again = app_page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button_again).to_be_enabled(timeout=5000)
 
         print("✅ App remains functional after tab switching")
@@ -296,7 +302,7 @@ class TestBrowserNavigation:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Create a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -382,7 +388,7 @@ class TestBrowserNavigation:
         # Should work normally
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ App recovers from URL manipulation")
@@ -425,7 +431,7 @@ class TestBrowserNavigation:
                 print(f"✅ Browser context {i+1} connected")
 
                 # Create game in each instance
-                settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+                settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
                 await settings_button.click()
 
                 if i == 1:  # Change mode in second instance
@@ -488,7 +494,7 @@ class TestBrowserNavigation:
         print("✅ Reload after initial load works")
 
         # Open settings and reload
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         await page.reload()

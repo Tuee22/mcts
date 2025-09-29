@@ -10,6 +10,7 @@ import pytest
 from playwright.async_api import Page, expect, Locator
 from typing import List, Dict, Optional, Callable, Awaitable, Union
 from typing_extensions import TypedDict
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class StateTransitionResult(TypedDict):
@@ -41,7 +42,7 @@ class TestSettingsButtonTiming:
 
         # The critical test: Settings button should be available immediately
         # This is what the original E2E test was failing on
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
 
         # Use a very short timeout to catch timing issues
         try:
@@ -66,8 +67,7 @@ class TestSettingsButtonTiming:
             """Monitor Settings button availability every 50ms."""
             for i in range(100):  # Monitor for 5 seconds
                 toggle_visible = (
-                    await page.locator('button:has-text("⚙️ Game Settings")').count()
-                    > 0
+                    await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
                 )
                 panel_visible = await page.locator("text=Game Mode").count() > 0
                 start_visible = (
@@ -131,7 +131,7 @@ class TestSettingsButtonTiming:
 
         # Test all possible selectors that E2E tests might use
         selectors_to_test = [
-            'button:has-text("⚙️ Game Settings")',
+            SETTINGS_BUTTON_SELECTOR,
             'button:has-text("Game Settings")',
             '[title="Game Settings"]',
             ".toggle-settings",
@@ -152,7 +152,7 @@ class TestSettingsButtonTiming:
         ), f"No selectors found Settings button. Available selectors: {found_selectors}"
 
         # Test the exact selector from failing E2E test
-        main_selector = 'button:has-text("⚙️ Game Settings")'
+        main_selector = SETTINGS_BUTTON_SELECTOR
         if main_selector in found_selectors:
             # This is the primary selector - test it works
             settings_button = page.locator(main_selector)
@@ -175,9 +175,7 @@ class TestSettingsButtonTiming:
         # Check for loading states
         for i in range(50):  # Check for 2.5 seconds
             is_loading = await page.locator("text=Starting...").count() > 0
-            settings_toggle = (
-                await page.locator('button:has-text("⚙️ Game Settings")').count() > 0
-            )
+            settings_toggle = await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
             settings_panel = await page.locator("text=Game Mode").count() > 0
 
             loading_states.append(
@@ -230,9 +228,7 @@ class TestSettingsButtonTiming:
                 settings_accessible = False
 
                 # Check for toggle button
-                toggle_count = await page.locator(
-                    'button:has-text("⚙️ Game Settings")'
-                ).count()
+                toggle_count = await page.locator(SETTINGS_BUTTON_SELECTOR).count()
                 if toggle_count > 0:
                     settings_accessible = True
 
@@ -294,8 +290,7 @@ class TestSettingsButtonTiming:
                 await asyncio.sleep(0.5)
                 # Check for toggle button
                 toggle_visible = (
-                    await page.locator('button:has-text("⚙️ Game Settings")').count()
-                    > 0
+                    await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
                 )
                 start_visible = (
                     await page.locator('[data-testid="start-game-button"]').count() > 0
@@ -307,7 +302,7 @@ class TestSettingsButtonTiming:
 
             elif transition == "settings_expanded":
                 # Try to expand settings
-                toggle_button = page.locator('button:has-text("⚙️ Game Settings")')
+                toggle_button = page.locator(SETTINGS_BUTTON_SELECTOR)
                 if await toggle_button.count() > 0:
                     await toggle_button.click()
                     await expect(page.locator("text=Game Mode")).to_be_visible(
@@ -319,16 +314,16 @@ class TestSettingsButtonTiming:
                 cancel_button = page.locator("text=Cancel")
                 if await cancel_button.count() > 0:
                     await cancel_button.click()
-                    await expect(
-                        page.locator('button:has-text("⚙️ Game Settings")')
-                    ).to_be_visible(timeout=1000)
+                    await expect(page.locator(SETTINGS_BUTTON_SELECTOR)).to_be_visible(
+                        timeout=1000
+                    )
 
             # Record current state
             start_button_visible = (
                 await page.locator('[data-testid="start-game-button"]').count() > 0
             )
             toggle_button_visible = (
-                await page.locator('button:has-text("⚙️ Game Settings")').count() > 0
+                await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
             )
             settings_panel_visible = await page.locator("text=Game Mode").count() > 0
 
@@ -385,7 +380,7 @@ class TestSettingsButtonEdgeCases:
             settings_accessible = False
             if await page.locator('[data-testid="start-game-button"]').count() > 0:
                 settings_accessible = True
-            elif await page.locator('button:has-text("⚙️ Game Settings")').count() > 0:
+            elif await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0:
                 settings_accessible = True
             elif await page.locator("text=Game Mode").count() > 0:
                 settings_accessible = True
@@ -428,9 +423,7 @@ class TestSettingsButtonEdgeCases:
             await asyncio.sleep(0.1)
 
             # Verify Settings button is accessible
-            toggle_visible = (
-                await page.locator('button:has-text("⚙️ Game Settings")').count() > 0
-            )
+            toggle_visible = await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
             panel_visible = await page.locator("text=Game Mode").count() > 0
 
             assert (
@@ -475,7 +468,7 @@ class TestSettingsButtonEdgeCases:
             await asyncio.sleep(0.1)
 
             settings_accessible = False
-            if await page.locator('button:has-text("⚙️ Game Settings")').count() > 0:
+            if await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0:
                 settings_accessible = True
             elif await page.locator("text=Game Mode").count() > 0:
                 settings_accessible = True

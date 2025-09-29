@@ -13,6 +13,7 @@ from playwright.async_api import Locator
 
 import pytest
 from playwright.async_api import Page, expect
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 class GameCreationResult(TypedDict):
@@ -569,7 +570,7 @@ class TestCompleteGameplay:
         board_size: int = 9,
     ) -> None:
         """Configure game settings."""
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
             await settings_button.click()
             await page.wait_for_timeout(500)

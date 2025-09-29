@@ -37,6 +37,8 @@ isort = ">=5.12.0,<6.0"
 pytest = ">=7.4.0,<8.0"
 pytest-benchmark = ">=4.0.0,<5.0"
 pytest-asyncio = ">=0.21.0,<1.0"
+pytest-xdist = ">=3.5.0,<4.0.0"  # For parallel test execution
+pytest-timeout = ">=2.2.0,<3.0.0"  # For per-test timeouts
 
 # E2E testing
 playwright = ">=1.40.0,<2.0"
@@ -109,6 +111,8 @@ minversion = "7.0"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+timeout = 30  # Default 30s per test
+timeout_method = "thread"  # Thread-based for async compatibility
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

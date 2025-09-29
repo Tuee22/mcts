@@ -5,12 +5,27 @@ import subprocess
 from typing import List
 
 
-def run_pytest_subset(markers: str, paths: List[str], description: str) -> None:
+def run_pytest_subset(
+    markers: str, paths: List[str], description: str, parallel: bool = False
+) -> None:
     """Run pytest with specific markers and paths."""
     cmd = ["pytest"] + paths
     if markers:
         cmd.extend(["-m", markers])
     cmd.extend(["-v"])
+
+    # Add parallel execution for E2E tests
+    if parallel and "e2e" in paths[0] if paths else False:
+        cmd.extend(
+            [
+                "-n",
+                "4",  # Run with 4 parallel workers
+                "--dist",
+                "loadfile",  # Distribute tests by file for better isolation
+                "--timeout",
+                "30",  # 30s timeout per test
+            ]
+        )
 
     print(f"Running {description}...")
     print(f"Command: {' '.join(cmd)}")
@@ -60,8 +75,8 @@ def run_frontend_tests() -> None:
 
 
 def run_e2e_tests() -> None:
-    """Run end-to-end tests."""
-    run_pytest_subset("e2e", ["tests/e2e/"], "End-to-End Tests")
+    """Run end-to-end tests with parallel execution."""
+    run_pytest_subset("e2e", ["tests/e2e/"], "End-to-End Tests", parallel=True)
 
 
 def run_fast_tests() -> None:

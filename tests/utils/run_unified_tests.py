@@ -452,8 +452,18 @@ def main() -> None:
             if args.debug:
                 env["PWDEBUG"] = "1"
 
-            # Run E2E tests directly with pytest
-            e2e_cmd = ["pytest", "tests/e2e/", "-v"]
+            # Run E2E tests with parallel execution via pytest-xdist
+            e2e_cmd = [
+                "pytest",
+                "tests/e2e/",
+                "-v",
+                "-n",
+                "4",  # Run with 4 parallel workers
+                "--dist",
+                "loadfile",  # Distribute tests by file for better isolation
+                "--timeout",
+                "30",  # 30s timeout per test
+            ]
             if args.verbose:
                 e2e_cmd.append("-s")
 

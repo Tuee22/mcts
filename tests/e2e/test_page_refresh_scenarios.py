@@ -13,6 +13,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, expect
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 @pytest.mark.e2e
@@ -46,7 +47,7 @@ class TestPageRefreshScenarios:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Settings should be accessible after refresh
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Connection restored after page refresh")
@@ -67,7 +68,7 @@ class TestPageRefreshScenarios:
             "Connected", timeout=10000
         )
 
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -126,7 +127,7 @@ class TestPageRefreshScenarios:
             "Connected", timeout=10000
         )
 
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -161,7 +162,7 @@ class TestPageRefreshScenarios:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Settings should be accessible
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
         await settings_button.click()
 
@@ -190,7 +191,7 @@ class TestPageRefreshScenarios:
         )
 
         # Open settings and change configuration
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         # Change to AI vs AI mode
@@ -216,7 +217,7 @@ class TestPageRefreshScenarios:
         )
 
         # Check if settings are preserved
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         # Check if our settings persisted (this depends on implementation)
@@ -255,7 +256,7 @@ class TestPageRefreshScenarios:
             await expect(connection_text).to_have_text("Connected", timeout=10000)
 
             # Settings should be accessible
-            settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             await expect(settings_button).to_be_enabled()
 
             # Try to create a game
@@ -283,7 +284,7 @@ class TestPageRefreshScenarios:
         )
 
         # Start game creation
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -303,7 +304,7 @@ class TestPageRefreshScenarios:
         await expect(game_setup).to_be_visible()
 
         # Settings should still work
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Refresh during game creation handled gracefully")
@@ -374,7 +375,7 @@ class TestPageRefreshScenarios:
         initial_errors = len(console_errors)
 
         # Perform some actions that might trigger the disconnection bug
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')

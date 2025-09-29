@@ -2,6 +2,9 @@
 
 from playwright.async_api import Page, expect
 
+# Centralized selectors to avoid duplication and ensure consistency
+SETTINGS_BUTTON_SELECTOR = '[data-testid="settings-toggle-button"]'
+
 
 async def handle_settings_interaction(
     page: Page, should_click_start_game: bool = False
@@ -18,7 +21,7 @@ async def handle_settings_interaction(
         should_click_start_game: Whether to click the Start Game button after ensuring settings are accessible
     """
     # Check if we have the settings toggle button or panel
-    settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+    settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
     settings_panel = page.locator("text=Game Settings").first
 
     if await settings_button.count() > 0:
@@ -51,7 +54,7 @@ async def wait_for_game_settings_available(page: Page, timeout: int = 5000) -> b
         # Wait for either the toggle button or settings panel to be visible
         await page.wait_for_function(
             """() => {
-                const toggleButton = document.querySelector('button:has-text("⚙️ Game Settings")');
+                const toggleButton = document.querySelector('[data-testid="settings-toggle-button"]');
                 const settingsPanel = document.querySelector('[data-testid="game-settings"], .game-settings');
                 const gameSettingsText = Array.from(document.querySelectorAll('*')).find(el => el.textContent?.includes('Game Settings'));
                 return toggleButton || settingsPanel || gameSettingsText;

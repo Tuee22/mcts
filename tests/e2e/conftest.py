@@ -4,6 +4,7 @@ import asyncio
 import os
 import subprocess
 import time
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     AsyncGenerator,
@@ -11,6 +12,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    Literal,
     Optional,
     TypedDict,
     Union,
@@ -22,6 +24,7 @@ if TYPE_CHECKING:
     from pytest import Item
 
 import pytest
+import pytest_asyncio
 import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout as RequestsTimeout
@@ -217,3 +220,84 @@ async def create_game(
         print("✅ Game board ready")
 
     return _create
+
+
+@pytest_asyncio.fixture
+async def isolated_page(browser: Browser) -> AsyncGenerator[Page, None]:
+    """Provide isolated page with guaranteed cleanup."""
+    context: BrowserContext = await browser.new_context()
+    page: Page = await context.new_page()
+
+    # Set reasonable defaults
+    page.set_default_timeout(10000)  # 10s for any operation
+
+    try:
+        yield page
+    finally:
+        # Guaranteed cleanup
+        await context.close()
+
+
+@pytest.fixture
+def test_metrics(request: FixtureRequest) -> Generator[object, None, None]:
+    """Track metrics without affecting test results."""
+    from .test_infrastructure import TestMetrics, TestResult
+    from pathlib import Path
+
+    metrics = TestMetrics(Path("test_metrics.json"))
+    start_time = datetime.now()
+
+    yield metrics
+
+    # Record after test - access node safely
+    node = getattr(request, "node", None)
+    if node is None:
+        return  # Cannot record metrics without node
+
+    duration = (datetime.now() - start_time).total_seconds() * 1000
+    browser_name = getattr(request, "param", "chromium")
+    if hasattr(node, "callspec") and hasattr(node.callspec, "params"):
+        browser_name = node.callspec.params.get("browser_name", "chromium")
+
+    # Type-safe browser validation with explicit mapping
+    browser: Literal["chromium", "firefox", "webkit"]
+    if browser_name == "firefox":
+        browser = "firefox"
+    elif browser_name == "webkit":
+        browser = "webkit"
+    else:
+        browser = "chromium"  # Default fallback
+
+    # Get test result status
+    status_str = "passed"
+    error_message = None
+    if hasattr(node, "rep_call"):
+        if node.rep_call.failed:
+            status_str = "failed"
+            if node.rep_call.longrepr:
+                error_message = str(node.rep_call.longrepr)
+    elif hasattr(node, "rep_setup") and node.rep_setup.failed:
+        status_str = "failed"
+        if node.rep_setup.longrepr:
+            error_message = str(node.rep_setup.longrepr)
+
+    # Type-safe status validation with explicit mapping
+    status: Literal["passed", "failed", "timeout", "skipped"]
+    if status_str == "failed":
+        status = "failed"
+    elif status_str == "timeout":
+        status = "timeout"
+    elif status_str == "skipped":
+        status = "skipped"
+    else:
+        status = "passed"  # Default fallback
+
+    result = TestResult(
+        name=node.name,
+        status=status,
+        duration_ms=duration,
+        error_message=error_message,
+        browser=browser,
+        timestamp=start_time,
+    )
+    metrics.record(result)

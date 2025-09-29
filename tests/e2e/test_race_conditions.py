@@ -14,6 +14,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, Route, expect
+from .e2e_helpers import SETTINGS_BUTTON_SELECTOR
 
 
 @pytest.mark.e2e
@@ -40,7 +41,7 @@ class TestRaceConditions:
 
         # If settings panel is not visible, click the settings button to open it
         if await start_button.count() == 0:
-            settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
             await settings_button.click()
             start_button = page.locator('[data-testid="start-game-button"]')
 
@@ -54,7 +55,7 @@ class TestRaceConditions:
 
         # Rapid sequence: New Game -> Settings almost simultaneously
         new_game_button = page.locator('button:has-text("New Game")')
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
 
         # Start both actions concurrently
         new_game_task = asyncio.create_task(new_game_button.click())
@@ -102,7 +103,7 @@ class TestRaceConditions:
         )
 
         # Open settings
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -168,7 +169,7 @@ class TestRaceConditions:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Create a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -224,7 +225,7 @@ class TestRaceConditions:
         )
 
         # Open settings
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         # Slow down game creation to create race condition window
@@ -289,7 +290,7 @@ class TestRaceConditions:
         )
 
         # Create a game first
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -347,7 +348,7 @@ class TestRaceConditions:
         )
 
         # Create a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -398,7 +399,7 @@ class TestRaceConditions:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Create a game
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         start_button = page.locator('[data-testid="start-game-button"]')
@@ -468,7 +469,7 @@ class TestRaceConditions:
         )
 
         # Open settings
-        settings_button = page.locator('button:has-text("⚙️ Game Settings")')
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await settings_button.click()
 
         print("✅ Settings opened for race condition test")
