@@ -511,9 +511,19 @@ class TestWebSocketRaceConditions:
         await websocket_client.connect()
 
         # Send a simple ping to verify WebSocket connection recovery
-        await websocket_client.send_message(
-            {"type": "ping", "data": {"recovery_test": True}}
-        )
+        ping_msg: PingRequest = {
+            "type": "ping",
+            "data": {
+                "timestamp": None,
+                "id": None,
+                "client": None,
+                "op": None,
+                "recovery_test": True,
+                "final_check": None,
+                "message_id": None,
+            },
+        }
+        await websocket_client.send_message(ping_msg)
 
         response = await websocket_client.wait_for_message_type("pong", timeout=2.0)
         assert response["type"] == "pong"
@@ -591,9 +601,19 @@ class TestWebSocketMessageTiming:
         # Send multiple ping messages with IDs
         message_ids = [1, 2, 3, 4, 5]
         for msg_id in message_ids:
-            await websocket_client.send_message(
-                {"type": "ping", "data": {"message_id": msg_id}}
-            )
+            ping_msg: PingRequest = {
+                "type": "ping",
+                "data": {
+                    "timestamp": None,
+                    "id": None,
+                    "client": None,
+                    "op": None,
+                    "recovery_test": None,
+                    "final_check": None,
+                    "message_id": msg_id,
+                },
+            }
+            await websocket_client.send_message(ping_msg)
             await asyncio.sleep(0.01)
 
         # Collect responses
@@ -637,9 +657,19 @@ async def test_websocket_integration_stability() -> None:
         ) -> None:
             for j in range(5):
                 # Use WebSocket for real-time operations (ping)
-                await client.send_message(
-                    {"type": "ping", "data": {"client": client_id, "op": j}}
-                )
+                ping_msg: PingRequest = {
+                    "type": "ping",
+                    "data": {
+                        "timestamp": None,
+                        "id": None,
+                        "client": client_id,
+                        "op": j,
+                        "recovery_test": None,
+                        "final_check": None,
+                        "message_id": None,
+                    },
+                }
+                await client.send_message(ping_msg)
 
                 # Consume the pong response to prevent queue buildup
                 try:
@@ -668,9 +698,19 @@ async def test_websocket_integration_stability() -> None:
 
         # Verify all clients are still connected via WebSocket
         for i, client in enumerate(clients):
-            await client.send_message(
-                {"type": "ping", "data": {"final_check": True, "client": i}}
-            )
+            ping_msg: PingRequest = {
+                "type": "ping",
+                "data": {
+                    "timestamp": None,
+                    "id": None,
+                    "client": i,
+                    "op": None,
+                    "recovery_test": None,
+                    "final_check": True,
+                    "message_id": None,
+                },
+            }
+            await client.send_message(ping_msg)
             response = await client.wait_for_message_type("pong", timeout=2.0)
             final_check = response.get("data", {}).get("final_check")
             assert final_check is True

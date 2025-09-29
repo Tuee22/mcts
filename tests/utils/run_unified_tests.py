@@ -11,17 +11,10 @@ import sys
 import time
 from pathlib import Path
 from types import FrameType
-from typing import Any, Dict, List, NoReturn, Optional, Tuple, TypedDict
+from typing import Dict, List, NoReturn, Optional, Tuple, TypedDict
 
-try:
-    import psutil
-except ImportError:
-    psutil = None  # type: ignore
-
-try:
-    import requests
-except ImportError:
-    requests = None  # type: ignore
+import psutil
+import requests
 
 
 # Global variable to track running processes
@@ -59,8 +52,6 @@ def signal_handler(sig: int, frame: Optional[FrameType]) -> None:
 
 def kill_playwright_processes() -> None:
     """Kill any orphaned Playwright browser processes."""
-    if not PSUTIL_AVAILABLE:
-        return
 
     try:
         for proc in psutil.process_iter(["pid", "name", "cmdline"]):
@@ -129,13 +120,11 @@ class TestSuite(TypedDict):
     emoji: str
 
 
-PSUTIL_AVAILABLE = psutil is not None
+# psutil is now a required dependency
 
 
 def find_and_kill_process(port: int) -> None:
     """Find and kill any process using the given port."""
-    if not PSUTIL_AVAILABLE:
-        return
 
     for proc in psutil.process_iter(["pid", "name", "connections"]):
         try:

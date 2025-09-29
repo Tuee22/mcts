@@ -6,7 +6,6 @@ from typing import (
     Optional,
     List,
     Dict,
-    Any,
     Awaitable,
     TypeVar,
     Callable,

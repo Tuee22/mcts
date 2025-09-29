@@ -13,7 +13,9 @@ import websockets
 from httpx import ASGITransport, AsyncClient
 from websockets.client import WebSocketClientProtocol
 
-from backend.api.server import app
+from backend.api.server import app, game_manager, ws_manager
+from backend.api.game_manager import GameManager
+from backend.api.websocket_manager import WebSocketManager
 
 
 @pytest.fixture(scope="session")
@@ -52,15 +54,35 @@ async def test_client(test_config: TestConfig) -> AsyncGenerator[AsyncClient, No
     # Set environment variable to indicate we're in a test
     os.environ["PYTEST_CURRENT_TEST"] = "true"
 
-    # Use the app directly with proper initialization
-    transport = ASGITransport(app=app)
+    # Initialize managers manually if not already initialized
+    import backend.api.server as server_module
 
-    # The lifespan context will be handled by the ASGI transport
-    async with AsyncClient(
-        transport=transport,
-        base_url=f"http://{test_config['api_host']}:{test_config['api_port']}",
-    ) as client:
-        yield client
+    if server_module.game_manager is None:
+        server_module.game_manager = GameManager()
+    if server_module.ws_manager is None:
+        server_module.ws_manager = WebSocketManager()
+
+    # Start the cleanup task for tests
+    cleanup_task = asyncio.create_task(
+        server_module.game_manager.cleanup_inactive_games()
+    )
+
+    try:
+        # Create the transport and client
+        transport = ASGITransport(app=app)
+
+        async with AsyncClient(
+            transport=transport,
+            base_url=f"http://{test_config['api_host']}:{test_config['api_port']}",
+        ) as client:
+            yield client
+    finally:
+        # Cancel the cleanup task
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 @pytest.fixture(scope="session")

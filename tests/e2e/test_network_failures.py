@@ -53,6 +53,15 @@ async def test_dns_resolution_failure(page: Page, e2e_urls: Dict[str, str]) -> N
     except Exception as e:
         print(f"✅ DNS failure handled correctly: {type(e).__name__}")
 
+    # Chromium may redirect to chrome-error:// page after DNS failure
+    # Wait briefly and check current URL before attempting navigation
+    await asyncio.sleep(0.5)
+    current_url = page.url
+    if "chrome-error://" in current_url:
+        # For Chromium, we need to navigate away from error page first
+        print("✅ Chromium error page detected, navigating to blank page first")
+        await page.goto("about:blank")
+
     # Verify the page can still navigate to valid URLs
     await page.goto(e2e_urls["frontend"])
     title = await page.title()

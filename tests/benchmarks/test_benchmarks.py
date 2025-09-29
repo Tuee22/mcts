@@ -18,10 +18,7 @@ from pytest_benchmark.plugin import BenchmarkFixture
 from corridors import AsyncCorridorsMCTS
 from corridors.async_mcts import MCTSConfig
 
-try:
-    import pytest_benchmark
-except ImportError:
-    pytest_benchmark = None  # type: ignore
+import pytest_benchmark
 
 
 def display_sorted_actions(

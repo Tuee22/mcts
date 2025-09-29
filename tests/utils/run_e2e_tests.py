@@ -10,20 +10,12 @@ import sys
 import time
 from pathlib import Path
 
-try:
-    import psutil
-
-    PSUTIL_AVAILABLE = True
-except ImportError:
-    PSUTIL_AVAILABLE = False
-
+import psutil
 import requests
 
 
 def find_and_kill_process(port: int) -> None:
     """Find and kill any process using the given port."""
-    if not PSUTIL_AVAILABLE:
-        return
 
     for proc in psutil.process_iter(["pid", "name", "connections"]):
         try:

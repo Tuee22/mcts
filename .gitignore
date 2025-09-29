@@ -187,3 +187,4 @@ backend/core/results.txt
 debug-*.png
 test-screenshots/
 *.screenshot.png
+tests/e2e/core

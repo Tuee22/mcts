@@ -23,7 +23,6 @@ from tests.utils.run_unified_tests import (
 class TestFindAndKillProcess:
     """Test the find_and_kill_process utility function."""
 
-    @patch("tests.utils.run_unified_tests.PSUTIL_AVAILABLE", True)
     @patch("psutil.process_iter")
     @patch("os.kill")
     @patch("time.sleep")
@@ -52,7 +51,6 @@ class TestFindAndKillProcess:
         assert isinstance(mock_print, MagicMock)
         mock_print.assert_called_once_with("Killing process 1234 using port 8000")
 
-    @patch("tests.utils.run_unified_tests.PSUTIL_AVAILABLE", True)
     @patch("psutil.process_iter")
     def test_find_and_kill_process_no_matching_port(
         self, mock_process_iter: MagicMock
@@ -77,7 +75,6 @@ class TestFindAndKillProcess:
 
         mock_kill.assert_not_called()
 
-    @patch("tests.utils.run_unified_tests.PSUTIL_AVAILABLE", True)
     @patch("psutil.process_iter")
     def test_find_and_kill_process_no_connections(
         self, mock_process_iter: MagicMock
@@ -94,7 +91,6 @@ class TestFindAndKillProcess:
 
         mock_kill.assert_not_called()
 
-    @patch("tests.utils.run_unified_tests.PSUTIL_AVAILABLE", True)
     @patch("psutil.process_iter")
     def test_find_and_kill_process_exception_handling(
         self, mock_process_iter: MagicMock
@@ -112,11 +108,7 @@ class TestFindAndKillProcess:
         # Should not raise exception, should handle gracefully
         find_and_kill_process(8000)
 
-    @patch("tests.utils.run_unified_tests.PSUTIL_AVAILABLE", False)
-    def test_find_and_kill_process_psutil_unavailable(self) -> None:
-        """Test when psutil is not available."""
-        # Should return immediately without error
-        find_and_kill_process(8000)
+    # Removed test for psutil unavailable - psutil is now always required
 
 
 class TestEnsurePortsFree:

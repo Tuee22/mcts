@@ -1,12 +1,12 @@
 """Type stubs for requests library."""
 
-from typing import Dict, List, Optional, Union, TypeVar
+from typing import Dict, List, Optional, Union
 
 _JsonValue = Union[
     None, bool, int, float, str, List["_JsonValue"], Dict[str, "_JsonValue"]
 ]
 
-# Exceptions module
+# Exceptions
 class RequestException(Exception): ...
 class ConnectionError(RequestException): ...
 class HTTPError(RequestException): ...

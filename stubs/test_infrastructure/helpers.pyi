@@ -1,6 +1,6 @@
 """Type stubs for test helper functions."""
 
-from typing import Awaitable, TypeVar, Optional, Dict, Any, Union
+from typing import Awaitable, TypeVar, Optional
 from playwright.async_api import Page, Locator
 
 T = TypeVar("T")

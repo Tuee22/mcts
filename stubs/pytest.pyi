@@ -21,10 +21,32 @@ _T = TypeVar("_T")
 class MarkDecorator:
     """Pytest mark decorator."""
 
-    def __call__(self, *args: object, **kwargs: object) -> object: ...
+    def __call__(self, func: _T) -> _T: ...
+    def with_args(self, *args: object, **kwargs: object) -> "MarkDecorator": ...
+
+class XFail:
+    """Pytest xfail mark."""
+
+    def __call__(
+        self,
+        reason: str = "",
+        *,
+        run: bool = True,
+        raises: Optional[Union[type, tuple]] = None,
+        strict: bool = False,
+        condition: Union[bool, str] = True,
+    ) -> MarkDecorator: ...
+
+class Skip:
+    """Pytest skip mark."""
+
+    def __call__(self, reason: str = "") -> MarkDecorator: ...
 
 class MarkGenerator:
     """Pytest mark generator."""
+
+    xfail: XFail
+    skip: Skip
 
     def __getattr__(self, name: str) -> MarkDecorator: ...
 

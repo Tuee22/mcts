@@ -263,3 +263,6 @@ type-check-results/
 # Specific .txt files to ignore
 backend/python/gdb_init.txt
 backend/core/results.txt
+
+# E2E test artifacts
+tests/e2e/core

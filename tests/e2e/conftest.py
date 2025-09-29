@@ -20,10 +20,7 @@ from typing import (
 
 from _pytest.fixtures import FixtureRequest
 
-if TYPE_CHECKING:
-    from pytest import Item
-else:
-    from pytest import Item
+from pytest import Item
 
 import pytest
 import pytest_asyncio
