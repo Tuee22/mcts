@@ -3,29 +3,90 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the game store first with vi.hoisted
 const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const gameId = 'test-game-123';
+  const gameState = {
+    board_size: 9,
+    players: [{ row: 0, col: 4 }, { row: 8, col: 4 }],
+    walls: [],
+    legal_moves: [],
+    current_player: 0,
+    winner: null,
+    is_terminal: false,
+    move_history: [],
+    walls_remaining: [10, 10]
+  };
+
   const store = {
-    gameId: 'test-game-123',
-    gameState: {
-      board_size: 9,
-      players: [{ row: 0, col: 4 }, { row: 8, col: 4 }],
-      walls: [],
-      legal_moves: [],
-      current_player: 0,
-      winner: null,
-      is_terminal: false,
-      move_history: [],
-      walls_remaining: [10, 10]
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
     },
+    session: gameId ? { 
+      type: 'active-game',
+      gameId: gameId,
+      state: gameState,
+      createdAt: Date.now()
+    } : { type: 'no-game' },
+    settings: { 
+      gameSettings: { 
+        mode: 'human_vs_ai', 
+        ai_difficulty: 'medium', 
+        ai_time_limit: 5000, 
+        board_size: 9 
+      }, 
+      theme: 'light', 
+      soundEnabled: true 
+    },
+    ui: { 
+      settingsExpanded: false, 
+      selectedHistoryIndex: null, 
+      notifications: [] 
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const connected = mockGameStore.connection.type === 'connected';
+      
+      if (hasGame) {
+        return { type: 'button-visible', enabled: connected };
+      } else if (connected) {
+        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+      } else {
+        return { type: 'button-visible', enabled: false };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => mockGameStore.session?.state || null),
+    canStartGame: vi.fn(() => mockGameStore.connection.type === 'connected' && !mockGameStore.session),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    
+    // Legacy compatibility
+    gameId: gameId || null,
+    gameState: gameState || null,
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-    isConnected: true,
     isLoading: false,
+    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
-    setGameId: vi.fn(),
-    setGameState: vi.fn(),
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
     setGameSettings: vi.fn(),
-    setIsConnected: vi.fn(),
-    setIsLoading: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
     setError: vi.fn(),
     setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
@@ -50,7 +111,7 @@ vi.mock('@/services/websocket', () => ({
     connect: vi.fn(() => Promise.resolve()),
     disconnect: vi.fn(),
     disconnectFromGame: vi.fn(),
-    isConnected: vi.fn(() => true),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
     makeMove: vi.fn(() => Promise.resolve()),
     getAIMove: vi.fn(() => Promise.resolve()),
@@ -90,25 +151,58 @@ describe('New Game Button Tests', () => {
     user = createUser();
     
     // Reset mock store to connected state with active game
+    const newGameState = {
+      board_size: 9,
+      players: [{ row: 2, col: 4 }, { row: 6, col: 4 }],
+      walls: [],
+      legal_moves: ['move1', 'move2'],
+      current_player: 0,
+      winner: null,
+      is_terminal: false,
+      move_history: [{ notation: 'e2', player: 0, timestamp: Date.now() }],
+      walls_remaining: [9, 8]
+    };
+    
     Object.assign(mockGameStore, {
-      gameId: 'test-game-123',
-      gameState: {
-        board_size: 9,
-        players: [{ row: 2, col: 4 }, { row: 6, col: 4 }],
-        walls: [],
-        legal_moves: ['move1', 'move2'],
-        current_player: 0,
-        winner: null,
-        is_terminal: false,
-        move_history: [{ notation: 'e2', player: 0, timestamp: Date.now() }],
-        walls_remaining: [9, 8]
+      // Update state properties
+      connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+      session: { 
+        type: 'active-game',
+        gameId: 'test-game-123',
+        state: newGameState,
+        createdAt: Date.now()
       },
+      settings: { 
+        gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 }, 
+        theme: 'light', 
+        soundEnabled: true 
+      },
+      ui: { 
+        settingsExpanded: false, 
+        selectedHistoryIndex: null, 
+        notifications: [] 
+      },
+      
+      // Legacy compatibility
+      gameId: 'test-game-123',
+      gameState: newGameState,
       gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-      isConnected: true, // Critical: start in connected state
       isLoading: false,
+      isCreatingGame: false,
       error: null,
       selectedHistoryIndex: null
     });
+    
+    // Update function mocks
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
+    mockGameStore.getCurrentGameState.mockReturnValue(newGameState);
+    mockGameStore.canStartGame.mockReturnValue(false);
+    mockGameStore.isGameActive.mockReturnValue(true);
   });
 
   describe('Connection Preservation', () => {
@@ -147,7 +241,7 @@ describe('New Game Button Tests', () => {
       await user.click(newGameButton);
       await user.click(newGameButton);
       
-      expect(mockGameStore.reset).toHaveBeenCalledTimes(3);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
       
       // Connection should remain stable
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
@@ -241,7 +335,7 @@ describe('New Game Button Tests', () => {
         await user.click(newGameButton);
       }
       
-      expect(mockGameStore.reset).toHaveBeenCalledTimes(5);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
       
       // Should still show connected
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
@@ -265,13 +359,13 @@ describe('New Game Button Tests', () => {
       
       // Verify initial state
       expect(mockGameStore.gameId).toBe('test-game-123');
-      expect(mockGameStore.isConnected).toBe(true);
+      expect(mockGameStore.isConnected()).toBe(true);
       
       const newGameButton = screen.getByRole('button', { name: /new game/i });
       await user.click(newGameButton);
       
-      // Reset should be called
-      expect(mockGameStore.reset).toHaveBeenCalled();
+      // Dispatch should be called
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
       
       // Reset function should preserve connection state
       // This test documents what should happen vs what currently happens

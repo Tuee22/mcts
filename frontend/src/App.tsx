@@ -51,7 +51,7 @@ function App() {
 
   // Handle AI moves for AI games
   useEffect(() => {
-    if (session.type === 'active-game' && session.state.winner === null) {
+    if (session.type === 'active-game' && session.state && session.state.winner === null) {
       const gameId = session.gameId;
       const gameState = session.state;
       

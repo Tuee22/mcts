@@ -11,41 +11,166 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { GameSettings } from '@/components/GameSettings';
 
-// Mock the game store with controllable state
-const mockUseGameStore = vi.fn();
+// Mock the game store first with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  // Create mock store inline to avoid import issues with hoisting
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: {
+        mode: 'human_vs_human',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn((action) => {
+      // Simulate actual state updates for relevant actions
+      if (action.type === 'SETTINGS_TOGGLED') {
+        mockGameStore.ui.settingsExpanded = !mockGameStore.ui.settingsExpanded;
+      } else if (action.type === 'START_GAME') {
+        mockGameStore.isLoading = true;
+        mockGameStore.isCreatingGame = true;
+      }
+    }),
+    getSettingsUI: () => {
+      // Replicate the actual getSettingsUIState logic
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const connected = mockGameStore.connection.type === 'connected';
+      
+      // If settings are explicitly expanded, show panel
+      if (mockGameStore.ui.settingsExpanded) {
+        const isCreating = mockGameStore.isLoading && mockGameStore.isCreatingGame;
+        const canStart = connected && !hasGame;
+        return { type: 'panel-visible', canStartGame: canStart, isCreating };
+      }
+      
+      // Otherwise, determine based on session state
+      if (hasGame) {
+        return {
+          type: 'button-visible',
+          enabled: connected
+        };
+      } else if (connected) {
+        return {
+          type: 'panel-visible',
+          canStartGame: true,
+          isCreating: mockGameStore.isLoading && mockGameStore.isCreatingGame
+        };
+      } else {
+        return {
+          type: 'button-visible',
+          enabled: false
+        };
+      }
+    },
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => null),
+    canStartGame: vi.fn(() => {
+      const connected = mockGameStore.connection.type === 'connected';
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      return connected && !hasGame;
+    }),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => false),
+    
+    // Legacy compatibility
+    gameId: null,
+    gameState: null,
+    gameSettings: { mode: 'human_vs_human', ai_difficulty: 'medium', ai_time_limit: 3000, board_size: 9 },
+    isLoading: false,
+    isCreatingGame: false,
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
+  useGameStore: mockUseGameStore
 }));
 
-// Mock WebSocket service
+const mockWsService = vi.hoisted(() => ({
+  connect: vi.fn(() => Promise.resolve()),
+  disconnect: vi.fn(),
+  disconnectFromGame: vi.fn(),
+  isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+  createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+  makeMove: vi.fn(() => Promise.resolve()),
+  getAIMove: vi.fn(() => Promise.resolve()),
+  joinGame: vi.fn(),
+  requestGameState: vi.fn(() => Promise.resolve()),
+  connectToGame: vi.fn(),
+}));
+
 vi.mock('@/services/websocket', () => ({
-  wsService: {
-    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    isConnected: vi.fn(() => true)
-  }
+  wsService: mockWsService
 }));
 
 describe('GameSettings Race Condition Tests', () => {
-  const baseMockStore = {
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
-      ai_time_limit: 3000,
-      board_size: 9
-    },
-    setGameSettings: vi.fn(),
-    isLoading: false,
-    isCreatingGame: false,
-    isConnected: true,
-    gameId: null,
-    setIsCreatingGame: vi.fn()
-  };
+  let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(baseMockStore);
+    user = userEvent.setup();
+    
+    // Reset the game store state for each test
+    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+    mockGameStore.session = {
+      gameId: null,
+      gameState: null,
+      createdAt: Date.now()
+    };
+    mockGameStore.ui.settingsExpanded = false;
+    mockGameStore.isLoading = false;
+    mockGameStore.isCreatingGame = false;
+    mockGameStore.error = null;
+    
+    // Reset mock return values
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue(null);
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    // Don't override getSettingsUI - let it use the dynamic function
   });
 
   describe('Rapid Connection State Changes', () => {
@@ -58,10 +183,8 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid disconnect
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          isConnected: false
-        });
+        mockGameStore.connection = { type: 'disconnected' as const };
+        mockGameStore.isConnected.mockReturnValue(false);
       });
       rerender(<GameSettings />);
 
@@ -74,10 +197,8 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid reconnect
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          isConnected: true
-        });
+        mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+        mockGameStore.isConnected.mockReturnValue(true);
       });
       rerender(<GameSettings />);
 
@@ -89,7 +210,6 @@ describe('GameSettings Race Condition Tests', () => {
     });
 
     it('should handle multiple rapid disconnections during game creation', async () => {
-      const user = userEvent.setup();
       const { rerender } = render(<GameSettings />);
 
       // Start game creation
@@ -98,15 +218,40 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid state changes during game creation
       const stateSequence = [
-        { ...baseMockStore, isLoading: true, isConnected: false },
-        { ...baseMockStore, isLoading: true, isConnected: true },
-        { ...baseMockStore, isLoading: false, isConnected: false, gameId: 'test-game' },
-        { ...baseMockStore, isLoading: false, isConnected: true, gameId: 'test-game' }
+        { connected: false, loading: true, gameId: null },
+        { connected: true, loading: true, gameId: null },
+        { connected: false, loading: false, gameId: 'test-game' },
+        { connected: true, loading: false, gameId: 'test-game' }
       ];
 
       for (const state of stateSequence) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          mockGameStore.connection = state.connected 
+            ? { type: 'connected' as const, clientId: 'test-client', since: new Date() }
+            : { type: 'disconnected' as const };
+          mockGameStore.isConnected.mockReturnValue(state.connected);
+          mockGameStore.isLoading = state.loading;
+          mockGameStore.session = state.gameId ? {
+        type: 'active-game' as const,
+        gameId: state.gameId,
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      } : { type: 'no-game' as const };
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          
+          if (state.gameId) {
+          } else if (state.connected) {
+          } else {
+          }
         });
         rerender(<GameSettings />);
 
@@ -131,16 +276,35 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Simulate rapid game state changes
       const gameStates = [
-        { ...baseMockStore, gameId: null },           // No game
-        { ...baseMockStore, gameId: 'game-1' },       // Game created
-        { ...baseMockStore, gameId: null },           // Game deleted
-        { ...baseMockStore, gameId: 'game-2' },       // New game created
-        { ...baseMockStore, gameId: null }            // Game deleted again
+        { gameId: null },           // No game
+        { gameId: 'game-1' },       // Game created
+        { gameId: null },           // Game deleted
+        { gameId: 'game-2' },       // New game created
+        { gameId: null }            // Game deleted again
       ];
 
       for (const state of gameStates) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          mockGameStore.session = state.gameId ? {
+        type: 'active-game' as const,
+        gameId: state.gameId,
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      } : { type: 'no-game' as const };
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          
+          if (state.gameId) {
+          } else {
+          }
         });
         rerender(<GameSettings />);
 
@@ -164,15 +328,26 @@ describe('GameSettings Race Condition Tests', () => {
     });
 
     it('should maintain Settings button accessibility during rapid transitions', async () => {
-      const user = userEvent.setup();
       const { rerender } = render(<GameSettings />);
 
       // Start with game active (toggle button visible)
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          gameId: 'test-game'
-        });
+        mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+        mockGameStore.getCurrentGameId.mockReturnValue('test-game');
       });
       rerender(<GameSettings />);
 
@@ -181,10 +356,8 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid transition: game deleted, immediately recreated
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          gameId: null  // Game deleted
-        });
+        mockGameStore.session = { type: 'no-game' as const };
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
       });
       rerender(<GameSettings />);
 
@@ -195,10 +368,22 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Immediate game recreation
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          gameId: 'new-game'  // Game recreated
-        });
+        mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'new-game',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+        mockGameStore.getCurrentGameId.mockReturnValue('new-game');
       });
       rerender(<GameSettings />);
 
@@ -210,6 +395,10 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Toggle button should still be functional
       await user.click(toggleButton);
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
+      
       await waitFor(() => {
         expect(screen.getByText('Game Mode')).toBeInTheDocument();
       });
@@ -222,21 +411,46 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Simulate complex race condition: disconnection + game creation + reconnection
       const complexStateSequence = [
-        { ...baseMockStore, isConnected: true, gameId: null, isLoading: false },
-        { ...baseMockStore, isConnected: false, gameId: null, isLoading: true },  // Disconnect during loading
-        { ...baseMockStore, isConnected: false, gameId: 'game-1', isLoading: false }, // Game created while disconnected
-        { ...baseMockStore, isConnected: true, gameId: 'game-1', isLoading: false },  // Reconnect with game
-        { ...baseMockStore, isConnected: true, gameId: null, isLoading: false }      // Game ends
+        { connected: true, gameId: null, loading: false },
+        { connected: false, gameId: null, loading: true },  // Disconnect during loading
+        { connected: false, gameId: 'game-1', loading: false }, // Game created while disconnected
+        { connected: true, gameId: 'game-1', loading: false },  // Reconnect with game
+        { connected: true, gameId: null, loading: false }      // Game ends
       ];
 
       for (const [index, state] of complexStateSequence.entries()) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          mockGameStore.connection = state.connected 
+            ? { type: 'connected' as const, clientId: 'test-client', since: new Date() }
+            : { type: 'disconnected' as const };
+          mockGameStore.isConnected.mockReturnValue(state.connected);
+          mockGameStore.isLoading = state.loading;
+          mockGameStore.session = state.gameId ? {
+        type: 'active-game' as const,
+        gameId: state.gameId,
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      } : { type: 'no-game' as const };
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          
+          if (!state.connected) {
+          } else if (state.gameId) {
+          } else {
+          }
         });
         rerender(<GameSettings />);
 
         // Verify UI consistency at each step
-        if (!state.isConnected) {
+        if (!state.connected) {
           await waitFor(() => {
             const toggleButton = screen.getByText('⚙️ Game Settings');
             expect(toggleButton).toBeDisabled();
@@ -260,21 +474,35 @@ describe('GameSettings Race Condition Tests', () => {
     });
 
     it('should prevent Settings button from disappearing during user interaction', async () => {
-      const user = userEvent.setup();
       const { rerender } = render(<GameSettings />);
 
       // Start with game active
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          gameId: 'test-game'
-        });
+        mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+        mockGameStore.getCurrentGameId.mockReturnValue('test-game');
       });
       rerender(<GameSettings />);
 
       // User clicks to expand settings
       const toggleButton = screen.getByText('⚙️ Game Settings');
       await user.click(toggleButton);
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       // Verify panel is expanded
       await waitFor(() => {
@@ -283,10 +511,8 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Simulate race condition: game state changes while panel is open
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          gameId: null  // Game suddenly ends
-        });
+        mockGameStore.session = { type: 'no-game' as const };
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
       });
       rerender(<GameSettings />);
 
@@ -312,21 +538,42 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid loading state changes - include isCreatingGame for proper "Starting..." behavior
       const loadingStates = [
-        { ...baseMockStore, isLoading: false, isCreatingGame: false },
-        { ...baseMockStore, isLoading: true, isCreatingGame: true },
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: 'game-1' },
-        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: 'game-1' },
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }
+        { loading: false, creating: false, gameId: null },
+        { loading: true, creating: true, gameId: null },
+        { loading: false, creating: false, gameId: 'game-1' },
+        { loading: true, creating: true, gameId: 'game-1' },
+        { loading: false, creating: false, gameId: null }
       ];
 
       for (const state of loadingStates) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          mockGameStore.isLoading = state.loading;
+          mockGameStore.isCreatingGame = state.creating;
+          mockGameStore.session = state.gameId ? {
+        type: 'active-game' as const,
+        gameId: state.gameId,
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      } : { type: 'no-game' as const };
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          
+          if (state.gameId) {
+          } else {
+          }
         });
         rerender(<GameSettings />);
 
         // Verify loading states don't break UI
-        if (state.isCreatingGame && !state.gameId) {
+        if (state.creating && !state.gameId) {
           const startButton = screen.getByTestId('start-game-button');
           expect(startButton).toBeDisabled();
           expect(startButton).toHaveTextContent('Starting...');

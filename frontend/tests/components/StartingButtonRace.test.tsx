@@ -11,24 +11,66 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { GameSettings } from '@/components/GameSettings';
 
-// Mock the game store with controllable state
-const mockUseGameStore = vi.fn();
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
-}));
-
-// Mock WebSocket service with controllable delays
-vi.mock('@/services/websocket', () => ({
-  wsService: {
-    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    isConnected: vi.fn(() => true)
-  }
-}));
-
-describe('Starting Button Race Condition Tests', () => {
-  const baseMockStore = {
+// Mock the game store with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+    session: { type: 'no-game' as const },
+    settings: { 
+      gameSettings: { 
+        mode: 'human_vs_human', 
+        ai_difficulty: 'medium', 
+        ai_time_limit: 3000, 
+        board_size: 9 
+      }, 
+      theme: 'light', 
+      soundEnabled: true 
+    },
+    ui: { 
+      settingsExpanded: false, 
+      selectedHistoryIndex: null, 
+      notifications: [] 
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      const hasGame = mockGameStore.session.type === 'active-game' || 
+                      mockGameStore.session.type === 'game-ending' || 
+                      mockGameStore.session.type === 'game-over';
+      const connected = mockGameStore.connection.type === 'connected';
+      const isCreating = mockGameStore.session.type === 'creating-game';
+      
+      if (hasGame) {
+        return { type: 'button-visible', enabled: connected };
+      } else if (connected) {
+        return { type: 'panel-visible', canStartGame: !isCreating, isCreating: isCreating };
+      } else {
+        return { type: 'button-visible', enabled: false };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => mockGameStore.session?.state || null),
+    canStartGame: vi.fn(() => mockGameStore.connection.type === 'connected' && !mockGameStore.session),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    
+    // Legacy compatibility
+    gameId: null,
+    gameState: null,
     gameSettings: {
       mode: 'human_vs_human' as const,
       ai_difficulty: 'medium' as const,
@@ -38,15 +80,93 @@ describe('Starting Button Race Condition Tests', () => {
     setGameSettings: vi.fn(),
     isLoading: false,
     isCreatingGame: false,
-    isConnected: true,
-    gameId: null,
-    reset: vi.fn(),
-    setIsCreatingGame: vi.fn()
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
   };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: mockUseGameStore
+}));
+
+// Mock WebSocket service with controllable delays
+vi.mock('@/services/websocket', () => ({
+  wsService: {
+    createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+    connect: vi.fn(() => Promise.resolve()),
+    disconnect: vi.fn(),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected')
+  }
+}));
+
+describe('Starting Button Race Condition Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(baseMockStore);
+    
+    // Reset store to no game state
+    Object.assign(mockGameStore, {
+      connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+      session: { type: 'no-game' as const },
+      settings: { 
+        gameSettings: { 
+          mode: 'human_vs_human', 
+          ai_difficulty: 'medium', 
+          ai_time_limit: 3000, 
+          board_size: 9 
+        }, 
+        theme: 'light', 
+        soundEnabled: true 
+      },
+      ui: { 
+        settingsExpanded: false, 
+        selectedHistoryIndex: null, 
+        notifications: [] 
+      },
+      
+      // Legacy compatibility
+      gameId: null,
+      gameState: null,
+      gameSettings: {
+        mode: 'human_vs_human' as const,
+        ai_difficulty: 'medium' as const,
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      isLoading: false,
+      isCreatingGame: false,
+      error: null,
+      selectedHistoryIndex: null
+    });
+    
+    // Update function mocks
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue(null);
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    mockGameStore.canStartGame.mockReturnValue(true);
+    mockGameStore.isGameActive.mockReturnValue(false);
+    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
   });
 
   describe('Starting Button Stuck State', () => {
@@ -55,8 +175,7 @@ describe('Starting Button Race Condition Tests', () => {
       const resetMock = vi.fn();
 
       // Start with no game
-      mockUseGameStore.mockReturnValue({
-        ...baseMockStore,
+      Object.assign(mockGameStore, {
         reset: resetMock
       });
 
@@ -69,12 +188,12 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate loading state with active game creation
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: true,
           isCreatingGame: true,
           reset: resetMock
         });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
       });
       rerender(<GameSettings />);
 
@@ -87,12 +206,21 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate game created
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: false,
+          isCreatingGame: false,
+          session: {
+            type: 'active-game',
+            gameId: 'test-game',
+            state: null,
+            createdAt: Date.now()
+          },
           gameId: 'test-game',
           reset: resetMock
         });
+        mockGameStore.getCurrentGameId.mockReturnValue('test-game');
+        mockGameStore.canStartGame.mockReturnValue(false);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
       });
       rerender(<GameSettings />);
 
@@ -107,13 +235,16 @@ describe('Starting Button Race Condition Tests', () => {
         resetMock(); // This is what New Game button does
 
         // Immediate state change - game is gone but loading might still be true
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: true,  // This is the key - loading state gets stuck
           isCreatingGame: false,  // But we're NOT actively creating a game (race condition)
+          session: { type: 'no-game' as const },    // Game is reset
           gameId: null,     // But game is reset
           reset: resetMock
         });
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
+        mockGameStore.canStartGame.mockReturnValue(false); // Still loading
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: false });
       });
       rerender(<GameSettings />);
 
@@ -143,12 +274,17 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate loading state (keep connection during loading)
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: true,
           isCreatingGame: true,  // Must be actively creating to show "Starting..."
-          isConnected: true  // Keep connected during loading to show settings panel
+          connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    }  // Keep connected during loading to show settings panel
         });
+        mockGameStore.isConnected.mockReturnValue(true);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
       });
       rerender(<GameSettings />);
 
@@ -160,12 +296,21 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Connection restored but game creation failed - should reset properly
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: false,   // Loading finished
-          isConnected: true,  // Connection restored
+          isCreatingGame: false,
+          connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },  // Connection restored
+          session: { type: 'no-game' as const },      // But no game created
           gameId: null        // But no game created
         });
+        mockGameStore.isConnected.mockReturnValue(true);
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
+        mockGameStore.canStartGame.mockReturnValue(true);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
       });
       rerender(<GameSettings />);
 
@@ -183,16 +328,26 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate the exact sequence that causes the race condition
       const stateSequence = [
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },     // Initial
-        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: null },       // Start game
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: 'game-1' }, // Game created
-        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },      // New Game clicked (RACE CONDITION - stale loading)
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }      // Should recover
+        { isLoading: false, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },     // Initial
+        { isLoading: true, isCreatingGame: true, gameId: null, session: { type: 'no-game' as const } },       // Start game
+        { isLoading: false, isCreatingGame: false, gameId: 'game-1', session: { type: 'active-game', gameId: 'game-1', state: null, createdAt: Date.now() } }, // Game created
+        { isLoading: true, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },      // New Game clicked (RACE CONDITION - stale loading)
+        { isLoading: false, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } }      // Should recover
       ];
 
       for (const [index, state] of stateSequence.entries()) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          Object.assign(mockGameStore, state);
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          mockGameStore.canStartGame.mockReturnValue(!state.isLoading && !state.session);
+          
+          if (state.session) {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
+          } else if (state.isCreatingGame) {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+          } else {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: !state.isLoading, isCreating: false });
+          }
         });
         rerender(<GameSettings />);
 
@@ -236,20 +391,26 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Simulate loading state
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
-          isLoading: true
+        Object.assign(mockGameStore, {
+          isLoading: true,
+          isCreatingGame: true
         });
+        mockGameStore.canStartGame.mockReturnValue(false);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
       });
       rerender(<GameSettings />);
 
       // Simulate loading completes but creation failed
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: false,
+          isCreatingGame: false,
+          session: { type: 'no-game' as const },
           gameId: null  // Creation failed
         });
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
+        mockGameStore.canStartGame.mockReturnValue(true);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
       });
       rerender(<GameSettings />);
 
@@ -267,13 +428,16 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Start in loading state (button clicked, creation in progress)
       act(() => {
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: true,
           isCreatingGame: true,  // Must be actively creating to show "Starting..."
+          session: { type: 'no-game' as const },
           gameId: null,
           reset: resetMock
         });
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
+        mockGameStore.canStartGame.mockReturnValue(false);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
       });
       rerender(<GameSettings />);
 
@@ -285,12 +449,16 @@ describe('Starting Button Race Condition Tests', () => {
       act(() => {
         resetMock();
         // Reset should clear loading state
-        mockUseGameStore.mockReturnValue({
-          ...baseMockStore,
+        Object.assign(mockGameStore, {
           isLoading: false,  // Reset should clear loading
+          isCreatingGame: false,
+          session: { type: 'no-game' as const },
           gameId: null,
           reset: resetMock
         });
+        mockGameStore.getCurrentGameId.mockReturnValue(null);
+        mockGameStore.canStartGame.mockReturnValue(true);
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
       });
       rerender(<GameSettings />);
 
@@ -309,19 +477,29 @@ describe('Starting Button Race Condition Tests', () => {
 
       // Rapid fire state changes (simulates real race condition timing)
       const rapidStates = [
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },
-        { ...baseMockStore, isLoading: true, isCreatingGame: true, gameId: null },
-        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },   // Stuck loading without creation
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null },  // Recovery
-        { ...baseMockStore, isLoading: true, isCreatingGame: false, gameId: null },   // Reset during loading
-        { ...baseMockStore, isLoading: false, isCreatingGame: false, gameId: null }
+        { isLoading: false, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },
+        { isLoading: true, isCreatingGame: true, gameId: null, session: { type: 'no-game' as const } },
+        { isLoading: true, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },   // Stuck loading without creation
+        { isLoading: false, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },  // Recovery
+        { isLoading: true, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } },   // Reset during loading
+        { isLoading: false, isCreatingGame: false, gameId: null, session: { type: 'no-game' as const } }
       ];
 
       let stuckStateDetected = false;
 
       for (const state of rapidStates) {
         act(() => {
-          mockUseGameStore.mockReturnValue(state);
+          Object.assign(mockGameStore, state);
+          mockGameStore.getCurrentGameId.mockReturnValue(state.gameId);
+          mockGameStore.canStartGame.mockReturnValue(!state.isLoading && !state.session);
+          
+          if (state.session) {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
+          } else if (state.isCreatingGame) {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+          } else {
+            mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: !state.isLoading, isCreating: false });
+          }
         });
         rerender(<GameSettings />);
 

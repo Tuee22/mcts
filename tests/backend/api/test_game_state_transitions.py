@@ -226,7 +226,7 @@ class TestGameManagerStateConsistency:
         )
 
         assert isinstance(game, ActiveGame)
-        assert game.game_id in game_manager._games
+        assert game.game_id in game_manager._pool.games
 
         # Retrieved game should be identical
         retrieved_game = await game_manager.get_game(game.game_id)

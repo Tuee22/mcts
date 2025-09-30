@@ -11,6 +11,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
+    dispatch: vi.fn(),
     setGameId: vi.fn(),
     setGameState: vi.fn(),
     setGameSettings: vi.fn(),
@@ -251,7 +252,13 @@ describe('WebSocket Service Enhanced Tests', () => {
       
       wsService.connectToGame('game-123');
       
-      expect(mockGameStore.setError).toHaveBeenCalledWith('Failed to connect to game');
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error',
+          message: 'Failed to connect to game'
+        })
+      });
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
 

@@ -14,81 +14,124 @@ import {
   isGameActive,
   Notification
 } from '../types/appState';
-import { GameState } from '../types/game';
+import { GameState, GameSettings, Move } from '../types/game';
 
 /**
  * Main state reducer - handles all state transitions
  */
 export function stateReducer(state: AppState, action: StateAction): AppState {
+  let newState: AppState;
+  
   switch (action.type) {
     // Connection actions
     case 'CONNECTION_START':
-      return handleConnectionStart(state);
+      newState = handleConnectionStart(state);
+      break;
     
     case 'CONNECTION_ESTABLISHED':
-      return handleConnectionEstablished(state, action.clientId);
+      newState = handleConnectionEstablished(state, action.clientId);
+      break;
     
     case 'CONNECTION_LOST':
-      return handleConnectionLost(state, action.error);
+      newState = handleConnectionLost(state, action.error);
+      break;
     
     case 'CONNECTION_RETRY':
-      return handleConnectionRetry(state);
+      newState = handleConnectionRetry(state);
+      break;
     
     // Game session actions
     case 'START_GAME':
-      return handleStartGame(state);
+      newState = handleStartGame(state);
+      break;
     
     case 'GAME_CREATED':
-      return handleGameCreated(state, action.gameId, action.state);
+      newState = handleGameCreated(state, action.gameId, action.state);
+      break;
     
     case 'GAME_CREATE_FAILED':
-      return handleGameCreateFailed(state, action.error);
+      newState = handleGameCreateFailed(state, action.error);
+      break;
     
     case 'NEW_GAME_CLICKED':
-      return handleNewGameClick(state);
+      newState = handleNewGameClick(state);
+      break;
     
     case 'GAME_ENDED':
-      return handleGameEnded(state, action.reason);
+      newState = handleGameEnded(state, action.reason);
+      break;
     
     case 'GAME_STATE_UPDATED':
-      return handleGameStateUpdated(state, action.state);
+      newState = handleGameStateUpdated(state, action.state);
+      break;
     
     case 'GAME_ENDING_COMPLETE':
-      return handleGameEndingComplete(state);
+      newState = handleGameEndingComplete(state);
+      break;
+    
+    case 'RESET_GAME':
+      newState = handleResetGame(state);
+      break;
     
     // Settings actions
     case 'SETTINGS_TOGGLED':
-      return handleSettingsToggled(state);
+      newState = handleSettingsToggled(state);
+      break;
     
     case 'SETTINGS_UPDATED':
-      return handleSettingsUpdated(state, action.settings);
+      newState = handleSettingsUpdated(state, action.settings);
+      break;
     
     case 'THEME_CHANGED':
-      return handleThemeChanged(state, action.theme);
+      newState = handleThemeChanged(state, action.theme);
+      break;
     
     case 'SOUND_TOGGLED':
-      return handleSoundToggled(state);
+      newState = handleSoundToggled(state);
+      break;
     
     // UI actions
     case 'HISTORY_INDEX_SET':
-      return handleHistoryIndexSet(state, action.index);
+      newState = handleHistoryIndexSet(state, action.index);
+      break;
     
     case 'NOTIFICATION_ADDED':
-      return handleNotificationAdded(state, action.notification);
+      newState = handleNotificationAdded(state, action.notification);
+      break;
     
     case 'NOTIFICATION_REMOVED':
-      return handleNotificationRemoved(state, action.id);
+      newState = handleNotificationRemoved(state, action.id);
+      break;
     
     // Move actions
     case 'MOVE_MADE':
-      return handleMoveMade(state, action.move);
+      newState = handleMoveMade(state, action.move);
+      break;
     
     case 'MOVE_FAILED':
-      return handleMoveFailed(state, action.error);
+      newState = handleMoveFailed(state, action.error);
+      break;
     
     default:
       return exhaustiveCheck(action);
   }
+  
+  // Validate the new state in development
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      validateAppState(newState);
+      validateStateTransition(state, newState, action);
+    } catch (error) {
+      console.error('State validation failed:', error);
+      console.error('Action:', action);
+      console.error('Previous state:', state);
+      console.error('New state:', newState);
+      // In development, we log but don't throw to avoid breaking the app
+      // In production, validation is skipped entirely for performance
+    }
+  }
+  
+  return newState;
 }
 
 // Connection state transitions
@@ -104,7 +147,7 @@ function handleConnectionStart(state: AppState): AppState {
   
   return {
     ...state,
-    connection: { type: 'connecting', attemptNumber }
+    connection: { type: 'connecting', attemptNumber, canReset: false }
   };
 }
 
@@ -115,7 +158,7 @@ function handleConnectionEstablished(state: AppState, clientId: string): AppStat
   
   return {
     ...state,
-    connection: { type: 'connected', clientId, since: new Date() }
+    connection: { type: 'connected', clientId, since: new Date(), canReset: true }
   };
 }
 
@@ -127,7 +170,7 @@ function handleConnectionLost(state: AppState, error?: string): AppState {
   
   return {
     ...state,
-    connection: { type: 'disconnected', error },
+    connection: { type: 'disconnected', error, canReset: true },
     session,
     ui: {
       ...state.ui,
@@ -155,7 +198,7 @@ function handleConnectionRetry(state: AppState): AppState {
   
   return {
     ...state,
-    connection: { type: 'reconnecting', lastClientId, attemptNumber: 1 }
+    connection: { type: 'reconnecting', lastClientId, attemptNumber: 1, canReset: false }
   };
 }
 
@@ -299,6 +342,33 @@ function handleGameEndingComplete(state: AppState): AppState {
   return {
     ...state,
     session: { type: 'no-game' }
+  };
+}
+
+function handleResetGame(state: AppState): AppState {
+  // Only allow reset in valid connection states
+  if (!state.connection.canReset) {
+    console.warn('Cannot reset during connection state:', state.connection.type);
+    return state; // No-op if reset not allowed
+  }
+  
+  // Preserve connection state and error notifications based on connection type
+  const preservedNotifications = state.connection.type === 'disconnected' 
+    ? state.ui.notifications.filter(n => n.type === 'error') // Keep error info when disconnected
+    : []; // Clear notifications when connected
+  
+  // Reset to no-game state while preserving connection and settings
+  return {
+    ...state,
+    connection: state.connection, // Preserve entire connection state
+    session: { type: 'no-game' },
+    settings: state.settings, // Preserve user settings for better UX
+    ui: {
+      ...state.ui,
+      selectedHistoryIndex: null,
+      settingsExpanded: false,
+      notifications: preservedNotifications
+    }
   };
 }
 
@@ -449,6 +519,143 @@ export function getSettingsUIState(state: AppState): SettingsUIState {
 }
 
 // Helper functions
+
+/**
+ * Validates that a state transition is legal
+ * Throws if the transition violates state machine rules
+ */
+export function validateStateTransition(
+  prevState: AppState,
+  nextState: AppState,
+  action: StateAction
+): void {
+  // Validate connection state transitions
+  const prevConn = prevState.connection.type;
+  const nextConn = nextState.connection.type;
+  
+  // Connection state machine rules
+  if (prevConn === 'disconnected' && nextConn === 'connected') {
+    throw new Error(`Invalid transition: cannot go directly from disconnected to connected (must go through connecting)`);
+  }
+  if (prevConn === 'connecting' && nextConn === 'disconnected' && action.type !== 'CONNECTION_LOST') {
+    throw new Error(`Invalid transition: connecting can only go to disconnected via CONNECTION_LOST`);
+  }
+  
+  // Session state machine rules  
+  const prevSession = prevState.session.type;
+  const nextSession = nextState.session.type;
+  
+  if (prevSession === 'no-game' && nextSession === 'active-game') {
+    throw new Error(`Invalid transition: cannot go directly from no-game to active-game (must go through creating-game)`);
+  }
+  if (prevSession === 'active-game' && nextSession === 'no-game' && action.type !== 'RESET_GAME') {
+    throw new Error(`Invalid transition: active-game can only go directly to no-game via RESET_GAME`);
+  }
+  if (prevSession === 'game-over' && nextSession === 'active-game') {
+    throw new Error(`Invalid transition: cannot go from game-over to active-game (must start new game)`);
+  }
+  
+  // Validate reset action constraints
+  if (action.type === 'RESET_GAME' && !prevState.connection.canReset) {
+    throw new Error(`Invalid action: RESET_GAME not allowed when canReset is false`);
+  }
+  
+  // Validate game creation constraints
+  if (nextSession === 'creating-game' && !isConnected(nextState.connection)) {
+    throw new Error(`Invalid state: cannot be creating-game while disconnected`);
+  }
+}
+
+/**
+ * Validates that the app state is internally consistent
+ * Throws if any invariants are violated
+ */
+export function validateAppState(state: AppState): void {
+  // Connection state validation
+  switch (state.connection.type) {
+    case 'disconnected':
+      // No session allowed when disconnected except game-over
+      if (state.session.type === 'creating-game' || state.session.type === 'joining-game') {
+        throw new Error('Cannot create or join game while disconnected');
+      }
+      break;
+    case 'connecting':
+    case 'reconnecting':
+      // Creating game not allowed during connection attempts
+      if (state.session.type === 'creating-game') {
+        throw new Error('Cannot create game while connecting');
+      }
+      break;
+    case 'connected':
+      // All session states valid when connected
+      break;
+    default:
+      exhaustiveCheck(state.connection);
+  }
+
+  // Session state validation
+  switch (state.session.type) {
+    case 'no-game':
+      // No game-specific UI state should be active
+      if (state.ui.selectedHistoryIndex !== null) {
+        throw new Error('Cannot have history index without active game');
+      }
+      break;
+    case 'creating-game':
+      // Must be connected to create game
+      if (!isConnected(state.connection)) {
+        throw new Error('Must be connected to create game');
+      }
+      break;
+    case 'joining-game':
+      // Must be connected to join game
+      if (!isConnected(state.connection)) {
+        throw new Error('Must be connected to join game');
+      }
+      break;
+    case 'active-game':
+      // Game state must be present and not terminal
+      if (state.session.state.winner !== null) {
+        throw new Error('Active game cannot have winner');
+      }
+      break;
+    case 'game-ending':
+      // Transitional state - no specific validation
+      break;
+    case 'game-over':
+      // Must have a winner
+      if (state.session.state.winner === null) {
+        throw new Error('Game over must have winner');
+      }
+      if (state.session.winner !== state.session.state.winner) {
+        throw new Error('Session winner must match game state winner');
+      }
+      break;
+    default:
+      exhaustiveCheck(state.session);
+  }
+
+  // Settings validation
+  if (state.settings.gameSettings.board_size < 5 || state.settings.gameSettings.board_size > 19) {
+    throw new Error('Board size must be between 5 and 19');
+  }
+  if (state.settings.gameSettings.ai_time_limit < 100) {
+    throw new Error('AI time limit must be at least 100ms');
+  }
+
+  // UI state validation
+  if (state.ui.selectedHistoryIndex !== null) {
+    if (!isGameActive(state.session) && state.session.type !== 'game-over') {
+      throw new Error('Cannot have history selection without game');
+    }
+    if (isGameActive(state.session)) {
+      const historyLength = state.session.state.move_history?.length || 0;
+      if (state.ui.selectedHistoryIndex < 0 || state.ui.selectedHistoryIndex >= historyLength) {
+        throw new Error('History index out of bounds');
+      }
+    }
+  }
+}
 
 function createNotification(
   type: 'info' | 'success' | 'warning' | 'error',

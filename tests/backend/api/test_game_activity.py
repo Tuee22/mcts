@@ -358,7 +358,7 @@ class TestGameManagerActivityTracking:
             )
 
             # Check that activity was updated
-            updated_game = manager._games[game.game_id]
+            updated_game = manager._pool.games[game.game_id]
             assert updated_game.last_activity > original_activity
 
 

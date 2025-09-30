@@ -8,12 +8,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useGameStore } from '@/store/gameStore';
+import { setupGameCreation, defaultGameState } from '../test-utils/store-factory';
 
 // Mock WebSocket service to control connection state
 const mockWsService = {
   connect: vi.fn(() => Promise.resolve()),
   disconnect: vi.fn(),
-  isConnected: vi.fn(() => true),
+  isConnected: vi.fn(() => store.connection.type === 'connected'),
   createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game' })),
   makeMove: vi.fn(() => Promise.resolve()),
   getAIMove: vi.fn(() => Promise.resolve()),
@@ -44,10 +45,10 @@ describe('Game Store Race Condition Tests', () => {
 
       for (const connected of connectionStates) {
         act(() => {
-          result.current.setIsConnected(connected);
+          result.current.dispatch({ type: connected ? 'CONNECTION_ESTABLISHED' : 'CONNECTION_LOST', clientId: connected ? 'test-client' : undefined });
         });
 
-        expect(result.current.isConnected).toBe(connected);
+        expect(result.current.isConnected()).toBe(connected);
 
         // Small delay to simulate real timing
         await act(async () => {
@@ -56,9 +57,9 @@ describe('Game Store Race Condition Tests', () => {
       }
 
       // Verify final state is consistent
-      expect(result.current.isConnected).toBe(true);
+      expect(result.current.isConnected()).toBe(true);
       expect(result.current.gameId).toBeNull();
-      expect(result.current.gameState).toBeNull();
+      expect(result.current.getCurrentGameState()).toBeNull();
     });
 
     it('should maintain game settings during connection changes', async () => {
@@ -79,11 +80,11 @@ describe('Game Store Race Condition Tests', () => {
       // Rapid connection changes
       for (let i = 0; i < 10; i++) {
         act(() => {
-          result.current.setIsConnected(i % 2 === 0);
+          result.current.dispatch({ type: i % 2 === 0 ? 'CONNECTION_ESTABLISHED' : 'CONNECTION_LOST', clientId: i % 2 === 0 ? 'test-client' : undefined });
         });
 
         // Settings should remain unchanged
-        expect(result.current.gameSettings).toEqual(customSettings);
+        expect(result.current.settings.gameSettings).toEqual(customSettings);
 
         await act(async () => {
           await new Promise(resolve => setTimeout(resolve, 1));
@@ -100,7 +101,13 @@ describe('Game Store Race Condition Tests', () => {
 
       for (const gameId of gameIds) {
         act(() => {
-          result.current.setGameId(gameId);
+          if (gameId) {
+            result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+            result.current.dispatch({ type: 'START_GAME' });
+            result.current.dispatch({ type: 'GAME_CREATED', gameId: gameId, state: defaultGameState });
+          } else {
+            result.current.dispatch({ type: 'RESET_GAME' });
+          }
         });
 
         expect(result.current.gameId).toBe(gameId);
@@ -134,12 +141,15 @@ describe('Game Store Race Condition Tests', () => {
 
       // Concurrent updates
       act(() => {
-        result.current.setGameId('test-game');
-        result.current.setGameState(mockGameState);
+        setupGameCreation(result.current.dispatch, 'test-game', defaultGameState);
+        result.current.dispatch({
+          type: 'GAME_STATE_UPDATED',
+          state: mockGameState
+        });
       });
 
       expect(result.current.gameId).toBe('test-game');
-      expect(result.current.gameState).toEqual(mockGameState);
+      expect(result.current.getCurrentGameState()).toEqual(mockGameState);
 
       // Rapid state changes
       for (let i = 0; i < 5; i++) {
@@ -150,8 +160,14 @@ describe('Game Store Race Condition Tests', () => {
         };
 
         act(() => {
-          result.current.setGameState(updatedState);
-          result.current.setGameId(`game-${i}`);
+          result.current.dispatch({
+            type: 'GAME_STATE_UPDATED',
+            state: updatedState
+          });
+          // Update gameId after state
+          result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+          result.current.dispatch({ type: 'START_GAME' });
+          result.current.dispatch({ type: 'GAME_CREATED', gameId: `game-${i}`, state: updatedState });
         });
 
         expect(result.current.gameState?.move_count).toBe(i);
@@ -171,7 +187,11 @@ describe('Game Store Race Condition Tests', () => {
       // Rapid loading state changes
       for (let i = 0; i < 20; i++) {
         act(() => {
-          result.current.setIsLoading(i % 2 === 0);
+          if (i % 2 === 0) {
+            result.current.dispatch({ type: 'START_GAME' });
+          } else {
+            result.current.dispatch({ type: 'GAME_CREATE_FAILED', error: 'Test error' });
+          }
         });
 
         expect(result.current.isLoading).toBe(i % 2 === 0);
@@ -191,7 +211,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Simulate game creation sequence with rapid state changes
       act(() => {
-        result.current.setIsLoading(true);
+        result.current.dispatch({ type: 'START_GAME' });
       });
 
       await act(async () => {
@@ -199,8 +219,8 @@ describe('Game Store Race Condition Tests', () => {
       });
 
       act(() => {
-        result.current.setGameId('new-game');
-        result.current.setIsLoading(false);
+        setupGameCreation(result.current.dispatch, 'new-game', defaultGameState);
+        result.current.dispatch({ type: 'GAME_CREATE_FAILED', error: 'Loading cancelled' });
       });
 
       expect(result.current.gameId).toBe('new-game');
@@ -208,13 +228,13 @@ describe('Game Store Race Condition Tests', () => {
 
       // Rapid reset and recreate
       act(() => {
-        result.current.setIsLoading(true);
-        result.current.setGameId(null);
+        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'RESET_GAME' });
       });
 
       act(() => {
-        result.current.setGameId('another-game');
-        result.current.setIsLoading(false);
+        setupGameCreation(result.current.dispatch, 'another-game', defaultGameState);
+        result.current.dispatch({ type: 'GAME_CREATE_FAILED', error: 'Loading cancelled' });
       });
 
       expect(result.current.gameId).toBe('another-game');
@@ -237,7 +257,20 @@ describe('Game Store Race Condition Tests', () => {
 
       for (const error of errors) {
         act(() => {
-          result.current.setError(error);
+          if (error) {
+            result.current.dispatch({ 
+              type: 'NOTIFICATION_ADDED', 
+              notification: { 
+                id: Math.random().toString(), 
+                type: 'error', 
+                message: error, 
+                timestamp: new Date() 
+              } 
+            });
+          } else {
+            // Clear errors by resetting notifications or just continue
+            result.current.dispatch({ type: 'NOTIFICATION_CLEARED', id: '' });
+          }
         });
 
         expect(result.current.error).toBe(error);
@@ -249,7 +282,6 @@ describe('Game Store Race Condition Tests', () => {
 
       // Clear error
       act(() => {
-        result.current.setError(null);
       });
 
       expect(result.current.error).toBeNull();
@@ -260,20 +292,20 @@ describe('Game Store Race Condition Tests', () => {
 
       // Set error state
       act(() => {
-        result.current.setError('Test error');
+        result.current.dispatch({ type: 'NOTIFICATION_ADDED', notification: { id: Math.random().toString(), type: 'error', message: 'Test error', timestamp: new Date() } });
       });
 
       // Make other state changes
       act(() => {
-        result.current.setIsLoading(true);
-        result.current.setIsConnected(false);
-        result.current.setGameId('test-game');
+        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'CONNECTION_LOST' });
+        setupGameCreation(result.current.dispatch, 'test-game', defaultGameState);
       });
 
       // Error should persist until explicitly cleared
       expect(result.current.error).toBe('Test error');
       expect(result.current.isLoading).toBe(true);
-      expect(result.current.isConnected).toBe(false);
+      expect(result.current.isConnected()).toBe(false);
       expect(result.current.gameId).toBe('test-game');
     });
   });
@@ -288,21 +320,32 @@ describe('Game Store Race Condition Tests', () => {
         { player: 1, action: '*(6,6)', timestamp: Date.now() + 2000 }
       ];
 
-      // Rapid move additions
-      for (const move of moves) {
-        act(() => {
-          result.current.addMoveToHistory(move);
+      // Rapid move additions - simulate by setting game state with moves
+      // (addMoveToHistory method doesn't exist in new store)
+      act(() => {
+        result.current.dispatch({
+          type: 'GAME_STATE_UPDATED',
+          state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: moves.map((move, index) => ({
+            notation: move.action,
+            player: move.player,
+            timestamp: move.timestamp
+          }))
+        } as any
         });
-
-        await act(async () => {
-          await new Promise(resolve => setTimeout(resolve, 1));
-        });
-      }
+      });
 
       // Rapid history index changes
       for (let i = 0; i < moves.length; i++) {
         act(() => {
-          result.current.setSelectedHistoryIndex(i);
+          result.current.dispatch({ type: 'HISTORY_INDEX_SET', index: i });
         });
 
         expect(result.current.selectedHistoryIndex).toBe(i);
@@ -314,7 +357,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Reset history index
       act(() => {
-        result.current.setSelectedHistoryIndex(null);
+        result.current.dispatch({ type: 'HISTORY_INDEX_SET', index: null });
       });
 
       expect(result.current.selectedHistoryIndex).toBeNull();
@@ -327,10 +370,10 @@ describe('Game Store Race Condition Tests', () => {
 
       // Set complex state
       act(() => {
-        result.current.setGameId('test-game');
-        result.current.setIsConnected(true);
-        result.current.setIsLoading(true);
-        result.current.setError('Test error');
+        setupGameCreation(result.current.dispatch, 'test-game', defaultGameState);
+        result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'NOTIFICATION_ADDED', notification: { id: Math.random().toString(), type: 'error', message: 'Test error', timestamp: new Date() } });
         result.current.setGameSettings({
           mode: 'ai_vs_ai',
           ai_difficulty: 'expert',
@@ -346,17 +389,17 @@ describe('Game Store Race Condition Tests', () => {
 
       // Verify clean state
       expect(result.current.gameId).toBeNull();
-      expect(result.current.gameState).toBeNull();
-      expect(result.current.isConnected).toBe(true); // Connection state preserved
+      expect(result.current.getCurrentGameState()).toBeNull();
+      expect(result.current.isConnected()).toBe(true); // Connection state preserved
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(null); // Error state cleared on reset
       expect(result.current.selectedHistoryIndex).toBeNull();
 
       // Settings should be preserved (not reset) by design
-      expect(result.current.gameSettings.mode).toBe('ai_vs_ai');
-      expect(result.current.gameSettings.ai_difficulty).toBe('expert');
-      expect(result.current.gameSettings.ai_time_limit).toBe(10000);
-      expect(result.current.gameSettings.board_size).toBe(13);
+      expect(result.current.settings.gameSettings.mode).toBe('ai_vs_ai');
+      expect(result.current.settings.gameSettings.ai_difficulty).toBe('expert');
+      expect(result.current.settings.gameSettings.ai_time_limit).toBe(10000);
+      expect(result.current.settings.gameSettings.board_size).toBe(13);
     });
 
     it('should handle multiple rapid resets', async () => {
@@ -365,7 +408,11 @@ describe('Game Store Race Condition Tests', () => {
       // Rapid reset calls
       for (let i = 0; i < 10; i++) {
         act(() => {
-          result.current.setGameId(`game-${i}`);
+          // Create a game first
+          result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+          result.current.dispatch({ type: 'START_GAME' });
+          result.current.dispatch({ type: 'GAME_CREATED', gameId: `game-${i}`, state: defaultGameState });
+          // Then reset
           result.current.reset();
         });
 
@@ -378,7 +425,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Final state should be clean (except preserved error)
       expect(result.current.gameId).toBeNull();
-      expect(result.current.gameState).toBeNull();
+      expect(result.current.getCurrentGameState()).toBeNull();
       expect(result.current.isLoading).toBe(false);
       // Error may be preserved by design - not testing it here
     });
@@ -399,9 +446,30 @@ describe('Game Store Race Condition Tests', () => {
       // Execute operations rapidly but sequentially to avoid act() overlaps
       for (const operation of operations) {
         await act(async () => {
-          result.current.setGameId(operation.gameId);
-          result.current.setIsLoading(operation.isLoading);
-          result.current.setError(operation.error);
+          // Set game ID
+          result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+          result.current.dispatch({ type: 'START_GAME' });
+          result.current.dispatch({ type: 'GAME_CREATED', gameId: operation.gameId, state: defaultGameState });
+          
+          // Loading state
+          if (operation.isLoading) {
+            result.current.dispatch({ type: 'START_GAME' });
+          } else {
+            result.current.dispatch({ type: 'GAME_CREATE_FAILED', error: 'Loading cleared' });
+          }
+          
+          // Error state
+          if (operation.error) {
+            result.current.dispatch({ 
+              type: 'NOTIFICATION_ADDED', 
+              notification: { 
+                id: Math.random().toString(), 
+                type: 'error', 
+                message: operation.error, 
+                timestamp: new Date() 
+              } 
+            });
+          }
 
           // Small delay to simulate async nature
           await new Promise(resolve => setTimeout(resolve, 1));

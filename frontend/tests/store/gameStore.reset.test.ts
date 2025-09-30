@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the game store to test the actual implementation
 import { useGameStore } from '@/store/gameStore';
+import { setupGameCreation, defaultGameState } from '../test-utils/store-factory';
 import { GameState } from '@/types/game';
 
 describe('GameStore Reset Behavior', () => {
@@ -18,8 +19,8 @@ describe('GameStore Reset Behavior', () => {
   describe('Connection State Preservation', () => {
     it.fails('should NOT reset connection state when reset is called', () => {
       // Set up an active game with connected state
-      store.setIsConnected(true);
-      store.setGameId('test-game-123');
+      store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
+      setupGameCreation(store.dispatch, 'test-game-123', defaultGameState);
       store.setGameState({
         board_size: 9,
         players: [{ row: 0, col: 4 }, { row: 8, col: 4 }],
@@ -33,20 +34,20 @@ describe('GameStore Reset Behavior', () => {
       } as GameState);
 
       // Verify pre-conditions
-      expect(store.isConnected).toBe(true);
+      expect(store.isConnected()).toBe(true);
       expect(store.gameId).toBe('test-game-123');
 
       // Call reset to test connection preservation
       store.reset();
 
       // Connection state should be preserved
-      expect(store.isConnected).toBe(true); // Should remain connected
+      expect(store.isConnected()).toBe(true); // Should remain connected
       expect(store.gameId).toBe(null); // Game data should be cleared
       expect(store.gameState).toBe(null); // Game data should be cleared
     });
 
     it('should preserve connection state across multiple resets', () => {
-      store.setIsConnected(true);
+      store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
       store.setError(null);
       
       // Reset multiple times
@@ -55,27 +56,27 @@ describe('GameStore Reset Behavior', () => {
       store.reset();
 
       // Connection should remain stable
-      expect(store.isConnected).toBe(true);
+      expect(store.isConnected()).toBe(true);
       expect(store.error).toBe(null);
     });
 
-    it.fails('should preserve disconnected state when reset is called while disconnected', () => {
-      store.setIsConnected(false);
+    it('should preserve disconnected state when reset is called while disconnected', () => {
+      store.dispatch({ type: 'CONNECTION_LOST' });
       store.setError('Connection failed');
-      store.setGameId('test-game-123');
+      setupGameCreation(store.dispatch, 'test-game-123', defaultGameState);
 
       store.reset();
 
       // Should preserve the disconnected state, not force it
-      expect(store.isConnected).toBe(false);
+      expect(store.isConnected()).toBe(false);
       expect(store.error).toBe('Connection failed'); // Should preserve error state too
     });
   });
 
   describe('Game Data Reset', () => {
-    it.fails('should clear all game-related data', () => {
+    it('should clear all game-related data', () => {
       // Set up a complete game state
-      store.setGameId('test-game-123');
+      setupGameCreation(store.dispatch, 'test-game-123', defaultGameState);
       store.setGameState({
         board_size: 9,
         players: [{ row: 2, col: 3 }, { row: 6, col: 5 }],
@@ -91,7 +92,7 @@ describe('GameStore Reset Behavior', () => {
       store.setSelectedHistoryIndex(5);
       
       // Set connection state that should be preserved
-      store.setIsConnected(true);
+      store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
 
       store.reset();
 
@@ -102,7 +103,7 @@ describe('GameStore Reset Behavior', () => {
       expect(store.selectedHistoryIndex).toBe(null);
       
       // Game settings should be reset to defaults
-      expect(store.gameSettings).toEqual({
+      expect(store.settings.gameSettings).toEqual({
         mode: 'human_vs_ai',
         ai_difficulty: 'medium',
         ai_time_limit: 5000,
@@ -110,7 +111,7 @@ describe('GameStore Reset Behavior', () => {
       });
 
       // Connection state should be preserved
-      expect(store.isConnected).toBe(true);
+      expect(store.isConnected()).toBe(true);
     });
 
     it('should reset game settings to defaults', () => {
@@ -123,7 +124,7 @@ describe('GameStore Reset Behavior', () => {
 
       store.reset();
 
-      expect(store.gameSettings).toEqual({
+      expect(store.settings.gameSettings).toEqual({
         mode: 'human_vs_ai',
         ai_difficulty: 'medium',
         ai_time_limit: 5000,
@@ -134,15 +135,15 @@ describe('GameStore Reset Behavior', () => {
 
   describe('Error State Handling', () => {
     it.fails('should preserve error state when resetting', () => {
-      store.setIsConnected(false);
+      store.dispatch({ type: 'CONNECTION_LOST' });
       store.setError('WebSocket connection failed');
-      store.setGameId('test-game-123');
+      setupGameCreation(store.dispatch, 'test-game-123', defaultGameState);
 
       store.reset();
 
       // Error information should be preserved to help user understand connection issues
       expect(store.error).toBe('WebSocket connection failed');
-      expect(store.isConnected).toBe(false);
+      expect(store.isConnected()).toBe(false);
       
       // But game data should be cleared
       expect(store.gameId).toBe(null);
@@ -150,7 +151,7 @@ describe('GameStore Reset Behavior', () => {
 
     it.fails('should NOT clear errors that might help user understand disconnection', () => {
       store.setError('Connection lost during game creation');
-      store.setIsConnected(false);
+      store.dispatch({ type: 'CONNECTION_LOST' });
       
       store.reset();
       
@@ -160,14 +161,14 @@ describe('GameStore Reset Behavior', () => {
   });
 
   describe('Loading State', () => {
-    it.fails('should clear loading state on reset', () => {
+    it('should clear loading state on reset', () => {
       store.setIsLoading(true);
-      store.setIsConnected(true);
+      store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
       
       store.reset();
       
       expect(store.isLoading).toBe(false);
-      expect(store.isConnected).toBe(true); // But preserve connection
+      expect(store.isConnected()).toBe(true); // But preserve connection
     });
   });
 });

@@ -13,6 +13,18 @@ from typing import (
 
 from typing_extensions import TypedDict
 
+# Import discriminated union types for state management
+from .state_types import (
+    ConnectionState,
+    GameSession,
+    AppState,
+    StateAction,
+    is_connected,
+    is_game_active,
+    can_start_game,
+    can_make_move,
+)
+
 
 @runtime_checkable
 class WebSocketProtocol(Protocol):

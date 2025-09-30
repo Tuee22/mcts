@@ -11,6 +11,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 vi.mock('@/store/gameStore', () => ({
   useGameStore: {
     getState: vi.fn(() => ({
+      dispatch: vi.fn(),  // Add dispatch method
       setError: vi.fn(),
       setIsConnected: vi.fn(),
       setIsLoading: vi.fn(),

@@ -11,11 +11,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isLoading: false,
     error: null,
     selectedHistoryIndex: null,
-    setGameId: vi.fn(),
-    setGameState: vi.fn(),
+    dispatch: vi.fn(),  // Add dispatch method
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
     setGameSettings: vi.fn(),
-    setIsConnected: vi.fn(),
-    setIsLoading: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
     setError: vi.fn(),
     setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
@@ -159,7 +160,10 @@ describe('MoveHistory Component', () => {
       const firstButton = screen.getByText('⏮');
       await user.click(firstButton);
 
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(0);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: 0
+      });
     });
 
     it('navigates to previous move', async () => {
@@ -171,7 +175,10 @@ describe('MoveHistory Component', () => {
       const previousButton = screen.getByText('◀');
       await user.click(previousButton);
 
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: 1
+      });
     });
 
     it('navigates to next move', async () => {
@@ -183,7 +190,10 @@ describe('MoveHistory Component', () => {
       const nextButton = screen.getByText('▶');
       await user.click(nextButton);
 
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(2);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: 2
+      });
     });
 
     it('navigates to last move', async () => {
@@ -197,7 +207,10 @@ describe('MoveHistory Component', () => {
       await user.click(lastButton);
 
       // Last button sets selectedHistoryIndex to null (current position)
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(null);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: null
+      });
     });
 
     it('returns to current position', async () => {
@@ -210,7 +223,10 @@ describe('MoveHistory Component', () => {
       const currentButton = screen.getByText('Current');
       await user.click(currentButton);
 
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(null);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: null
+      });
     });
 
     it('disables navigation buttons appropriately', () => {
@@ -249,7 +265,10 @@ describe('MoveHistory Component', () => {
       const moveItem = secondMoveNotation.closest('.move-item');
       await user.click(moveItem as Element);
 
-      expect(mockGameStore.setSelectedHistoryIndex).toHaveBeenCalledWith(1);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({
+        type: 'HISTORY_INDEX_SET',
+        index: 1
+      });
     });
 
     it('highlights currently selected move', () => {

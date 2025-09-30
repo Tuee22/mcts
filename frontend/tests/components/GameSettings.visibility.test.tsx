@@ -10,38 +10,170 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { GameSettings } from '@/components/GameSettings';
 
-// Mock the game store
-const mockUseGameStore = vi.fn();
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
-}));
-
-// Mock the WebSocket service
-vi.mock('@/services/websocket', () => ({
-  wsService: {
-    createGame: vi.fn()
-  }
-}));
-
-describe('GameSettings Visibility Logic', () => {
-  const defaultMockStore = {
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
-      ai_time_limit: 3000,
-      board_size: 9
+// Mock the game store first with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  // Create mock store inline to avoid import issues with hoisting
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
     },
-    setGameSettings: vi.fn(),
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: {
+        mode: 'human_vs_human',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn((action) => {
+      // Simulate actual state updates for relevant actions
+      if (action.type === 'SETTINGS_TOGGLED') {
+        mockGameStore.ui.settingsExpanded = !mockGameStore.ui.settingsExpanded;
+      } else if (action.type === 'START_GAME') {
+        mockGameStore.isLoading = true;
+        mockGameStore.isCreatingGame = true;
+      }
+    }),
+    getSettingsUI: () => {
+      // Replicate the actual getSettingsUIState logic
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const connected = mockGameStore.connection.type === 'connected';
+      
+      // If settings are explicitly expanded, show panel
+      if (mockGameStore.ui.settingsExpanded) {
+        const isCreating = mockGameStore.isLoading && mockGameStore.isCreatingGame;
+        const canStart = connected && !hasGame;
+        return { type: 'panel-visible', canStartGame: canStart, isCreating };
+      }
+      
+      // Otherwise, determine based on session state
+      if (hasGame) {
+        return {
+          type: 'button-visible',
+          enabled: connected
+        };
+      } else if (connected) {
+        return {
+          type: 'panel-visible',
+          canStartGame: true,
+          isCreating: mockGameStore.isLoading && mockGameStore.isCreatingGame
+        };
+      } else {
+        return {
+          type: 'button-visible',
+          enabled: false
+        };
+      }
+    },
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => null),
+    canStartGame: vi.fn(() => {
+      const connected = mockGameStore.connection.type === 'connected';
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      return connected && !hasGame;
+    }),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => false),
+    
+    // Legacy compatibility
+    gameId: null,
+    gameState: null,
+    gameSettings: { mode: 'human_vs_human', ai_difficulty: 'medium', ai_time_limit: 3000, board_size: 9 },
     isLoading: false,
     isCreatingGame: false,
-    isConnected: true,
-    gameId: null,
-    setIsCreatingGame: vi.fn()
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
   };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: mockUseGameStore
+}));
+
+const mockWsService = vi.hoisted(() => ({
+  connect: vi.fn(() => Promise.resolve()),
+  disconnect: vi.fn(),
+  disconnectFromGame: vi.fn(),
+  isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+  createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+  makeMove: vi.fn(() => Promise.resolve()),
+  getAIMove: vi.fn(() => Promise.resolve()),
+  joinGame: vi.fn(),
+  requestGameState: vi.fn(() => Promise.resolve()),
+  connectToGame: vi.fn(),
+}));
+
+vi.mock('@/services/websocket', () => ({
+  wsService: mockWsService
+}));
+
+// Import components and utilities
+import { createUser } from '../utils/testHelpers';
+import { mockDefaultGameSettings } from '../fixtures/gameSettings';
+
+describe('GameSettings Visibility Logic', () => {
+  let user: ReturnType<typeof createUser>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(defaultMockStore);
+    user = createUser();
+    
+    // Reset the game store state for each test
+    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+    mockGameStore.session = {
+      gameId: null,
+      gameState: null,
+      createdAt: Date.now()
+    };
+    mockGameStore.ui.settingsExpanded = false;
+    mockGameStore.isLoading = false;
+    mockGameStore.isCreatingGame = false;
+    mockGameStore.error = null;
+    
+    // Reset mock return values
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue(null);
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    // Don't override getSettingsUI - let it use the dynamic function
   });
 
   describe('When no game exists (gameId is null)', () => {
@@ -82,10 +214,22 @@ describe('GameSettings Visibility Logic', () => {
 
   describe('When a game exists (gameId is present)', () => {
     beforeEach(() => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
     });
 
     it('should show only the toggle button by default', () => {
@@ -110,14 +254,17 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should expand to full panel when toggle button is clicked', async () => {
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Initially should show only toggle button
       const toggleButton = screen.getByText('⚙️ Game Settings');
       expect(toggleButton).toBeInTheDocument();
 
       // Click the toggle button
-      fireEvent.click(toggleButton);
+      await user.click(toggleButton);
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       // Should now show the full settings panel
       await waitFor(() => {
@@ -129,10 +276,13 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should show cancel button when panel is expanded', async () => {
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Expand the panel
-      fireEvent.click(screen.getByText('⚙️ Game Settings'));
+      await user.click(screen.getByText('⚙️ Game Settings'));
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       await waitFor(() => {
         const cancelButton = screen.getByText('Cancel');
@@ -142,17 +292,23 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should collapse back to toggle button when cancel is clicked', async () => {
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Expand the panel
-      fireEvent.click(screen.getByText('⚙️ Game Settings'));
+      await user.click(screen.getByText('⚙️ Game Settings'));
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Cancel')).toBeInTheDocument();
       });
 
       // Click cancel
-      fireEvent.click(screen.getByText('Cancel'));
+      await user.click(screen.getByText('Cancel'));
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       // Should be back to toggle button only
       await waitFor(() => {
@@ -165,11 +321,24 @@ describe('GameSettings Visibility Logic', () => {
 
   describe('Connection state affects button availability', () => {
     it('should disable toggle button when disconnected', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      mockGameStore.session = {
+        type: 'active-game' as const,
         gameId: 'test-game-123',
-        isConnected: false
-      });
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<GameSettings />);
 
@@ -179,11 +348,10 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should show disabled toggle button when disconnected', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: null, // No game, but disconnected shows toggle button to prevent race conditions
-        isConnected: false
-      });
+      mockGameStore.session = { type: 'no-game' as const };
+      mockGameStore.getCurrentGameId.mockReturnValue(null);
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<GameSettings />);
 
@@ -195,11 +363,10 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should show toggle button instead of panel when disconnected', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: null, // No game and disconnected - show toggle button to prevent race conditions
-        isConnected: false
-      });
+      mockGameStore.session = { type: 'no-game' as const };
+      mockGameStore.getCurrentGameId.mockReturnValue(null);
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<GameSettings />);
 
@@ -216,11 +383,8 @@ describe('GameSettings Visibility Logic', () => {
 
   describe('Loading state', () => {
     it('should show loading text on start button when creating game', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isLoading: true,
-        isCreatingGame: true
-      });
+      mockGameStore.isLoading = true;
+      mockGameStore.isCreatingGame = true;
 
       render(<GameSettings />);
 
@@ -232,30 +396,33 @@ describe('GameSettings Visibility Logic', () => {
 
   describe('Settings panel collapse after game start', () => {
     it('should collapse panel after successful game creation', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockCreateGame = vi.fn();
-      wsService.createGame = mockCreateGame;
-
       // Start with no game (panel visible)
-      const mockStore = {
-        ...defaultMockStore,
-        gameId: null
-      };
-      mockUseGameStore.mockReturnValue(mockStore);
-
       render(<GameSettings />);
 
       // Click start game
       const startButton = screen.getByTestId('start-game-button');
-      fireEvent.click(startButton);
+      await user.click(startButton);
 
       // Simulate game creation success by updating gameId
-      mockUseGameStore.mockReturnValue({
-        ...mockStore,
-        gameId: 'new-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'new-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('new-game-123');
 
-      expect(mockCreateGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'START_GAME' });
+      expect(mockWsService.createGame).toHaveBeenCalledWith({
         mode: 'human_vs_human',
         ai_config: undefined,
         board_size: 9
@@ -265,13 +432,7 @@ describe('GameSettings Visibility Logic', () => {
 
   describe('AI settings visibility', () => {
     it('should show AI settings when mode is human_vs_ai', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'human_vs_ai'
-        }
-      });
+      mockGameStore.settings.gameSettings.mode = 'human_vs_ai';
 
       render(<GameSettings />);
 
@@ -280,13 +441,7 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should show AI settings when mode is ai_vs_ai', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'ai_vs_ai'
-        }
-      });
+      mockGameStore.settings.gameSettings.mode = 'ai_vs_ai';
 
       render(<GameSettings />);
 
@@ -295,6 +450,9 @@ describe('GameSettings Visibility Logic', () => {
     });
 
     it('should hide AI settings when mode is human_vs_human', () => {
+      // Explicitly set mode to human_vs_human
+      mockGameStore.settings.gameSettings.mode = 'human_vs_human';
+      
       render(<GameSettings />);
 
       expect(screen.queryByText('AI Difficulty')).not.toBeInTheDocument();
@@ -309,10 +467,22 @@ describe('GameSettings Visibility Logic', () => {
       expect(screen.getByText('Game Settings')).toBeInTheDocument();
 
       // When game exists, toggle button is visible
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game');
 
       rerender(<GameSettings />);
       expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();

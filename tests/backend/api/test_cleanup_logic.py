@@ -359,8 +359,8 @@ class TestGameManagerCleanupLogic:
     ) -> None:
         """Test that cleanup logic correctly identifies inactive games."""
         # Add games to manager
-        game_manager._games["active"] = sample_games["active"]
-        game_manager._games["inactive"] = sample_games["inactive"]
+        game_manager._pool = game_manager._pool.add_game(sample_games["active"])
+        game_manager._pool = game_manager._pool.add_game(sample_games["inactive"])
 
         # Mock the cleanup function's internal logic
         now = datetime.now(timezone.utc)
@@ -369,20 +369,20 @@ class TestGameManagerCleanupLogic:
         # Find inactive games using the same logic as cleanup
         inactive_ids = [
             game_id
-            for game_id, game in game_manager._games.items()
+            for game_id, game in game_manager._pool.games.items()
             if (now - get_last_activity_timestamp(game)).total_seconds() > timeout
         ]
 
-        assert "inactive" in inactive_ids
-        assert "active" not in inactive_ids
+        assert "inactive-game" in inactive_ids
+        assert "active-game" not in inactive_ids
 
     def test_cleanup_with_test_timeout(
         self, game_manager: GameManager, sample_games: Dict[str, ActiveGame]
     ) -> None:
         """Test cleanup with short test timeout."""
         # Add games to manager
-        game_manager._games["active"] = sample_games["active"]
-        game_manager._games["inactive"] = sample_games["inactive"]
+        game_manager._pool = game_manager._pool.add_game(sample_games["active"])
+        game_manager._pool = game_manager._pool.add_game(sample_games["inactive"])
 
         # Test with 60 second timeout (test mode)
         now = datetime.now(timezone.utc)
@@ -390,17 +390,17 @@ class TestGameManagerCleanupLogic:
 
         inactive_ids = [
             game_id
-            for game_id, game in game_manager._games.items()
+            for game_id, game in game_manager._pool.games.items()
             if (now - get_last_activity_timestamp(game)).total_seconds() > test_timeout
         ]
 
         # Both games should be inactive with 60s timeout
-        assert "inactive" in inactive_ids
-        assert "active" in inactive_ids
+        assert "inactive-game" in inactive_ids
+        assert "active-game" in inactive_ids
 
     def test_cleanup_with_empty_games(self, game_manager: GameManager) -> None:
         """Test cleanup handles empty games dict correctly."""
-        assert len(game_manager._games) == 0
+        assert len(game_manager._pool.games) == 0
 
         # Cleanup logic should handle empty dict
         now = datetime.now(timezone.utc)
@@ -408,7 +408,7 @@ class TestGameManagerCleanupLogic:
 
         inactive_ids = [
             game_id
-            for game_id, game in game_manager._games.items()
+            for game_id, game in game_manager._pool.games.items()
             if (now - get_last_activity_timestamp(game)).total_seconds() > timeout
         ]
 
@@ -420,16 +420,16 @@ class TestGameManagerCleanupLogic:
         """Test that delete_game removes games from storage."""
         # Add a game
         game = sample_games["active"]
-        game_manager._games[game.game_id] = game
+        game_manager._pool = game_manager._pool.add_game(game)
 
-        assert len(game_manager._games) == 1
+        assert len(game_manager._pool.games) == 1
 
         # Delete the game
         result = asyncio.run(game_manager.delete_game(game.game_id))
 
         assert result is True
-        assert len(game_manager._games) == 0
-        assert game.game_id not in game_manager._games
+        assert len(game_manager._pool.games) == 0
+        assert game.game_id not in game_manager._pool.games
 
     def test_delete_nonexistent_game(self, game_manager: GameManager) -> None:
         """Test deleting a non-existent game returns False."""

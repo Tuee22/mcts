@@ -37,6 +37,9 @@ class ClientConnecting:
     type: Literal["connecting"] = "connecting"
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     attempt_number: int = 1
+    # Preserve subscriptions during reconnection flow
+    preserved_subscriptions: Optional[FrozenSet[str]] = None
+    preserved_client_id: Optional[str] = None
 
     def is_timeout(self, timeout_seconds: int = 30) -> bool:
         """Check if connection attempt has timed out."""
@@ -116,9 +119,12 @@ def start_connection(state: ConnectionState, connection_id: str) -> ConnectionSt
         return ClientConnecting(connection_id=connection_id)
 
     elif isinstance(state, ClientReconnecting):
-        # Preserve client_id for reconnection
+        # Preserve client_id and subscriptions for reconnection
         return ClientConnecting(
-            connection_id=connection_id, attempt_number=state.attempts + 1
+            connection_id=connection_id,
+            attempt_number=state.attempts + 1,
+            preserved_subscriptions=state.game_subscriptions,
+            preserved_client_id=state.client_id,
         )
 
     # Invalid transition
@@ -136,7 +142,17 @@ def establish_connection(
     - Reconnecting -> Connected (restore subscriptions)
     """
     if isinstance(state, ClientConnecting):
-        return ClientConnected(client_id=client_id, connection_id=connection_id)
+        # Check if this is a reconnection (has preserved data)
+        if state.preserved_subscriptions is not None:
+            # Restore preserved subscriptions during reconnection
+            return ClientConnected(
+                client_id=client_id,
+                connection_id=connection_id,
+                game_subscriptions=state.preserved_subscriptions,
+            )
+        else:
+            # Fresh connection, no subscriptions to restore
+            return ClientConnected(client_id=client_id, connection_id=connection_id)
 
     elif isinstance(state, ClientReconnecting):
         # Restore previous game subscriptions

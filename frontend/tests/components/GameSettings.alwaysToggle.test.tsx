@@ -12,38 +12,170 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { GameSettings } from '@/components/GameSettings';
 
-// Mock the game store
-const mockUseGameStore = vi.fn();
-vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
-}));
-
-// Mock the WebSocket service
-vi.mock('@/services/websocket', () => ({
-  wsService: {
-    createGame: vi.fn()
-  }
-}));
-
-describe('GameSettings - E2E Compatible Behavior', () => {
-  const defaultMockStore = {
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
-      ai_time_limit: 3000,
-      board_size: 9
+// Mock the game store first with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  // Create mock store inline to avoid import issues with hoisting
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
     },
-    setGameSettings: vi.fn(),
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: {
+        mode: 'human_vs_human',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn((action) => {
+      // Simulate actual state updates for relevant actions
+      if (action.type === 'SETTINGS_TOGGLED') {
+        mockGameStore.ui.settingsExpanded = !mockGameStore.ui.settingsExpanded;
+      } else if (action.type === 'START_GAME') {
+        mockGameStore.isLoading = true;
+        mockGameStore.isCreatingGame = true;
+      }
+    }),
+    getSettingsUI: () => {
+      // Replicate the actual getSettingsUIState logic
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const connected = mockGameStore.connection.type === 'connected';
+      
+      // If settings are explicitly expanded, show panel
+      if (mockGameStore.ui.settingsExpanded) {
+        const isCreating = mockGameStore.isLoading && mockGameStore.isCreatingGame;
+        const canStart = connected && !hasGame;
+        return { type: 'panel-visible', canStartGame: canStart, isCreating };
+      }
+      
+      // Otherwise, determine based on session state
+      if (hasGame) {
+        return {
+          type: 'button-visible',
+          enabled: connected
+        };
+      } else if (connected) {
+        return {
+          type: 'panel-visible',
+          canStartGame: true,
+          isCreating: mockGameStore.isLoading && mockGameStore.isCreatingGame
+        };
+      } else {
+        return {
+          type: 'button-visible',
+          enabled: false
+        };
+      }
+    },
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => null),
+    canStartGame: vi.fn(() => {
+      const connected = mockGameStore.connection.type === 'connected';
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      return connected && !hasGame;
+    }),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => false),
+    
+    // Legacy compatibility
+    gameId: null,
+    gameState: null,
+    gameSettings: { mode: 'human_vs_human', ai_difficulty: 'medium', ai_time_limit: 3000, board_size: 9 },
     isLoading: false,
     isCreatingGame: false,
-    isConnected: true,
-    gameId: null,
-    setIsCreatingGame: vi.fn()
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
   };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
+vi.mock('@/store/gameStore', () => ({
+  useGameStore: mockUseGameStore
+}));
+
+const mockWsService = vi.hoisted(() => ({
+  connect: vi.fn(() => Promise.resolve()),
+  disconnect: vi.fn(),
+  disconnectFromGame: vi.fn(),
+  isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+  createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
+  makeMove: vi.fn(() => Promise.resolve()),
+  getAIMove: vi.fn(() => Promise.resolve()),
+  joinGame: vi.fn(),
+  requestGameState: vi.fn(() => Promise.resolve()),
+  connectToGame: vi.fn(),
+}));
+
+vi.mock('@/services/websocket', () => ({
+  wsService: mockWsService
+}));
+
+// Import components and utilities
+import { createUser } from '../utils/testHelpers';
+import { mockDefaultGameSettings } from '../fixtures/gameSettings';
+
+describe('GameSettings - E2E Compatible Behavior', () => {
+  let user: ReturnType<typeof createUser>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(defaultMockStore);
+    user = createUser();
+    
+    // Reset the game store state for each test
+    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+    mockGameStore.session = {
+      gameId: null,
+      gameState: null,
+      createdAt: Date.now()
+    };
+    mockGameStore.ui.settingsExpanded = false;
+    mockGameStore.isLoading = false;
+    mockGameStore.isCreatingGame = false;
+    mockGameStore.error = null;
+    
+    // Reset mock return values
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue(null);
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    // Don't override getSettingsUI - let it use the dynamic function
   });
 
   describe('Initial render behavior', () => {
@@ -60,10 +192,8 @@ describe('GameSettings - E2E Compatible Behavior', () => {
     });
 
     it('should show toggle button when no game exists but disconnected', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
-      });
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<GameSettings />);
 
@@ -79,10 +209,22 @@ describe('GameSettings - E2E Compatible Behavior', () => {
     });
 
     it('should show toggle button when game exists', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
 
       render(<GameSettings />);
 
@@ -100,12 +242,24 @@ describe('GameSettings - E2E Compatible Behavior', () => {
   describe('Toggle button interaction', () => {
     it('should expand to full settings panel when toggle button is clicked (game exists)', async () => {
       // Set up scenario where toggle button is shown (game exists)
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
 
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Initially should show only toggle button when game exists
       const toggleButton = screen.getByText('⚙️ Game Settings');
@@ -113,7 +267,10 @@ describe('GameSettings - E2E Compatible Behavior', () => {
       expect(screen.queryByText('Game Mode')).not.toBeInTheDocument();
 
       // Click the toggle button
-      fireEvent.click(toggleButton);
+      await user.click(toggleButton);
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       // Should now show the full settings panel
       await waitFor(() => {
@@ -128,15 +285,30 @@ describe('GameSettings - E2E Compatible Behavior', () => {
 
     it('should show cancel button when expanding from game-exists state', async () => {
       // Set up scenario where toggle button is shown (game exists)
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
 
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Click to expand
-      fireEvent.click(screen.getByText('⚙️ Game Settings'));
+      await user.click(screen.getByText('⚙️ Game Settings'));
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Game Mode')).toBeInTheDocument();
@@ -149,10 +321,22 @@ describe('GameSettings - E2E Compatible Behavior', () => {
 
   describe('Different game states', () => {
     it('should still show toggle button when a game exists', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
 
       render(<GameSettings />);
 
@@ -162,15 +346,30 @@ describe('GameSettings - E2E Compatible Behavior', () => {
     });
 
     it('should show cancel button when expanding with existing game', async () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123'
-      });
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
 
-      render(<GameSettings />);
+      const { rerender } = render(<GameSettings />);
 
       // Click to expand
-      fireEvent.click(screen.getByText('⚙️ Game Settings'));
+      await user.click(screen.getByText('⚙️ Game Settings'));
+      
+      // Force a re-render to see the state change
+      rerender(<GameSettings />);
 
       await waitFor(() => {
         expect(screen.getByText('Game Mode')).toBeInTheDocument();
@@ -220,10 +419,8 @@ describe('GameSettings - E2E Compatible Behavior', () => {
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Simulate disconnection
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
-      });
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.isConnected.mockReturnValue(false);
 
       rerender(<GameSettings />);
 
@@ -239,10 +436,6 @@ describe('GameSettings - E2E Compatible Behavior', () => {
 
   describe('Game creation flow', () => {
     it('should start with settings panel before game creation', async () => {
-      const { wsService } = await import('../../src/services/websocket');
-      const mockCreateGame = vi.fn();
-      wsService.createGame = mockCreateGame;
-
       render(<GameSettings />);
 
       // Should start with settings panel visible (no game, connected)
@@ -250,9 +443,10 @@ describe('GameSettings - E2E Compatible Behavior', () => {
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Click start game directly (no expansion needed)
-      fireEvent.click(screen.getByTestId('start-game-button'));
+      await user.click(screen.getByTestId('start-game-button'));
 
-      expect(mockCreateGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'START_GAME' });
+      expect(mockWsService.createGame).toHaveBeenCalledWith({
         mode: 'human_vs_human',
         ai_config: undefined,
         board_size: 9

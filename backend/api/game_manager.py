@@ -22,6 +22,7 @@ from backend.api.game_states import (
     NonMoveTransitionResult,
     WaitingGame,
 )
+from backend.api.game_pool import GamePool, GameNotFoundError
 from backend.api.game_transitions import process_move_transition, resign_game_transition
 from backend.api.models import (
     BoardState,
@@ -51,13 +52,15 @@ class GameManager:
     Game manager using immutable state transitions.
 
     All operations return new states instead of mutating existing ones.
+    Uses immutable GamePool for thread-safe game storage.
     """
 
     def __init__(self) -> None:
-        # Only mutable state is the game storage and AI queue
-        self._games: Dict[str, GameState] = {}
+        # Use immutable game pool instead of mutable dict
+        self._pool: GamePool = GamePool()
         self.ai_move_queue: asyncio.Queue[str] = asyncio.Queue()
         self.mcts_registry = MCTSRegistry()
+        self._pool_lock = asyncio.Lock()  # Ensure atomic pool updates
 
     async def create_game(
         self,
@@ -100,8 +103,9 @@ class GameManager:
         # Initialize MCTS instance
         await self._initialize_mcts_for_game(game)
 
-        # Store the game (only mutable operation)
-        self._games[game.game_id] = game
+        # Store the game immutably
+        async with self._pool_lock:
+            self._pool = self._pool.add_game(game)
 
         return game
 
@@ -110,7 +114,7 @@ class GameManager:
     ) -> MoveResponse:
         """Make a move using functional state transitions."""
         # Get current game state
-        current_state = safe_get(self._games, game_id)
+        current_state = self._pool.get_game(game_id)
         if current_state is None:
             raise ValueError("Game not found")
 
@@ -136,8 +140,9 @@ class GameManager:
             board_state,
         )
 
-        # Update stored state (only mutable operation)
-        self._games[game_id] = transition_result.new_state
+        # Update stored state immutably
+        async with self._pool_lock:
+            self._pool = self._pool.update_game(transition_result.new_state)
 
         # Queue AI move if needed
         if transition_result.ai_should_move:
@@ -151,7 +156,7 @@ class GameManager:
 
     async def resign_game(self, game_id: str, player_id: str) -> int:
         """Process game resignation using functional transitions."""
-        current_state = safe_get(self._games, game_id)
+        current_state = self._pool.get_game(game_id)
         if current_state is None:
             raise ValueError("Game not found")
 
@@ -163,8 +168,9 @@ class GameManager:
             current_state, player_id
         )
 
-        # Update stored state (only mutable operation)
-        self._games[game_id] = transition_result.new_state
+        # Update stored state immutably
+        async with self._pool_lock:
+            self._pool = self._pool.update_game(transition_result.new_state)
 
         # Return winner number for backwards compatibility
         if isinstance(transition_result.new_state, CompletedGame):
@@ -174,7 +180,7 @@ class GameManager:
 
     async def get_game(self, game_id: str) -> Optional[GameState]:
         """Get game state (pure function)."""
-        return safe_get(self._games, game_id)
+        return self._pool.get_game(game_id)
 
     async def list_games(
         self,
@@ -184,7 +190,7 @@ class GameManager:
         offset: int = 0,
     ) -> List[GameState]:
         """List games with optional filtering (functional approach)."""
-        games = list(self._games.values())
+        games = list(self._pool.games.values())
 
         # Use functional filtering instead of imperative loops
         games = (
@@ -265,8 +271,9 @@ class GameManager:
         # Cleanup all MCTS instances
         await self.mcts_registry.cleanup_all()
 
-        # Clear game data (only mutable operation)
-        self._games.clear()
+        # Clear game data immutably
+        async with self._pool_lock:
+            self._pool = GamePool()  # Create new empty pool
 
         # Clear the AI move queue
         while not self.ai_move_queue.empty():
@@ -282,7 +289,7 @@ class GameManager:
                 # Use timeout to avoid blocking indefinitely
                 game_id = await asyncio.wait_for(self.ai_move_queue.get(), timeout=1.0)
 
-                current_state = safe_get(self._games, game_id)
+                current_state = self._pool.get_game(game_id)
                 if current_state is None or not isinstance(current_state, ActiveGame):
                     continue
 
@@ -330,8 +337,10 @@ class GameManager:
 
     async def delete_game(self, game_id: str) -> bool:
         """Delete a game session (pure function with side effects)."""
-        if game_id in self._games:
-            del self._games[game_id]
+        old_pool = self._pool
+        async with self._pool_lock:
+            self._pool = self._pool.remove_game(game_id)
+        if old_pool != self._pool:
             logger.info(f"Deleted game {game_id}")
             return True
         return False
@@ -395,9 +404,7 @@ class GameManager:
 
     async def get_active_game_count(self) -> int:
         """Get count of active games."""
-        return count_where(
-            list(self._games.values()), lambda g: isinstance(g, ActiveGame)
-        )
+        return len(self._pool.get_active_games())
 
     async def cleanup_inactive_games(self) -> None:
         """
@@ -447,19 +454,20 @@ class GameManager:
 
                 # Find inactive games (pure)
                 inactive_ids = find_inactive_games(
-                    self._games, now, config.inactivity_timeout
+                    self._pool.games, now, config.inactivity_timeout
                 )
 
                 # Calculate durations for logging (pure)
                 durations = {
-                    game_id: inactive_duration(self._games[game_id], now)
+                    game_id: inactive_duration(self._pool.games[game_id], now)
                     for game_id in inactive_ids
                 }
 
                 # Perform cleanup (side effects) using functional approach
                 async def cleanup_single_game(game_id: str) -> None:
                     await cleanup_game(game_id, durations[game_id])
-                    del self._games[game_id]  # Only mutation
+                    async with self._pool_lock:
+                        self._pool = self._pool.remove_game(game_id)
 
                 # Execute cleanups concurrently
                 if inactive_ids:
@@ -473,7 +481,7 @@ class GameManager:
                 if inactive_count > 0:
                     logger.info(
                         f"Cleaned {inactive_count} inactive games, "
-                        f"{len(self._games)} games remaining"
+                        f"{len(self._pool.games)} games remaining"
                     )
 
             except Exception as e:

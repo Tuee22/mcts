@@ -10,6 +10,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isLoading: false,
     error: null,
     selectedHistoryIndex: null,
+    dispatch: vi.fn(),
     setGameId: vi.fn(),
     setGameState: vi.fn(),
     setGameSettings: vi.fn(),

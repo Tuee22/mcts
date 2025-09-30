@@ -13,7 +13,7 @@ import { NewGameButton } from '@/components/NewGameButton';
 // Mock WebSocket service with vi.hoisted
 const mockWsService = vi.hoisted(() => ({
   createGame: vi.fn(),
-  isConnected: vi.fn(() => true),
+  isConnected: vi.fn(() => true), // Will be updated after mockGameStore is created
   disconnectFromGame: vi.fn()
 }));
 
@@ -21,10 +21,117 @@ vi.mock('@/services/websocket', () => ({
   wsService: mockWsService
 }));
 
-// Mock the game store
-const mockUseGameStore = vi.fn();
+// Mock the game store with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+    session: { 
+      type: 'active-game' as const,
+      gameId: 'active-game-123',
+      state: {
+        board_size: 9,
+        current_player: 0,
+        players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+        walls: [],
+        walls_remaining: [10, 10],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      },
+      lastSync: new Date()
+    },
+    settings: { 
+      gameSettings: { 
+        mode: 'human_vs_human', 
+        ai_difficulty: 'medium', 
+        ai_time_limit: 3000, 
+        board_size: 9 
+      }, 
+      theme: 'light', 
+      soundEnabled: true 
+    },
+    ui: { 
+      settingsExpanded: false, 
+      selectedHistoryIndex: null, 
+      notifications: [] 
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      const hasGame = mockGameStore.session.type === 'active-game' || 
+                      mockGameStore.session.type === 'game-ending' || 
+                      mockGameStore.session.type === 'game-over';
+      const connected = mockGameStore.connection.type === 'connected';
+      
+      if (hasGame) {
+        return { type: 'button-visible', enabled: connected };
+      } else if (connected) {
+        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+      } else {
+        return { type: 'button-visible', enabled: false };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || 
+          mockGameStore.session.type === 'game-ending' || 
+          mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.state;
+      }
+      return null;
+    }),
+    canStartGame: vi.fn(() => mockGameStore.connection.type === 'connected' && !mockGameStore.session),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    
+    // Legacy compatibility
+    gameId: 'active-game-123',
+    gameState: null,
+    gameSettings: {
+      mode: 'human_vs_human' as const,
+      ai_difficulty: 'medium' as const,
+      ai_time_limit: 3000,
+      board_size: 9
+    },
+    isLoading: false,
+    isCreatingGame: false,
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
+  useGameStore: mockUseGameStore
 }));
 
 // Mock AI config utilities
@@ -51,26 +158,64 @@ vi.mock('@/utils/aiConfig', () => ({
 }));
 
 describe('NewGameButton Flow Tests', () => {
-  const defaultMockStore = {
-    gameId: 'active-game-123',
-    isConnected: true,
-    isLoading: false,
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
-      ai_time_limit: 3000,
-      board_size: 9
-    },
-    reset: vi.fn(),
-    setGameSettings: vi.fn(),
-    setError: vi.fn()
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset createGame to default behavior (successful Promise resolution)
     mockWsService.createGame.mockImplementation(() => Promise.resolve());
-    mockUseGameStore.mockReturnValue(defaultMockStore);
+    // Update isConnected to use the mockGameStore
+    mockWsService.isConnected.mockImplementation(() => mockGameStore.connection.type === 'connected');
+    
+    // Reset store to active game state
+    Object.assign(mockGameStore, {
+      connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+      session: { 
+        type: 'active-game',
+        gameId: 'active-game-123',
+        state: null,
+        createdAt: Date.now()
+      },
+      settings: { 
+        gameSettings: { 
+          mode: 'human_vs_human', 
+          ai_difficulty: 'medium', 
+          ai_time_limit: 3000, 
+          board_size: 9 
+        }, 
+        theme: 'light', 
+        soundEnabled: true 
+      },
+      ui: { 
+        settingsExpanded: false, 
+        selectedHistoryIndex: null, 
+        notifications: [] 
+      },
+      
+      // Legacy compatibility
+      gameId: 'active-game-123',
+      gameState: null,
+      gameSettings: {
+        mode: 'human_vs_human' as const,
+        ai_difficulty: 'medium' as const,
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      isLoading: false,
+      isCreatingGame: false,
+      error: null,
+      selectedHistoryIndex: null
+    });
+    
+    // Update function mocks
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue('active-game-123');
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    mockGameStore.canStartGame.mockReturnValue(false);
+    mockGameStore.isGameActive.mockReturnValue(false);
   });
 
   describe('Button visibility and state', () => {
@@ -83,10 +228,12 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should not render when no game is active', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      // Update store to no game state
+      Object.assign(mockGameStore, {
+        session: { type: 'no-game' as const },
         gameId: null
       });
+      mockGameStore.getCurrentGameId.mockReturnValue(null);
 
       render(<NewGameButton />);
 
@@ -101,10 +248,13 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should be disabled when not connected', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      // Update store to disconnected state
+      Object.assign(mockGameStore, {
+        connection: {
+      type: 'disconnected' as const
+    }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<NewGameButton />);
 
@@ -112,10 +262,15 @@ describe('NewGameButton Flow Tests', () => {
       expect(button).toBeDisabled();
     });
 
-    it('should be disabled during loading', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isLoading: true
+    it('should be disabled during game ending transition', () => {
+      // Update store to game-ending state
+      Object.assign(mockGameStore, {
+        session: {
+          type: 'game-ending' as const,
+          gameId: 'ending-game',
+          winner: 0,
+          finalState: mockGameStore.session.state
+        }
       });
 
       render(<NewGameButton />);
@@ -125,10 +280,13 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should show appropriate title when disabled due to connection', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      // Update store to disconnected state
+      Object.assign(mockGameStore, {
+        connection: {
+      type: 'disconnected' as const
+    }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<NewGameButton />);
 
@@ -136,16 +294,21 @@ describe('NewGameButton Flow Tests', () => {
       expect(button).toHaveAttribute('title', 'Connect to server to start a new game');
     });
 
-    it('should show appropriate title when disabled due to loading', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isLoading: true
+    it('should show appropriate title when disabled due to game ending', () => {
+      // Update store to game-ending state
+      Object.assign(mockGameStore, {
+        session: {
+          type: 'game-ending' as const,
+          gameId: 'ending-game',
+          winner: 0,
+          finalState: mockGameStore.session.state
+        }
       });
 
       render(<NewGameButton />);
 
       const button = screen.getByText('New Game');
-      expect(button).toHaveAttribute('title', 'Please wait, starting new game...');
+      expect(button).toHaveAttribute('title', 'Ending current game...');
     });
 
     it('should show default title when enabled', () => {
@@ -157,11 +320,9 @@ describe('NewGameButton Flow Tests', () => {
   });
 
   describe('New game creation flow', () => {
-    it('should call resetGame when clicked', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame
+    it('should call dispatch with NEW_GAME_CLICKED when clicked', () => {
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn()
       });
 
       render(<NewGameButton />);
@@ -169,14 +330,22 @@ describe('NewGameButton Flow Tests', () => {
       const button = screen.getByText('New Game');
       fireEvent.click(button);
 
-      expect(mockResetGame).toHaveBeenCalledTimes(1);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
     });
 
     it('should create new game with current settings', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_ai' as const,
+            ai_difficulty: 'hard' as const,
+            ai_time_limit: 5000,
+            board_size: 7
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'hard' as const,
@@ -190,7 +359,10 @@ describe('NewGameButton Flow Tests', () => {
       const button = screen.getByText('New Game');
       fireEvent.click(button);
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         ai_config: {
           difficulty: 'hard',
@@ -203,10 +375,18 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should handle human_vs_human mode correctly', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_human' as const,
+            ai_difficulty: 'medium' as const,
+            ai_time_limit: 3000,
+            board_size: 9
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_human' as const,
           ai_difficulty: 'medium' as const,
@@ -219,7 +399,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_human',
         ai_config: undefined,
         board_size: 9
@@ -227,10 +410,18 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should handle ai_vs_ai mode correctly', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'ai_vs_ai' as const,
+            ai_difficulty: 'expert' as const,
+            ai_time_limit: 10000,
+            board_size: 5
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'ai_vs_ai' as const,
           ai_difficulty: 'expert' as const,
@@ -243,7 +434,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'ai_vs_ai',
         ai_config: {
           difficulty: 'expert',
@@ -258,10 +452,18 @@ describe('NewGameButton Flow Tests', () => {
 
   describe('AI configuration logic', () => {
     it('should set use_mcts=false for easy difficulty', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_ai' as const,
+            ai_difficulty: 'easy' as const,
+            ai_time_limit: 1000,
+            board_size: 9
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'easy' as const,
@@ -274,7 +476,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         ai_config: {
           difficulty: 'easy',
@@ -287,10 +492,18 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should set correct mcts_iterations for medium difficulty', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_ai' as const,
+            ai_difficulty: 'medium' as const,
+            ai_time_limit: 3000,
+            board_size: 9
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'medium' as const,
@@ -303,7 +516,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         ai_config: {
           difficulty: 'medium',
@@ -316,10 +532,18 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should set correct mcts_iterations for hard difficulty', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_ai' as const,
+            ai_difficulty: 'hard' as const,
+            ai_time_limit: 5000,
+            board_size: 9
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'hard' as const,
@@ -332,7 +556,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         ai_config: {
           difficulty: 'hard',
@@ -345,10 +572,18 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should set correct mcts_iterations for expert difficulty', () => {
-      const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        reset: mockResetGame,
+      Object.assign(mockGameStore, {
+        dispatch: vi.fn(),
+        settings: {
+          gameSettings: {
+            mode: 'human_vs_ai' as const,
+            ai_difficulty: 'expert' as const,
+            ai_time_limit: 10000,
+            board_size: 9
+          },
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: {
           mode: 'human_vs_ai' as const,
           ai_difficulty: 'expert' as const,
@@ -361,7 +596,10 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'human_vs_ai',
         ai_config: {
           difficulty: 'expert',
@@ -382,8 +620,7 @@ describe('NewGameButton Flow Tests', () => {
         return Promise.reject(new Error('WebSocket connection failed'));
       });
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
         reset: mockResetGame,
         setError: mockSetError
       });
@@ -392,16 +629,18 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockResetGame).toHaveBeenCalledTimes(1);
-      // WebSocket service should still be called even if it throws
-      expect(mockWsService.createGame).toHaveBeenCalledTimes(1);
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      // WebSocket disconnect should be called 
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalledTimes(1);
     });
 
     it('should not create game when not connected', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      Object.assign(mockGameStore, {
+        connection: {
+      type: 'disconnected' as const
+    }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<NewGameButton />);
 
@@ -413,8 +652,7 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should not create game when loading', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
         isLoading: true
       });
 
@@ -431,8 +669,7 @@ describe('NewGameButton Flow Tests', () => {
   describe('State cleanup', () => {
     it('should reset game state before creating new game', () => {
       const mockResetGame = vi.fn();
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
         reset: mockResetGame
       });
 
@@ -440,10 +677,9 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      // Reset should be called first
-      expect(mockResetGame).toHaveBeenCalledTimes(1);
-      // Then game creation should be triggered
-      expect(mockWsService.createGame).toHaveBeenCalledTimes(1);
+      // Dispatch should be called with NEW_GAME_CLICKED action
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      // Note: Actual game creation happens in GameSettings component after state transition
     });
 
     it('should maintain settings during game reset', () => {
@@ -455,9 +691,13 @@ describe('NewGameButton Flow Tests', () => {
         board_size: 7
       };
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
         reset: mockResetGame,
+        settings: {
+          gameSettings: originalSettings,
+          theme: 'light',
+          soundEnabled: true
+        },
         gameSettings: originalSettings
       });
 
@@ -466,7 +706,10 @@ describe('NewGameButton Flow Tests', () => {
       fireEvent.click(screen.getByText('New Game'));
 
       // Settings should be used as-is for new game creation
-      expect(mockWsService.createGame).toHaveBeenCalledWith({
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
         mode: 'ai_vs_ai',
         ai_config: {
           difficulty: 'expert',
@@ -485,22 +728,27 @@ describe('NewGameButton Flow Tests', () => {
 
       sizes.forEach(size => {
         const mockResetGame = vi.fn();
-        mockUseGameStore.mockReturnValue({
-          ...defaultMockStore,
+        const gameSettings = {
+          ...mockGameStore.gameSettings,
+          board_size: size
+        };
+        
+        Object.assign(mockGameStore, {
           reset: mockResetGame,
-          gameSettings: {
-            ...defaultMockStore.gameSettings,
-            board_size: size
-          }
+          settings: {
+            gameSettings: gameSettings,
+            theme: 'light',
+            soundEnabled: true
+          },
+          gameSettings: gameSettings
         });
 
         const { rerender } = render(<NewGameButton />);
 
         fireEvent.click(screen.getByText('New Game'));
 
-        expect(mockWsService.createGame).toHaveBeenCalledWith(
-          expect.objectContaining({ board_size: size })
-        );
+        // NewGameButton only dispatches action, doesn't directly create game
+        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
 
         rerender(<div />); // Clean up between iterations
         vi.clearAllMocks();
@@ -512,21 +760,30 @@ describe('NewGameButton Flow Tests', () => {
 
       timeLimits.forEach(timeLimit => {
         const mockResetGame = vi.fn();
-        mockUseGameStore.mockReturnValue({
-          ...defaultMockStore,
+        const gameSettings = {
+          ...mockGameStore.gameSettings,
+          mode: 'human_vs_ai' as const,
+          ai_time_limit: timeLimit
+        };
+        
+        Object.assign(mockGameStore, {
           reset: mockResetGame,
-          gameSettings: {
-            ...defaultMockStore.gameSettings,
-            mode: 'human_vs_ai' as const,
-            ai_time_limit: timeLimit
-          }
+          settings: {
+            gameSettings: gameSettings,
+            theme: 'light',
+            soundEnabled: true
+          },
+          gameSettings: gameSettings
         });
 
         const { rerender } = render(<NewGameButton />);
 
         fireEvent.click(screen.getByText('New Game'));
 
-        expect(mockWsService.createGame).toHaveBeenCalledWith({
+        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
+      // Note: actual game creation happens in GameSettings after transition
+      expect(mockWsService.createGame).not.toHaveBeenCalledWith({
           mode: 'human_vs_ai',
           ai_config: expect.objectContaining({
             time_limit_ms: timeLimit
@@ -559,10 +816,12 @@ describe('NewGameButton Flow Tests', () => {
     });
 
     it('should provide clear feedback when disabled', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      Object.assign(mockGameStore, {
+        connection: {
+      type: 'disconnected' as const
+    }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
 
       render(<NewGameButton />);
 

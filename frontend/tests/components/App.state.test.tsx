@@ -10,10 +10,111 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import App from '@/App';
 
-// Mock the game store
-const mockUseGameStore = vi.fn();
+// Mock the game store with comprehensive approach (same pattern as GameSettings test)
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  // Create mock store inline to avoid import issues with hoisting
+  const store = {
+    // State properties
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date()
+    },
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: {
+        mode: 'human_vs_human',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      // When there's a game, show the toggle button
+      // When there's no game and connected, show the panel
+      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending';
+      const connected = mockGameStore.connection.type === 'connected';
+      const isCreating = mockGameStore.session.type === 'creating-game';
+      
+      if (hasGame) {
+        return {
+          type: 'button-visible',
+          enabled: connected
+        };
+      } else if (connected) {
+        return {
+          type: 'panel-visible',
+          canStartGame: true,
+          isCreating: isCreating
+        };
+      } else {
+        return {
+          type: 'button-visible',
+          enabled: false
+        };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.state;
+      }
+      return null;
+    }),
+    canStartGame: vi.fn(() => false),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => false),
+    
+    // Legacy compatibility
+    gameState: null,
+    gameSettings: {
+      mode: 'human_vs_human',
+      ai_difficulty: 'medium',
+      ai_time_limit: 3000,
+      board_size: 9
+    },
+    gameId: null,
+    isLoading: false,
+    error: null,
+    selectedHistoryIndex: null,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setGameId removed - use dispatch,
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('../../src/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
+  useGameStore: mockUseGameStore
 }));
 
 // Mock WebSocket service
@@ -25,7 +126,7 @@ vi.mock('../../src/services/websocket', () => ({
     makeMove: vi.fn(),
     createGame: vi.fn(),
     getAIMove: vi.fn(),
-    isConnected: vi.fn(() => true)
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected')
   }
 }));
 
@@ -60,33 +161,69 @@ vi.mock('../../src/components/NewGameButton', () => {
 });
 
 describe('App State Management', () => {
-  const defaultMockStore = {
-    gameState: null,
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
+  // Helper function to reset mock store to default state
+  const setActiveGameSession = (gameId: string, state: any) => {
+    mockGameStore.session = {
+      type: 'active-game',
+      gameId,
+      state,
+      lastSync: new Date()
+    };
+    // Update legacy properties
+    mockGameStore.gameId = gameId;
+    mockGameStore.gameState = state;
+  };
+
+  const resetMockStore = () => {
+    // Ensure objects exist before assigning
+    if (!mockGameStore.connection) mockGameStore.connection = {};
+    if (!mockGameStore.session) mockGameStore.session = {};
+    if (!mockGameStore.settings) mockGameStore.settings = {};
+    if (!mockGameStore.ui) mockGameStore.ui = {};
+    
+    Object.assign(mockGameStore.connection, {
+      type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date(),
+      retryCount: 0,
+      lastError: null
+    });
+    Object.assign(mockGameStore.session, {
+      type: 'no-game'
+    });
+    Object.assign(mockGameStore.settings, {
+      gameSettings: {
+        mode: 'human_vs_human',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    });
+    Object.assign(mockGameStore.ui, {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    });
+    // Update legacy compatibility properties
+    mockGameStore.gameId = null;
+    mockGameStore.gameState = null;
+    mockGameStore.gameSettings = {
+      mode: 'human_vs_human',
+      ai_difficulty: 'medium',
       ai_time_limit: 3000,
       board_size: 9
-    },
-    gameId: null,
-    isConnected: true,
-    isLoading: false,
-    error: null,
-    selectedHistoryIndex: null,
-    setGameState: vi.fn(),
-    setGameSettings: vi.fn(),
-    setGameId: vi.fn(),
-    setIsConnected: vi.fn(),
-    setIsLoading: vi.fn(),
-    setError: vi.fn(),
-    setSelectedHistoryIndex: vi.fn(),
-    addMoveToHistory: vi.fn(),
-    reset: vi.fn()
+    };
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.isLoading = false;
+    mockGameStore.error = null;
+    mockGameStore.selectedHistoryIndex = null;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(defaultMockStore);
+    resetMockStore();
 
     // Reset timers
     vi.useFakeTimers();
@@ -124,23 +261,19 @@ describe('App State Management', () => {
   });
 
   describe('Game active state', () => {
-    const activeGameStore = {
-      ...defaultMockStore,
-      gameId: 'test-game-123',
-      gameState: {
-        board_size: 9,
-        current_player: 1 as 0 | 1,
-        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-        walls: [],
-        walls_remaining: [10, 10] as [number, number],
-        legal_moves: [],
-        winner: null,
-        move_history: []
-      }
+    const activeGameState = {
+      board_size: 9,
+      current_player: 1 as 0 | 1,
+      players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+      walls: [],
+      walls_remaining: [10, 10] as [number, number],
+      legal_moves: [],
+      winner: null,
+      move_history: []
     };
 
     beforeEach(() => {
-      mockUseGameStore.mockReturnValue(activeGameStore);
+      setActiveGameSession('test-game-123', activeGameState);
     });
 
     it('should show all game components when game is active', () => {
@@ -170,17 +303,22 @@ describe('App State Management', () => {
 
   describe('AI game modes', () => {
     it('should show AI info for human_vs_ai mode', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: { /* minimal game state */ } as any,
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'human_vs_ai',
-          ai_difficulty: 'hard',
-          ai_time_limit: 5000
-        }
-      });
+      setActiveGameSession('test-game-123', { /* minimal game state */ } as any);
+      mockGameStore.settings.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'hard',
+        ai_time_limit: 5000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = { /* minimal game state */ } as any;
+      mockGameStore.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'hard',
+        ai_time_limit: 5000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -191,17 +329,22 @@ describe('App State Management', () => {
     });
 
     it('should show AI info for ai_vs_ai mode', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: { /* minimal game state */ } as any,
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'ai_vs_ai',
-          ai_difficulty: 'expert',
-          ai_time_limit: 10000
-        }
-      });
+      setActiveGameSession('test-game-123', { /* minimal game state */ } as any);
+      mockGameStore.settings.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'expert',
+        ai_time_limit: 10000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = { /* minimal game state */ } as any;
+      mockGameStore.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'expert',
+        ai_time_limit: 10000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -218,24 +361,33 @@ describe('App State Management', () => {
       const mockGetAIMove = vi.fn().mockResolvedValue({});
       wsService.getAIMove = mockGetAIMove;
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1 as 0 | 1,
-          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-          walls: [],
-          walls_remaining: [10, 10] as [number, number],
-          legal_moves: [],
-          winner: null,
-          move_history: []
-        },
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'ai_vs_ai'
-        }
-      });
+      const gameState = {
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10] as [number, number],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
+
+      setActiveGameSession('test-game-123', gameState);
+      mockGameStore.settings.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = gameState;
+      mockGameStore.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -254,24 +406,33 @@ describe('App State Management', () => {
       const mockGetAIMove = vi.fn().mockResolvedValue({});
       wsService.getAIMove = mockGetAIMove;
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1, // AI's turn (0-based: 0=human, 1=AI)
-          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-          walls: [],
-          walls_remaining: [10, 10],
-          legal_moves: [],
-          winner: null,
-          move_history: []
-        },
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'human_vs_ai'
-        }
-      });
+      const gameState = {
+        board_size: 9,
+        current_player: 1, // AI's turn (0-based: 0=human, 1=AI)
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
+
+      setActiveGameSession('test-game-123', gameState);
+      mockGameStore.settings.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = gameState;
+      mockGameStore.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -290,24 +451,33 @@ describe('App State Management', () => {
       const mockGetAIMove = vi.fn().mockResolvedValue({});
       wsService.getAIMove = mockGetAIMove;
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 0, // Human's turn (0-based: 0=human, 1=AI)
-          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-          walls: [],
-          walls_remaining: [10, 10],
-          legal_moves: [],
-          winner: null,
-          move_history: []
-        },
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'human_vs_ai'
-        }
-      });
+      const gameState = {
+        board_size: 9,
+        current_player: 0, // Human's turn (0-based: 0=human, 1=AI)
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
+
+      setActiveGameSession('test-game-123', gameState);
+      mockGameStore.settings.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = gameState;
+      mockGameStore.gameSettings = {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -324,24 +494,33 @@ describe('App State Management', () => {
       const mockGetAIMove = vi.fn().mockResolvedValue({});
       wsService.getAIMove = mockGetAIMove;
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1 as 0 | 1,
-          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 won
-          walls: [],
-          walls_remaining: [10, 10] as [number, number],
-          legal_moves: [],
-          winner: 1 as 0 | 1,
-          move_history: []
-        },
-        gameSettings: {
-          ...defaultMockStore.gameSettings,
-          mode: 'ai_vs_ai'
-        }
-      });
+      const gameState = {
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 won
+        walls: [],
+        walls_remaining: [10, 10] as [number, number],
+        legal_moves: [],
+        winner: 1 as 0 | 1,
+        move_history: []
+      };
+
+      setActiveGameSession('test-game-123', gameState);
+      mockGameStore.settings.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = gameState;
+      mockGameStore.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
 
       render(<App />);
 
@@ -361,20 +540,18 @@ describe('App State Management', () => {
       expect(screen.queryByTestId('game-board')).not.toBeInTheDocument();
 
       // Update to have active game
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'new-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1 as 0 | 1,
-          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-          walls: [],
-          walls_remaining: [10, 10] as [number, number],
-          legal_moves: [],
-          winner: null,
-          move_history: []
-        }
-      });
+      const newGameState = {
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10] as [number, number],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
+
+      setActiveGameSession('new-game-123', newGameState);
 
       rerender(<App />);
 
@@ -384,29 +561,27 @@ describe('App State Management', () => {
     });
 
     it('should handle game end state', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1 as 0 | 1,
-          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 reached the end
-          walls: [],
-          walls_remaining: [8, 9] as [number, number],
-          legal_moves: [],
-          winner: 1 as 0 | 1,
-          move_history: [
-            { player: 0, notation: 'e8', type: 'move' },
-            { player: 0, notation: 'e7', type: 'move' },
-            { player: 0, notation: 'e6', type: 'move' },
-            { player: 0, notation: 'e5', type: 'move' },
-            { player: 0, notation: 'e4', type: 'move' },
-            { player: 0, notation: 'e3', type: 'move' },
-            { player: 0, notation: 'e2', type: 'move' },
-            { player: 0, notation: 'e1', type: 'move' }
-          ]
-        }
-      });
+      const endGameState = {
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 0 }, { x: 4, y: 8 }], // Player 1 reached the end
+        walls: [],
+        walls_remaining: [8, 9] as [number, number],
+        legal_moves: [],
+        winner: 1 as 0 | 1,
+        move_history: [
+          { player: 0, notation: 'e8', type: 'move' },
+          { player: 0, notation: 'e7', type: 'move' },
+          { player: 0, notation: 'e6', type: 'move' },
+          { player: 0, notation: 'e5', type: 'move' },
+          { player: 0, notation: 'e4', type: 'move' },
+          { player: 0, notation: 'e3', type: 'move' },
+          { player: 0, notation: 'e2', type: 'move' },
+          { player: 0, notation: 'e1', type: 'move' }
+        ]
+      };
+
+      setActiveGameSession('test-game-123', endGameState);
 
       render(<App />);
 
@@ -419,11 +594,12 @@ describe('App State Management', () => {
 
   describe('Error states', () => {
     it('should handle connection errors gracefully', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false,
-        error: 'WebSocket connection failed'
-      });
+      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection.lastError = 'WebSocket connection failed';
+      mockGameStore.ui.notifications = []; // Ensure notifications are handled
+      // Update legacy properties
+      mockGameStore.isConnected.mockReturnValue(false);
+      mockGameStore.error = 'WebSocket connection failed';
 
       render(<App />);
 
@@ -433,11 +609,14 @@ describe('App State Management', () => {
     });
 
     it('should handle missing game state', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: null // Game ID exists but no state yet
-      });
+      // Game ID exists but no state yet - should be joining state
+      mockGameStore.session = {
+        type: 'joining-game',
+        gameId: 'test-game-123'
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = null;
 
       render(<App />);
 
@@ -451,21 +630,33 @@ describe('App State Management', () => {
     it('should clean up timers on unmount', () => {
       const { unmount } = render(<App />);
 
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 1 as 0 | 1,
-          players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
-          walls: [],
-          walls_remaining: [10, 10] as [number, number],
-          legal_moves: [],
-          winner: null,
-          move_history: []
-        },
-        gameSettings: { ...defaultMockStore.gameSettings, mode: 'ai_vs_ai' }
-      });
+      const gameState = {
+        board_size: 9,
+        current_player: 1 as 0 | 1,
+        players: [{ x: 4, y: 8 }, { x: 4, y: 0 }],
+        walls: [],
+        walls_remaining: [10, 10] as [number, number],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
+
+      setActiveGameSession('test-game-123', gameState);
+      mockGameStore.settings.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
+      // Update legacy properties
+      mockGameStore.gameId = 'test-game-123';
+      mockGameStore.gameState = gameState;
+      mockGameStore.gameSettings = {
+        mode: 'ai_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 3000,
+        board_size: 9
+      };
 
       unmount();
 
@@ -481,24 +672,22 @@ describe('App State Management', () => {
 
   describe('Component rendering optimization', () => {
     it('should render all necessary components for complete game state', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        gameState: {
-          board_size: 9,
-          current_player: 0 as 0 | 1, // Changed from 2 to 0 (using 0-based)
-          players: [{ x: 4, y: 6 }, { x: 4, y: 2 }],
-          walls: [],
-          walls_remaining: [8, 7] as [number, number],
-          legal_moves: [],
-          winner: null,
-          move_history: [
-            { player: 0, notation: 'e7', type: 'move' },
-            { player: 1, notation: 'h4v5', type: 'wall' },
-            { player: 0, notation: 'e6', type: 'move' }
-          ]
-        }
-      });
+      const complexGameState = {
+        board_size: 9,
+        current_player: 0 as 0 | 1, // Changed from 2 to 0 (using 0-based)
+        players: [{ x: 4, y: 6 }, { x: 4, y: 2 }],
+        walls: [],
+        walls_remaining: [8, 7] as [number, number],
+        legal_moves: [],
+        winner: null,
+        move_history: [
+          { player: 0, notation: 'e7', type: 'move' },
+          { player: 1, notation: 'h4v5', type: 'wall' },
+          { player: 0, notation: 'e6', type: 'move' }
+        ]
+      };
+
+      setActiveGameSession('test-game-123', complexGameState);
 
       render(<App />);
 

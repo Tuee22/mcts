@@ -108,7 +108,7 @@ export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      connection: { type: 'disconnected' } as ConnectionState,
+      connection: { type: 'disconnected', canReset: true } as ConnectionState,
       session: { type: 'no-game' } as GameSession,
       settings: loadPersistedSettings(),
       ui: getDefaultUIState(),
@@ -162,6 +162,7 @@ export const useGameStore = create<GameStore>()(
       
       // Legacy compatibility methods
       setGameId: (id: string | null) => {
+        console.warn('setGameId is deprecated. Use dispatch with GAME_CREATED or GAME_ENDING_COMPLETE actions instead.');
         if (id) {
           // Simulate game creation
           get().dispatch({ 
@@ -176,42 +177,53 @@ export const useGameStore = create<GameStore>()(
       },
       
       setGameState: (state: GameState | null) => {
+        console.warn('setGameState is deprecated. Use dispatch with GAME_STATE_UPDATED action instead.');
         if (state) {
           get().dispatch({ type: 'GAME_STATE_UPDATED', state });
         }
       },
       
       setGameSettings: (settings: Partial<GameSettings>) => {
+        console.warn('setGameSettings is deprecated. Use dispatch with SETTINGS_UPDATED action instead.');
         get().dispatch({ type: 'SETTINGS_UPDATED', settings });
       },
       
       setIsConnected: (connected: boolean) => {
+        console.warn('setIsConnected is deprecated. Use dispatch with CONNECTION_* actions instead.');
         if (connected) {
-          get().dispatch({ type: 'CONNECTION_START' });
-          // Simulate connection established
-          setTimeout(() => {
-            get().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'legacy-client' });
-          }, 0);
+          // Synchronous state transitions only
+          const state = get();
+          if (state.connection.type === 'disconnected') {
+            // First transition to connecting
+            set(stateReducer(state, { type: 'CONNECTION_START' }));
+            // Then immediately to connected
+            set(stateReducer(get(), { type: 'CONNECTION_ESTABLISHED', clientId: 'legacy-client' }));
+          }
         } else {
           get().dispatch({ type: 'CONNECTION_LOST' });
         }
       },
       
       setIsLoading: (loading: boolean) => {
-        // Map to creating-game state
-        if (loading && get().session.type === 'no-game') {
+        console.warn('setIsLoading is deprecated. Use dispatch with START_GAME action instead.');
+        // Can only set loading to true, not false (it's derived from session state)
+        if (loading && get().session.type === 'no-game' && isConnected(get().connection)) {
           get().dispatch({ type: 'START_GAME' });
         }
+        // Else: no-op (can't force loading state)
       },
       
       setIsCreatingGame: (creating: boolean) => {
-        // Map to creating-game state
-        if (creating && get().session.type === 'no-game') {
+        console.warn('setIsCreatingGame is deprecated. Use dispatch with START_GAME action instead.');
+        // Same as setIsLoading - it's derived state
+        if (creating && get().session.type === 'no-game' && isConnected(get().connection)) {
           get().dispatch({ type: 'START_GAME' });
         }
+        // Else: no-op (can't force creating state)
       },
       
       setError: (error: string | null) => {
+        console.warn('setError is deprecated. Use dispatch with NOTIFICATION_ADDED action instead.');
         if (error) {
           get().dispatch({
             type: 'NOTIFICATION_ADDED',
@@ -226,21 +238,14 @@ export const useGameStore = create<GameStore>()(
       },
       
       setSelectedHistoryIndex: (index: number | null) => {
+        console.warn('setSelectedHistoryIndex is deprecated. Use dispatch with HISTORY_INDEX_SET action instead.');
         get().dispatch({ type: 'HISTORY_INDEX_SET', index });
       },
       
       reset: () => {
-        // Reset to no-game state while preserving connection and settings
-        const current = get();
-        set({
-          ...current,
-          session: { type: 'no-game' },
-          ui: {
-            ...current.ui,
-            selectedHistoryIndex: null,
-            notifications: []
-          }
-        });
+        console.warn('reset is deprecated. Use dispatch with RESET_GAME action instead.');
+        // Use dispatch to go through proper state transitions
+        get().dispatch({ type: 'RESET_GAME' });
       },
       
       // Legacy compatibility getters

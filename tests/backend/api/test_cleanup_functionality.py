@@ -139,12 +139,12 @@ class TestGameManagerCleanup:
             )
         )
 
-        assert len(game_manager._games) == 1
+        assert len(game_manager._pool.games) == 1
 
         # Delete game
         result = asyncio.run(game_manager.delete_game(game.game_id))
         assert result is True
-        assert len(game_manager._games) == 0
+        assert len(game_manager._pool.games) == 0
 
         # Try to delete non-existent game
         result = asyncio.run(game_manager.delete_game("non-existent"))

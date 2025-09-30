@@ -7,12 +7,13 @@ import { GameState, GameSettings, Move, Player } from './game';
 
 /**
  * Connection state machine - all possible connection states
+ * canReset flag indicates whether reset operation is allowed in this state
  */
 export type ConnectionState = 
-  | { type: 'disconnected'; error?: string }
-  | { type: 'connecting'; attemptNumber: number }
-  | { type: 'connected'; clientId: string; since: Date }
-  | { type: 'reconnecting'; lastClientId: string; attemptNumber: number };
+  | { type: 'disconnected'; error?: string; canReset: true }
+  | { type: 'connecting'; attemptNumber: number; canReset: false }
+  | { type: 'connected'; clientId: string; since: Date; canReset: true }
+  | { type: 'reconnecting'; lastClientId: string; attemptNumber: number; canReset: false };
 
 /**
  * Game session state machine - all possible game states
@@ -88,6 +89,7 @@ export type StateAction =
   | { type: 'GAME_ENDED'; reason: 'complete' | 'disconnect' }
   | { type: 'GAME_STATE_UPDATED'; state: GameState }
   | { type: 'GAME_ENDING_COMPLETE' }
+  | { type: 'RESET_GAME' }  // Reset game while preserving connection and settings
   
   // Settings actions
   | { type: 'SETTINGS_TOGGLED' }
@@ -114,8 +116,12 @@ export function exhaustiveCheck(value: never): never {
 /**
  * Type guards for state checking
  */
-export function isConnected(state: ConnectionState): state is { type: 'connected'; clientId: string; since: Date } {
+export function isConnected(state: ConnectionState): state is { type: 'connected'; clientId: string; since: Date; canReset: true } {
   return state.type === 'connected';
+}
+
+export function canReset(state: ConnectionState): boolean {
+  return state.canReset;
 }
 
 export function isGameActive(session: GameSession): session is { type: 'active-game'; gameId: string; state: GameState; lastSync: Date } {

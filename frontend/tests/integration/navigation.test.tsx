@@ -15,10 +15,85 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from '@/App';
 import { wsService } from '@/services/websocket';
 
-// Mock the game store
-const mockUseGameStore = vi.fn();
+// Mock the game store with vi.hoisted
+const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
+  const store = {
+    // State properties
+    connection: { status: 'connected', retryCount: 0, lastError: null },
+    session: { type: 'no-game' },
+    settings: { 
+      gameSettings: { 
+        mode: 'human_vs_human', 
+        ai_difficulty: 'medium', 
+        ai_time_limit: 3000, 
+        board_size: 9 
+      }, 
+      theme: 'light', 
+      soundEnabled: true 
+    },
+    ui: { 
+      settingsExpanded: false, 
+      selectedHistoryIndex: null, 
+      notifications: [] 
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      const hasGame = mockGameStore.session && mockGameStore.session.gameId;
+      const connected = mockGameStore.connection.status === 'connected';
+      
+      if (hasGame) {
+        return { type: 'button-visible', enabled: connected };
+      } else if (connected) {
+        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+      } else {
+        return { type: 'button-visible', enabled: false };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.status === 'connected'),
+    getCurrentGameId: vi.fn(() => mockGameStore.session?.gameId || null),
+    getCurrentGameState: vi.fn(() => mockGameStore.session?.state || null),
+    canStartGame: vi.fn(() => mockGameStore.connection.status === 'connected' && !mockGameStore.session),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    
+    // Legacy compatibility
+    gameId: null,
+    gameState: null,
+    gameSettings: {
+      mode: 'human_vs_human' as const,
+      ai_difficulty: 'medium' as const,
+      ai_time_limit: 3000,
+      board_size: 9
+    },
+    setGameSettings: vi.fn(),
+    isLoading: false,
+    isCreatingGame: false,
+    error: null,
+    selectedHistoryIndex: null,
+    setGameId: vi.fn(),
+    setGameState: vi.fn(),
+    setIsConnected: vi.fn(),
+    setIsLoading: vi.fn(),
+    setIsCreatingGame: vi.fn(),
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
+    addMoveToHistory: vi.fn(),
+    reset: vi.fn()
+  };
+
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
+  
+  return {
+    mockGameStore: store,
+    mockUseGameStore: useGameStoreMock
+  };
+});
+
 vi.mock('@/store/gameStore', () => ({
-  useGameStore: () => mockUseGameStore()
+  useGameStore: mockUseGameStore
 }));
 
 // Mock the WebSocket service
@@ -33,27 +108,53 @@ vi.mock('@/services/websocket', () => ({
 }));
 
 describe('Navigation Integration Tests', () => {
-  const defaultMockStore = {
-    gameSettings: {
-      mode: 'human_vs_human' as const,
-      ai_difficulty: 'medium' as const,
-      ai_time_limit: 3000,
-      board_size: 9
-    },
-    setGameSettings: vi.fn(),
-    isLoading: false,
-    isCreatingGame: false,
-    isConnected: true,
-    gameId: null,
-    gameState: null,
-    setIsCreatingGame: vi.fn(),
-    setIsLoading: vi.fn(),
-    reset: vi.fn()
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseGameStore.mockReturnValue(defaultMockStore);
+    
+    // Reset store to no game, connected state
+    Object.assign(mockGameStore, {
+      connection: { status: 'connected', retryCount: 0, lastError: null },
+      session: { type: 'no-game' },
+      settings: { 
+        gameSettings: { 
+          mode: 'human_vs_human', 
+          ai_difficulty: 'medium', 
+          ai_time_limit: 3000, 
+          board_size: 9 
+        }, 
+        theme: 'light', 
+        soundEnabled: true 
+      },
+      ui: { 
+        settingsExpanded: false, 
+        selectedHistoryIndex: null, 
+        notifications: [] 
+      },
+      
+      // Legacy compatibility
+      gameId: null,
+      gameState: null,
+      gameSettings: {
+        mode: 'human_vs_human' as const,
+        ai_difficulty: 'medium' as const,
+        ai_time_limit: 3000,
+        board_size: 9
+      },
+      isLoading: false,
+      isCreatingGame: false,
+      error: null,
+      selectedHistoryIndex: null
+    });
+    
+    // Update function mocks
+    mockGameStore.isConnected.mockReturnValue(true);
+    mockGameStore.getCurrentGameId.mockReturnValue(null);
+    mockGameStore.getCurrentGameState.mockReturnValue(null);
+    mockGameStore.canStartGame.mockReturnValue(true);
+    mockGameStore.isGameActive.mockReturnValue(false);
+    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+    
     vi.mocked(wsService.isConnected).mockReturnValue(true);
   });
 
@@ -71,12 +172,7 @@ describe('Navigation Integration Tests', () => {
     });
 
     it('should show settings panel when connected with no active game', () => {
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: null,
-        isConnected: true
-      });
-
+      // Store is already set up for this in beforeEach
       render(<App />);
 
       // Should show settings panel for immediate access
@@ -106,10 +202,12 @@ describe('Navigation Integration Tests', () => {
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Simulate disconnection (e.g., during navigation)
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      Object.assign(mockGameStore, {
+        connection: { status: 'disconnected', retryCount: 0, lastError: null }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
+      mockGameStore.canStartGame.mockReturnValue(false);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: false });
       vi.mocked(wsService.isConnected).mockReturnValue(false);
 
       rerender(<App />);
@@ -119,10 +217,12 @@ describe('Navigation Integration Tests', () => {
       expect(toggleButton).toBeDisabled();
 
       // Simulate reconnection
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: true
+      Object.assign(mockGameStore, {
+        connection: { status: 'connected', retryCount: 0, lastError: null }
       });
+      mockGameStore.isConnected.mockReturnValue(true);
+      mockGameStore.canStartGame.mockReturnValue(true);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
       vi.mocked(wsService.isConnected).mockReturnValue(true);
 
       rerender(<App />);
@@ -157,10 +257,18 @@ describe('Navigation Integration Tests', () => {
       unmountTab1();
 
       // Tab 2: With game - should show toggle button
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
+        session: {
+          type: 'active-game',
+          gameId: 'test-game-123',
+          state: null,
+          createdAt: Date.now()
+        },
         gameId: 'test-game-123'
       });
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
+      mockGameStore.canStartGame.mockReturnValue(false);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
 
       render(<App />);
       expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
@@ -170,10 +278,12 @@ describe('Navigation Integration Tests', () => {
   describe('WebSocket reconnection scenarios', () => {
     it('should show settings panel after reconnection with no game', () => {
       // Start disconnected
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: false
+      Object.assign(mockGameStore, {
+        connection: { status: 'disconnected', retryCount: 0, lastError: null }
       });
+      mockGameStore.isConnected.mockReturnValue(false);
+      mockGameStore.canStartGame.mockReturnValue(false);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: false });
       vi.mocked(wsService.isConnected).mockReturnValue(false);
 
       const { rerender } = render(<App />);
@@ -182,10 +292,12 @@ describe('Navigation Integration Tests', () => {
       expect(screen.getByText('⚙️ Game Settings')).toBeDisabled();
 
       // Simulate reconnection
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        isConnected: true
+      Object.assign(mockGameStore, {
+        connection: { status: 'connected', retryCount: 0, lastError: null }
       });
+      mockGameStore.isConnected.mockReturnValue(true);
+      mockGameStore.canStartGame.mockReturnValue(true);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
       vi.mocked(wsService.isConnected).mockReturnValue(true);
 
       rerender(<App />);
@@ -197,11 +309,20 @@ describe('Navigation Integration Tests', () => {
 
     it('should maintain game state consistency after reconnection', () => {
       // Start with game and disconnected
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        isConnected: false
+      Object.assign(mockGameStore, {
+        connection: { status: 'disconnected', retryCount: 0, lastError: null },
+        session: {
+          type: 'active-game',
+          gameId: 'test-game-123',
+          state: null,
+          createdAt: Date.now()
+        },
+        gameId: 'test-game-123'
       });
+      mockGameStore.isConnected.mockReturnValue(false);
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
+      mockGameStore.canStartGame.mockReturnValue(false);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: false });
 
       const { rerender } = render(<App />);
 
@@ -209,11 +330,11 @@ describe('Navigation Integration Tests', () => {
       expect(screen.getByText('⚙️ Game Settings')).toBeDisabled();
 
       // Reconnect with same game
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
-        gameId: 'test-game-123',
-        isConnected: true
+      Object.assign(mockGameStore, {
+        connection: { status: 'connected', retryCount: 0, lastError: null }
       });
+      mockGameStore.isConnected.mockReturnValue(true);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
 
       rerender(<App />);
 
@@ -239,10 +360,18 @@ describe('Navigation Integration Tests', () => {
 
     it('should handle page refresh with existing game state', () => {
       // Start with game
-      mockUseGameStore.mockReturnValue({
-        ...defaultMockStore,
+      Object.assign(mockGameStore, {
+        session: {
+          type: 'active-game',
+          gameId: 'test-game-123',
+          state: null,
+          createdAt: Date.now()
+        },
         gameId: 'test-game-123'
       });
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
+      mockGameStore.canStartGame.mockReturnValue(false);
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'button-visible', enabled: true });
 
       const { unmount } = render(<App />);
       unmount();

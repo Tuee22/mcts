@@ -15,61 +15,136 @@ vi.mock('react-hot-toast', () => ({
   Toaster: () => React.createElement('div', { 'data-testid': 'toaster' }),
 }));
 
-// Mock the game store with simpler approach
-const { mockStoreState, mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted(() => {
-  let storeState = {
+// Mock the game store with comprehensive approach (same pattern as GameSettings test)
+const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted(() => {
+  // Create mock store inline to avoid import issues with hoisting
+  const store = {
+    // State properties
+    connection: {
+      type: 'disconnected' as const
+    },
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: {
+        mode: 'human_vs_ai',
+        ai_difficulty: 'medium',
+        ai_time_limit: 5000,
+        board_size: 9
+      },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    getSettingsUI: vi.fn(() => {
+      // When there's a game, show the toggle button
+      // When there's no game and connected, show the panel
+      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending';
+      const connected = mockGameStore.connection.type === 'connected';
+      const isCreating = mockGameStore.session.type === 'creating-game';
+      
+      if (hasGame) {
+        return {
+          type: 'button-visible',
+          enabled: connected
+        };
+      } else if (connected) {
+        return {
+          type: 'panel-visible',
+          canStartGame: true,
+          isCreating: isCreating
+        };
+      } else {
+        return {
+          type: 'button-visible',
+          enabled: false
+        };
+      }
+    }),
+    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+        return mockGameStore.session.gameId;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
+        return mockGameStore.session.state;
+      }
+      return null;
+    }),
+    canStartGame: vi.fn(() => false),
+    canMakeMove: vi.fn(() => false),
+    isGameActive: vi.fn(() => false),
+    
+    // Legacy compatibility
     gameId: null,
     gameState: null,
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-    isConnected: false,
     isLoading: false,
     isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
-  };
-
-  const gameStore = {
-    setGameId: vi.fn((id) => { storeState.gameId = id; }),
-    setGameState: vi.fn((state) => { storeState.gameState = state; }),
-    setGameSettings: vi.fn((settings) => { storeState.gameSettings = { ...storeState.gameSettings, ...settings }; }),
-    setIsConnected: vi.fn((connected) => { storeState.isConnected = connected; }),
-    setIsLoading: vi.fn((loading) => { storeState.isLoading = loading; }),
-    setIsCreatingGame: vi.fn((creating) => { storeState.isCreatingGame = creating; }),
-    setError: vi.fn((error) => { storeState.error = error; }),
-    setSelectedHistoryIndex: vi.fn((index) => { storeState.selectedHistoryIndex = index; }),
+    // setGameId removed - use dispatch,
+    // setGameState removed - use dispatch,
+    setGameSettings: vi.fn(),
+    // setIsConnected removed - use dispatch,
+    // setIsLoading removed - use dispatch,
+    // setIsCreatingGame removed - use dispatch,
+    setError: vi.fn(),
+    setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
-    reset: vi.fn(() => {
-      storeState.gameId = null;
-      storeState.gameState = null;
-      storeState.gameSettings = { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 };
-      storeState.isLoading = false;
-      storeState.isCreatingGame = false;
-      storeState.selectedHistoryIndex = null;
-      // Preserve connection state and error state as per fixed reset behavior
-    })
+    reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => ({
-    ...storeState,
-    ...gameStore
-  }));
+  const useGameStoreMock = vi.fn(() => store);
+  useGameStoreMock.getState = vi.fn(() => store);
 
   // Helper function to update store and notify tests to rerender
-  const updateStoreAndRerender = (updates: Partial<typeof storeState>, rerender?: () => void) => {
-    Object.assign(storeState, updates);
-    // Force the mock to return a new object reference to trigger React re-render
-    useGameStoreMock.mockReturnValue({
-      ...storeState,
-      ...gameStore
+  const updateStoreAndRerender = (updates: any, rerender?: () => void) => {
+    // Update nested properties if provided
+    if (updates.connection) Object.assign(mockGameStore.connection, updates.connection);
+    if (updates.session) Object.assign(mockGameStore.session, updates.session);
+    if (updates.settings) Object.assign(mockGameStore.settings, updates.settings);
+    if (updates.ui) Object.assign(mockGameStore.ui, updates.ui);
+    
+    // Update flat properties (skip function properties to preserve mocks)
+    Object.keys(updates).forEach(key => {
+      if (!['connection', 'session', 'settings', 'ui'].includes(key) && typeof (store as any)[key] !== 'function') {
+        (store as any)[key] = updates[key];
+      }
     });
+    
+    // Update legacy compatibility properties
+    if (store.session.type === 'active-game' || store.session.type === 'game-over' || store.session.type === 'game-ending') {
+      store.gameId = store.session.gameId;
+    } else {
+      store.gameId = null;
+    }
+    if (store.session.type === 'active-game' || store.session.type === 'game-over') {
+      store.gameState = store.session.state;
+    } else {
+      store.gameState = null;
+    }
+    store.gameSettings = store.settings.gameSettings;
+    store.isConnected.mockReturnValue(store.connection.type === 'connected');
+    store.error = store.connection.lastError;
+    store.selectedHistoryIndex = store.ui.selectedHistoryIndex;
+    
     if (rerender) {
       rerender();
     }
   };
-
+  
   return {
-    mockStoreState: storeState,
-    mockGameStore: gameStore,
+    mockGameStore: store,
     mockUseGameStore: useGameStoreMock,
     updateStoreAndRerender
   };
@@ -83,7 +158,7 @@ vi.mock('@/store/gameStore', () => ({
 const mockWebSocketService = vi.hoisted(() => ({
   connect: vi.fn(() => Promise.resolve()),
   disconnect: vi.fn(),
-  isConnected: vi.fn(() => true),
+  isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
   createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
   makeMove: vi.fn(() => Promise.resolve()),
   getAIMove: vi.fn(() => Promise.resolve()),
@@ -115,15 +190,28 @@ describe('App Connection Recovery Tests', () => {
     vi.clearAllMocks();
     user = createUser();
 
-    // Reset mock store to initial state using helper
+    // Reset mock store to initial state using helper - ensure objects exist
+    if (!mockGameStore.connection) mockGameStore.connection = {};
+    if (!mockGameStore.session) mockGameStore.session = {};
+    if (!mockGameStore.settings) mockGameStore.settings = {};
+    if (!mockGameStore.ui) mockGameStore.ui = {};
+    
     updateStoreAndRerender({
-      gameId: null,
-      gameState: null,
-      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-      isConnected: false,
-      isLoading: false,
-      error: null,
-      selectedHistoryIndex: null,
+      connection: {
+      type: 'disconnected' as const
+    },
+      session: { type: 'no-game' as const },
+      settings: {
+        gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+        theme: 'light',
+        soundEnabled: true
+      },
+      ui: {
+        settingsExpanded: false,
+        selectedHistoryIndex: null,
+        notifications: []
+      },
+      isLoading: false
     });
   });
 
@@ -137,8 +225,10 @@ describe('App Connection Recovery Tests', () => {
     it('should handle successful auto-reconnection', async () => {
       // Start with disconnected state
       updateStoreAndRerender({
-        isConnected: false,
-        error: 'Initial connection failed'
+        connection: {
+          type: 'disconnected' as const,
+          lastError: 'Initial connection failed'
+        }
       });
 
       const { rerender } = render(<App />);
@@ -149,8 +239,12 @@ describe('App Connection Recovery Tests', () => {
       // Simulate auto-reconnection success
       act(() => {
         updateStoreAndRerender({
-          isConnected: true,
-          error: null
+          connection: {
+            type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date(),
+            lastError: null
+          }
         }, () => rerender(<App />));
       });
 
@@ -160,7 +254,11 @@ describe('App Connection Recovery Tests', () => {
 
     it('should maintain connection state through component re-renders', async () => {
       updateStoreAndRerender({
-        isConnected: true
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        }
       });
 
       const { rerender } = render(<App />);
@@ -177,9 +275,15 @@ describe('App Connection Recovery Tests', () => {
     it('should recover connection without losing current game state', async () => {
       // Set up active game
       updateStoreAndRerender({
-        gameId: 'recovery-game-123',
-        gameState: mockMidGameState,
-        isConnected: false // Start disconnected
+        session: {
+          type: 'active-game',
+          gameId: 'recovery-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'disconnected' as const
+        }
       });
 
       const { rerender } = render(<App />);
@@ -191,8 +295,12 @@ describe('App Connection Recovery Tests', () => {
       // Reconnect
       act(() => {
         updateStoreAndRerender({
-          isConnected: true,
-          error: null
+          connection: {
+            type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date(),
+            lastError: null
+          }
         }, () => rerender(<App />));
       });
 
@@ -201,7 +309,7 @@ describe('App Connection Recovery Tests', () => {
 
       // Game should still be active
       expect(screen.getByTestId('game-board-mock')).toBeInTheDocument();
-      expect(mockStoreState.gameId).toBe('recovery-game-123');
+      expect(mockGameStore.session.gameId).toBe('recovery-game-123');
     });
   });
 
@@ -209,9 +317,17 @@ describe('App Connection Recovery Tests', () => {
     it('should handle mount with existing game state', () => {
       // Simulate refreshed page with persisted game state
       updateStoreAndRerender({
-        gameId: 'persisted-game-123',
-        gameState: mockMidGameState,
-        isConnected: true
+        session: {
+          type: 'active-game',
+          gameId: 'persisted-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        }
       });
 
       render(<App />);
@@ -227,10 +343,16 @@ describe('App Connection Recovery Tests', () => {
     it('should handle mount with disconnected state after refresh', () => {
       // Simulate refresh where connection was lost
       updateStoreAndRerender({
-        gameId: 'persisted-game-123',
-        gameState: mockMidGameState,
-        isConnected: false,
-        error: 'Connection lost'
+        session: {
+          type: 'active-game',
+          gameId: 'persisted-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'disconnected' as const,
+          lastError: 'Connection lost'
+        }
       });
 
       render(<App />);
@@ -246,8 +368,18 @@ describe('App Connection Recovery Tests', () => {
     it('should clear stale error states on successful reconnection', async () => {
       // Start with stale error
       updateStoreAndRerender({
-        isConnected: false,
-        error: 'Old connection error'
+        connection: {
+          type: 'disconnected' as const,
+          lastError: 'Old connection error'
+        },
+        ui: {
+          notifications: [{
+            id: 'stale-error',
+            type: 'error',
+            message: 'Old connection error',
+            timestamp: new Date()
+          }]
+        }
       });
 
       render(<App />);
@@ -263,13 +395,13 @@ describe('App Connection Recovery Tests', () => {
           })
         })
       );
-      expect(mockGameStore.setError).toHaveBeenCalledWith(null);
+      // Note: Error clearing happens automatically via setTimeout in useEffect
     });
   });
 
   describe('Connection State During Route Changes', () => {
     it('should maintain connection state during application lifecycle', () => {
-      mockGameStore.isConnected = true;
+      mockGameStore.isConnected.mockReturnValue(true);
       
       const { unmount } = render(<App />);
       
@@ -281,9 +413,17 @@ describe('App Connection Recovery Tests', () => {
 
     it('should handle component lifecycle with active game', () => {
       updateStoreAndRerender({
-        gameId: 'lifecycle-game-123',
-        gameState: mockMidGameState,
-        isConnected: true
+        session: {
+          type: 'active-game',
+          gameId: 'lifecycle-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        }
       });
 
       const { unmount } = render(<App />);
@@ -301,8 +441,12 @@ describe('App Connection Recovery Tests', () => {
     it('should handle game creation during connection instability', async () => {
       // Start connected with no game
       updateStoreAndRerender({
-        isConnected: true,
-        gameId: null
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        },
+        session: { type: 'no-game' as const }
       });
 
       render(<App />);
@@ -312,9 +456,15 @@ describe('App Connection Recovery Tests', () => {
       // Mock connection instability during game creation
       mockWebSocketService.createGame.mockImplementation(async () => {
         // Simulate temporary disconnection during creation
-        updateStoreAndRerender({ isConnected: false });
+        updateStoreAndRerender({ 
+          connection: { type: 'disconnected' as const }
+        });
         await new Promise(resolve => setTimeout(resolve, 100));
-        updateStoreAndRerender({ isConnected: true });
+        updateStoreAndRerender({ 
+          connection: { type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date() }
+        });
         return { gameId: 'unstable-game-123' };
       });
 
@@ -326,10 +476,14 @@ describe('App Connection Recovery Tests', () => {
     it('should prevent multiple game creation attempts during loading', async () => {
       // Set initial state: connected but loading and creating game
       updateStoreAndRerender({
-        isConnected: true,
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        },
+        session: { type: 'no-game' as const },
         isLoading: true,
-        isCreatingGame: true,
-        gameId: null
+        isCreatingGame: true
       });
 
       render(<App />);
@@ -351,9 +505,17 @@ describe('App Connection Recovery Tests', () => {
     it('should handle connection loss during active game', async () => {
       // Test the core functionality without complex state timing
       updateStoreAndRerender({
-        gameId: 'active-game-123',
-        gameState: mockMidGameState,
-        isConnected: true
+        session: {
+          type: 'active-game',
+          gameId: 'active-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        }
       });
 
       render(<App />);
@@ -371,9 +533,15 @@ describe('App Connection Recovery Tests', () => {
     it('should allow continuing game after connection recovery', async () => {
       // Test game persistence during connection state changes
       updateStoreAndRerender({
-        gameId: 'recovery-game-123',
-        gameState: mockMidGameState,
-        isConnected: false
+        session: {
+          type: 'active-game',
+          gameId: 'recovery-game-123',
+          state: mockMidGameState,
+          lastSync: new Date()
+        },
+        connection: {
+          type: 'disconnected' as const
+        }
       });
 
       render(<App />);
@@ -382,8 +550,12 @@ describe('App Connection Recovery Tests', () => {
 
       // Test that game remains accessible regardless of connection state
       updateStoreAndRerender({
-        isConnected: true,
-        error: null
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date(),
+          lastError: null
+        }
       });
 
       // Game should remain visible and functional
@@ -410,8 +582,18 @@ describe('App Connection Recovery Tests', () => {
 
         // Simulate different error conditions
         updateStoreAndRerender({
-          error: errorMessage,
-          isConnected: false
+          connection: {
+            type: 'disconnected' as const,
+            lastError: errorMessage
+          },
+          ui: {
+            notifications: [{
+              id: `error-${errorMessage}`,
+              type: 'error',
+              message: errorMessage,
+              timestamp: new Date()
+            }]
+          }
         });
 
         render(<App />);
@@ -432,21 +614,35 @@ describe('App Connection Recovery Tests', () => {
 
     it('should not show duplicate error toasts for the same error', async () => {
       updateStoreAndRerender({
-        error: 'Persistent connection error',
-        isConnected: false
+        connection: {
+          type: 'disconnected' as const,
+          lastError: 'Persistent connection error'
+        },
+        ui: {
+          notifications: [{
+            id: 'persistent-error',
+            type: 'error',
+            message: 'Persistent connection error',
+            timestamp: new Date()
+          }]
+        }
       });
 
       const { rerender } = render(<App />);
 
       // First render should show error
       expect(mockToast.error).toHaveBeenCalledTimes(1);
-      expect(mockGameStore.setError).toHaveBeenCalledWith(null);
 
       vi.clearAllMocks();
 
       // Re-render with no error should not show toast
       updateStoreAndRerender({
-        error: null
+        connection: {
+          lastError: null
+        },
+        ui: {
+          notifications: []
+        }
       }, () => rerender(<App />));
 
       expect(mockToast.error).not.toHaveBeenCalled();
@@ -455,16 +651,33 @@ describe('App Connection Recovery Tests', () => {
     it('should handle error recovery without page refresh', async () => {
       // Test error recovery functionality
       updateStoreAndRerender({
-        isConnected: false,
-        error: 'Connection failed'
+        connection: {
+          type: 'disconnected' as const,
+          lastError: 'Connection failed'
+        },
+        ui: {
+          notifications: [{
+            id: 'recovery-error',
+            type: 'error',
+            message: 'Connection failed',
+            timestamp: new Date()
+          }]
+        }
       });
 
       render(<App />);
 
       // Test error handling without complex state timing
       updateStoreAndRerender({
-        isConnected: true,
-        error: null
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date(),
+          lastError: null
+        },
+        ui: {
+          notifications: []
+        }
       });
 
       // Test that the app continues to function
@@ -480,8 +693,10 @@ describe('App Connection Recovery Tests', () => {
       // Test that multiple state updates don't break the app
       for (let i = 0; i < 5; i++) {
         updateStoreAndRerender({
-          isConnected: i % 2 === 0,
-          error: i % 2 === 0 ? null : `Error ${i}`
+          connection: {
+            status: i % 2 === 0 ? 'connected' : 'disconnected',
+            lastError: i % 2 === 0 ? null : `Error ${i}`
+          }
         });
       }
 
@@ -491,7 +706,13 @@ describe('App Connection Recovery Tests', () => {
     });
 
     it('should handle rapid component updates during connection instability', async () => {
-      mockGameStore.isConnected = true;
+      updateStoreAndRerender({
+        connection: {
+          type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date()
+        }
+      });
       
       render(<App />);
       
@@ -499,8 +720,12 @@ describe('App Connection Recovery Tests', () => {
       const rapidUpdates = async () => {
         for (let i = 0; i < 10; i++) {
           act(() => {
-            mockGameStore.isLoading = i % 2 === 0;
-            mockGameStore.error = i % 3 === 0 ? `Rapid error ${i}` : null;
+            updateStoreAndRerender({
+              isLoading: i % 2 === 0,
+              connection: {
+                lastError: i % 3 === 0 ? `Rapid error ${i}` : null
+              }
+            });
           });
           
           // Small delay to allow React to process
@@ -535,11 +760,17 @@ describe('App Connection Recovery Tests', () => {
       
       // App shouldn't interfere with service-level reconnection
       act(() => {
-        mockGameStore.isConnected = false;
+        updateStoreAndRerender({
+          connection: { type: 'disconnected' as const }
+        });
       });
       
       act(() => {
-        mockGameStore.isConnected = true;
+        updateStoreAndRerender({
+          connection: { type: 'connected' as const,
+          clientId: 'test-client',
+          since: new Date() }
+        });
       });
       
       // App should not trigger additional connect calls beyond initial

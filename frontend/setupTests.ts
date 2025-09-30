@@ -168,12 +168,13 @@ afterEach(() => {
 
   // Selectively reset modules that cause state leakage
   // Only reset modules that don't break test isolation
-  try {
-    // Reset React-related modules that might hold state
-    vi.resetModules(['@/store/gameStore', '@/services/websocket']);
-  } catch {
-    // Module reset failed, continue
-  }
+  // NOTE: Commented out as it interferes with mock application
+  // try {
+  //   // Reset React-related modules that might hold state
+  //   vi.resetModules(['@/store/gameStore', '@/services/websocket']);
+  // } catch {
+  //   // Module reset failed, continue
+  // }
 
   // Clear timers and intervals if they are mocked
   try {

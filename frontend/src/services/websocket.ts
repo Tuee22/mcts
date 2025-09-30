@@ -38,7 +38,15 @@ class WebSocketService {
       console.error('WebSocket connection error:', error);
       // Only access useGameStore if it exists (for testing)
       if (typeof useGameStore !== 'undefined') {
-        useGameStore.getState().setError('Failed to connect to server');
+        useGameStore.getState().dispatch({
+          type: 'NOTIFICATION_ADDED',
+          notification: {
+            id: crypto.randomUUID(),
+            type: 'error',
+            message: 'Failed to connect to server',
+            timestamp: new Date()
+          }
+        });
       }
     }
   }
@@ -61,7 +69,15 @@ class WebSocketService {
       this.setupGameEventListeners();
     } catch (error) {
       console.error('Game WebSocket connection error:', error);
-      useGameStore.getState().setError('Failed to connect to game');
+      useGameStore.getState().dispatch({
+        type: 'NOTIFICATION_ADDED',
+        notification: {
+          id: crypto.randomUUID(),
+          type: 'error',
+          message: 'Failed to connect to game',
+          timestamp: new Date()
+        }
+      });
     }
   }
 
@@ -78,13 +94,12 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.onopen = () => {
-      useGameStore.getState().setIsConnected(true);
-      useGameStore.getState().setError(null);
+      useGameStore.getState().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'ws-client' });
       this.reconnectAttempts = 0;
     };
 
     this.socket.onclose = () => {
-      useGameStore.getState().setIsConnected(false);
+      useGameStore.getState().dispatch({ type: 'CONNECTION_LOST' });
     };
 
     this.socket.onerror = (error: any) => {
@@ -92,7 +107,7 @@ class WebSocketService {
       this.reconnectAttempts++;
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        useGameStore.getState().setIsConnected(false);
+        useGameStore.getState().dispatch({ type: 'CONNECTION_LOST', error: 'Max reconnection attempts reached' });
       }
     };
 
@@ -104,8 +119,7 @@ class WebSocketService {
         switch (data.type) {
           case 'connect':
             // Connection confirmed from server
-            useGameStore.getState().setIsConnected(true);
-            useGameStore.getState().setError(null);
+            useGameStore.getState().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: data.clientId || 'ws-client' });
             break;
           case 'pong':
             // Handle ping/pong for keepalive
@@ -113,8 +127,15 @@ class WebSocketService {
           case 'error':
             // Handle server errors
             if (data.error) {
-              useGameStore.getState().setError(data.error);
-              useGameStore.getState().setIsLoading(false);
+              useGameStore.getState().dispatch({
+                type: 'NOTIFICATION_ADDED',
+                notification: {
+                  id: crypto.randomUUID(),
+                  type: 'error',
+                  message: data.error,
+                  timestamp: new Date()
+                }
+              });
             }
             break;
           // Add other message types as needed
@@ -359,7 +380,7 @@ class WebSocketService {
       if (gameData) {
         const gameState = this.transformApiResponseToGameState(gameData);
         if (gameState) {
-          useGameStore.getState().setGameState(gameState);
+          useGameStore.getState().dispatch({ type: 'GAME_STATE_UPDATED', state: gameState });
         }
       }
 
@@ -467,7 +488,7 @@ class WebSocketService {
 
         const gameState = this.transformApiResponseToGameState(gameData);
         if (gameState) {
-          useGameStore.getState().setGameState(gameState);
+          useGameStore.getState().dispatch({ type: 'GAME_STATE_UPDATED', state: gameState });
         }
       }
     } catch (error) {

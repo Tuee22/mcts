@@ -118,7 +118,10 @@ export const createMockGameStore = (overrides = {}) => ({
   error: null,
   selectedHistoryIndex: null,
   
-  // Actions
+  // Main dispatcher
+  dispatch: vi.fn(),
+  
+  // Actions (deprecated but still in tests)
   setGameId: vi.fn(),
   setGameState: vi.fn(),
   setGameSettings: vi.fn(),

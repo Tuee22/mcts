@@ -36,7 +36,7 @@ function createDefaultState(): AppState {
 
   return {
     connection: { type: 'disconnected' },
-    session: { type: 'no-game' },
+    session: { type: 'no-game' as const },
     settings: defaultSettings,
     ui: defaultUI
   };
@@ -134,7 +134,7 @@ describe('State Transitions', () => {
       const validState: AppState = {
         ...createDefaultState(),
         connection: { type: 'connected', clientId: 'test', since: new Date() },
-        session: { type: 'no-game' }
+        session: { type: 'no-game' as const }
       };
       
       const newState = stateReducer(validState, { type: 'START_GAME' });
@@ -273,7 +273,7 @@ describe('State Transitions', () => {
       const state: AppState = {
         ...createDefaultState(),
         connection: { type: 'connected', clientId: 'test', since: new Date() },
-        session: { type: 'no-game' }
+        session: { type: 'no-game' as const }
       };
       
       const settingsUI = getSettingsUIState(state);

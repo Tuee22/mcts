@@ -34,9 +34,10 @@ class TestConnectionStates:
             last_seen=datetime.now(timezone.utc), disconnect_reason="Test"
         )
 
-        # Should be frozen
+        # Should be frozen - test immutability by attempting invalid operation
         with pytest.raises(AttributeError):
-            state.last_seen = datetime.now(timezone.utc)  # type: ignore
+            # Testing that frozen dataclass prevents attribute mutation
+            setattr(state, "last_seen", datetime.now(timezone.utc))
 
     def test_connected_state_subscriptions(self) -> None:
         """Test game subscription management."""
