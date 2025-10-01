@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Test the functional store implementation
 import { useGameStore } from '@/store/gameStore';
 import { GameState } from '@/types/game';
+import { defaultGameState } from '../test-utils/store-factory';
 
 describe('GameStore Reset Behavior', () => {
   beforeEach(() => {
@@ -18,7 +19,7 @@ describe('GameStore Reset Behavior', () => {
       // Set up connection following proper state machine: disconnected -> connecting -> connected
       store.dispatch({ type: 'CONNECTION_START' });
       store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-      store.dispatch({ type: 'START_GAME' });
+      // In simplified state machine, create game directly instead of START_GAME
       store.dispatch({ 
         type: 'GAME_CREATED', 
         gameId: 'test-game-123', 
@@ -104,7 +105,7 @@ describe('GameStore Reset Behavior', () => {
       store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
       
       // Set up a complete game state using functional API
-      store.dispatch({ type: 'START_GAME' });
+      // In simplified state machine, create game directly instead of START_GAME
       store.dispatch({ 
         type: 'GAME_CREATED', 
         gameId: 'test-game-123', 
@@ -238,7 +239,8 @@ describe('GameStore Reset Behavior', () => {
       
       store.dispatch({ type: 'CONNECTION_START' });
       store.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-      store.dispatch({ type: 'START_GAME' }); // This creates loading state
+      // In simplified state machine, create game directly instead of START_GAME
+      store.dispatch({ type: 'GAME_CREATED', gameId: 'test-game', state: defaultGameState });
       
       store.dispatch({ type: 'RESET_GAME' });
       

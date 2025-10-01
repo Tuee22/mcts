@@ -45,10 +45,8 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
     getSettingsUI: vi.fn(() => {
       // When there's a game, show the toggle button
       // When there's no game and connected, show the panel
-      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending';
+      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
-      const isCreating = mockGameStore.session.type === 'creating-game';
-      
       if (hasGame) {
         return {
           type: 'button-visible',
@@ -57,8 +55,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
       } else if (connected) {
         return {
           type: 'panel-visible',
-          canStartGame: true,
-          isCreating: isCreating
+          canStartGame: true
         };
       } else {
         return {
@@ -88,7 +85,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
     }),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => false),
-    getIsLoading: vi.fn(() => mockGameStore.session.type === 'creating-game'),
+    getIsLoading: vi.fn(() => false),
     getLatestError: vi.fn(() => null),
     getSelectedHistoryIndex: vi.fn(() => mockGameStore.ui.selectedHistoryIndex),
     

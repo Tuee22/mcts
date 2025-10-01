@@ -155,7 +155,8 @@ export const useGameStore = create<GameStore>()(
       },
       
       getIsLoading: () => {
-        return false; // No loading states in simplified state machine
+        // In functional design, there are no loading states - transitions are instant
+        return false;
       }
     }),
     {

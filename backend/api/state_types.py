@@ -100,26 +100,11 @@ ConnectionState = Union[
 ]
 
 
-# Game session discriminated unions
+# Game session discriminated unions - simplified to match frontend
 class NoGameSession(TypedDict):
     """Session state when no game is active."""
 
     type: Literal["no-game"]
-
-
-class CreatingGameSession(TypedDict):
-    """Session state when creating a new game."""
-
-    type: Literal["creating-game"]
-    request_id: str
-    settings: GameSettingsDict
-
-
-class JoiningGameSession(TypedDict):
-    """Session state when joining an existing game."""
-
-    type: Literal["joining-game"]
-    game_id: str
 
 
 class ActiveGameSession(TypedDict):
@@ -129,14 +114,6 @@ class ActiveGameSession(TypedDict):
     game_id: str
     state: GameStateDict
     last_sync: str  # ISO timestamp
-
-
-class GameEndingSession(TypedDict):
-    """Session state when game is ending."""
-
-    type: Literal["game-ending"]
-    game_id: str
-    reason: Literal["new-game", "disconnect", "complete"]
 
 
 class GameOverSession(TypedDict):
@@ -150,10 +127,7 @@ class GameOverSession(TypedDict):
 
 GameSession = Union[
     NoGameSession,
-    CreatingGameSession,
-    JoiningGameSession,
     ActiveGameSession,
-    GameEndingSession,
     GameOverSession,
 ]
 
@@ -231,12 +205,6 @@ class ConnectionRetryAction(TypedDict):
     type: Literal["CONNECTION_RETRY"]
 
 
-class StartGameAction(TypedDict):
-    """Start creating a new game."""
-
-    type: Literal["START_GAME"]
-
-
 class GameCreatedAction(TypedDict):
     """Game successfully created."""
 
@@ -252,17 +220,10 @@ class GameCreateFailedAction(TypedDict):
     error: str
 
 
-class NewGameClickedAction(TypedDict):
-    """User clicked new game button."""
+class NewGameRequestedAction(TypedDict):
+    """New game requested - direct transition to no-game state."""
 
-    type: Literal["NEW_GAME_CLICKED"]
-
-
-class GameEndedAction(TypedDict):
-    """Game has ended."""
-
-    type: Literal["GAME_ENDED"]
-    reason: Literal["complete", "disconnect"]
+    type: Literal["NEW_GAME_REQUESTED"]
 
 
 class GameStateUpdatedAction(TypedDict):
@@ -270,12 +231,6 @@ class GameStateUpdatedAction(TypedDict):
 
     type: Literal["GAME_STATE_UPDATED"]
     state: GameStateDict
-
-
-class GameEndingCompleteAction(TypedDict):
-    """Game ending transition complete."""
-
-    type: Literal["GAME_ENDING_COMPLETE"]
 
 
 class ResetGameAction(TypedDict):
@@ -350,13 +305,10 @@ StateAction = Union[
     ConnectionEstablishedAction,
     ConnectionLostAction,
     ConnectionRetryAction,
-    StartGameAction,
     GameCreatedAction,
     GameCreateFailedAction,
-    NewGameClickedAction,
-    GameEndedAction,
+    NewGameRequestedAction,
     GameStateUpdatedAction,
-    GameEndingCompleteAction,
     ResetGameAction,
     SettingsToggledAction,
     SettingsUpdatedAction,

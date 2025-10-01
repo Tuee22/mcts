@@ -7,6 +7,7 @@
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { defaultGameState } from '../test-utils/store-factory';
 
 // Create a mock store for testing
 const createMockStore = () => {
@@ -53,7 +54,7 @@ const createMockStore = () => {
         case 'CONNECTION_LOST':
           state.isConnected = false;
           break;
-        case 'START_GAME':
+        case 'GAME_CREATED':
           state.isLoading = true;
           break;
         case 'GAME_CREATED':
@@ -266,7 +267,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'test-game-123',
@@ -307,7 +308,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'test-game',
@@ -338,7 +339,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'test-game',
@@ -389,7 +390,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       });
 
       expect(result.current.isLoading).toBe(true);
@@ -404,7 +405,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'test-game',
@@ -498,7 +499,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       });
 
       expect(result.current.error).toBeNull();
@@ -526,7 +527,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'rapid-test',
@@ -560,7 +561,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.setError('Loading error');
       });
 
@@ -591,7 +592,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'reset-test',
@@ -680,7 +681,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.setError('Test error');
       });
 
@@ -732,7 +733,7 @@ describe('Game Store Persistence Tests', () => {
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
         });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({
           type: 'GAME_CREATED',
           gameId: 'perf-test',

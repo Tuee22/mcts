@@ -43,7 +43,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       // Simulate actual state updates for relevant actions
       if (action.type === 'SETTINGS_TOGGLED') {
         mockGameStore.ui.settingsExpanded = !mockGameStore.ui.settingsExpanded;
-      } else if (action.type === 'START_GAME') {
+      } else if (action.type === 'GAME_CREATED') {
         mockGameStore.isLoading = true;
         mockGameStore.isCreatingGame = true;
       }
@@ -96,6 +96,9 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     }),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => false),
+    getSelectedHistoryIndex: vi.fn(() => null),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
     
     // Legacy compatibility
     gameId: null,

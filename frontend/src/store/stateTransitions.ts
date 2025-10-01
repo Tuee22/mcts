@@ -415,9 +415,8 @@ export function getSettingsUIState(state: AppState): SettingsUIState {
   
   // If settings are explicitly expanded, show panel
   if (state.ui.settingsExpanded) {
-    const isCreating = false; // No creating state in simplified state machine
     const canStart = connected && state.session.type === 'no-game';
-    return { type: 'panel-visible', canStartGame: canStart, isCreating };
+    return { type: 'panel-visible', canStartGame: canStart };
   }
   
   // Otherwise, determine based on session state
@@ -425,8 +424,7 @@ export function getSettingsUIState(state: AppState): SettingsUIState {
     case 'no-game':
       return { 
         type: 'panel-visible', 
-        canStartGame: connected,
-        isCreating: false 
+        canStartGame: connected
       };
     
     case 'active-game':

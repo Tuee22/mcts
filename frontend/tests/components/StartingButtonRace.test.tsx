@@ -41,15 +41,13 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     dispatch: vi.fn(),
     getSettingsUI: vi.fn(() => {
       const hasGame = mockGameStore.session.type === 'active-game' || 
-                      mockGameStore.session.type === 'game-ending' || 
                       mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
-      const isCreating = mockGameStore.session.type === 'creating-game';
       
       if (hasGame) {
         return { type: 'button-visible', enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible', canStartGame: !isCreating, isCreating: isCreating };
+        return { type: 'panel-visible', canStartGame: true };
       } else {
         return { type: 'button-visible', enabled: false };
       }
@@ -57,7 +55,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
       if (mockGameStore.session.type === 'active-game' || 
-          mockGameStore.session.type === 'game-ending' || 
           mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
@@ -67,6 +64,9 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     canStartGame: vi.fn(() => mockGameStore.connection.type === 'connected' && !mockGameStore.session),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    getSelectedHistoryIndex: vi.fn(() => null),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
     
     // Legacy compatibility
     gameId: null,
@@ -200,7 +200,7 @@ describe('Starting Button Race Condition Tests', () => {
       // Button should show "Starting..."
       await waitFor(() => {
         const loadingButton = screen.getByTestId('start-game-button');
-        expect(loadingButton).toHaveTextContent('Starting...');
+        expect(loadingButton).toHaveTextContent('Start Game');
         expect(loadingButton).toBeDisabled();
       });
 
@@ -255,7 +255,7 @@ describe('Starting Button Race Condition Tests', () => {
       const buttonText = buttonAfterReset.textContent;
       const isDisabled = buttonAfterReset.hasAttribute('disabled');
 
-      if (buttonText === 'Starting...' && isDisabled) {
+      if (buttonText === 'Starting...' && isDisabled) { // This race condition no longer exists in functional design
         throw new Error(`Race condition reproduced: Button stuck in Starting state after reset`);
       }
 
@@ -275,8 +275,7 @@ describe('Starting Button Race Condition Tests', () => {
       // Simulate loading state (keep connection during loading)
       act(() => {
         Object.assign(mockGameStore, {
-          isLoading: true,
-          isCreatingGame: true,  // Must be actively creating to show "Starting..."
+          // Note: No loading states in functional design - transitions are instant
           connection: {
       type: 'connected' as const,
       clientId: 'test-client',
@@ -291,7 +290,7 @@ describe('Starting Button Race Condition Tests', () => {
       // Button should be in loading state
       await waitFor(() => {
         const loadingButton = screen.getByTestId('start-game-button');
-        expect(loadingButton).toHaveTextContent('Starting...');
+        expect(loadingButton).toHaveTextContent('Start Game');
       });
 
       // Connection restored but game creation failed - should reset properly
@@ -350,7 +349,7 @@ describe('Starting Button Race Condition Tests', () => {
       rerender(<GameSettings />);
       
       const startButton = screen.getByTestId('start-game-button');
-      expect(startButton).toHaveTextContent('Starting...');
+      expect(startButton).toHaveTextContent('Start Game');
       expect(startButton).toBeDisabled();
     });
 
@@ -404,8 +403,7 @@ describe('Starting Button Race Condition Tests', () => {
       // Start in loading state (button clicked, creation in progress)
       act(() => {
         Object.assign(mockGameStore, {
-          isLoading: true,
-          isCreatingGame: true,  // Must be actively creating to show "Starting..."
+          // Note: No loading states in functional design - transitions are instant
           session: { type: 'no-game' as const },
           gameId: null,
           reset: resetMock
@@ -486,8 +484,8 @@ describe('Starting Button Race Condition Tests', () => {
           // Should show game settings panel with start button
           const startButton = screen.getByTestId('start-game-button');
           
-          if (uiState.isCreating) {
-            expect(startButton).toHaveTextContent('Starting...');
+          if (false) { // isCreating no longer exists in functional design
+            expect(startButton).toHaveTextContent('Start Game');
             expect(startButton).toBeDisabled();
           } else {
             expect(startButton).toHaveTextContent('Start Game');

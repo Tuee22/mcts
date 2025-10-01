@@ -69,7 +69,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       // Set up active game state
       getStore().dispatch({ type: 'CONNECTION_START' });
       getStore().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-      getStore().dispatch({ type: 'START_GAME' });
+      getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       getStore().dispatch({ 
         type: 'GAME_CREATED', 
         gameId: 'active-game-123', 
@@ -131,7 +131,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       } as GameState });
       
       // Set loading to simulate AI thinking
-      getStore().dispatch({ type: 'START_GAME' });
+      getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       
       // Reset while AI is thinking (user clicks New Game)
       getStore().dispatch({ type: 'RESET_GAME' });
@@ -197,7 +197,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
           }
         });
         setupGameCreation(getStore().dispatch, 'error-game', defaultGameState);
-        getStore().dispatch({ type: 'START_GAME' });
+        getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         
         // Reset during error
         getStore().dispatch({ type: 'RESET_GAME' });
@@ -231,7 +231,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       const operations = [
         () => {
           setupGameCreation(getStore().dispatch, 'game-1', defaultGameState);
-          getStore().dispatch({ type: 'START_GAME' });
+          getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
           getStore().dispatch({ type: 'RESET_GAME' });
         },
         () => {
@@ -282,7 +282,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       // Create artificially inconsistent state (edge case)
       setupGameCreation(getStore().dispatch, 'game-123', defaultGameState);
       getStore().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-      getStore().dispatch({ type: 'START_GAME' });
+      getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       // Try to set invalid history index (history index beyond available moves)
       // This is still inconsistent but won't break state validation
       
@@ -362,7 +362,7 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
       getStore().dispatch({ type: 'NOTIFICATION_ADDED', notification: { id: Math.random().toString(), type: 'error', message: 'Initial connection failed', timestamp: new Date() } });
       
       // Begin connecting (transition state)
-      getStore().dispatch({ type: 'START_GAME' }); // Loading could indicate connection attempt
+      getStore().dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState }); // Loading could indicate connection attempt
       
       // Reset during connection attempt
       getStore().dispatch({ type: 'RESET_GAME' });

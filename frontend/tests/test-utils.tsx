@@ -38,19 +38,17 @@ export function createMockStore(overrides?: Partial<MockGameStore>) {
   };
 
   const defaultConnection: ConnectionState = {
-    status: 'connected',
-    retryCount: 0,
-    lastError: null
+    type: 'connected',
+    clientId: 'test-client-123',
+    since: new Date(),
+    canReset: true
   };
 
-  const defaultSession: GameSession | null = null;
+  const defaultSession: GameSession = { type: 'no-game' };
 
   const defaultSettingsUI: SettingsUIState = {
-    isVisible: true,
-    isExpanded: false,
-    canModify: true,
-    showStartButton: true,
-    isLoading: false
+    type: 'panel-visible',
+    canStartGame: true
   };
 
   const store: MockGameStore = {
@@ -65,41 +63,44 @@ export function createMockStore(overrides?: Partial<MockGameStore>) {
 
     // Derived getters
     getSettingsUI: vi.fn(() => defaultSettingsUI),
-    isConnected: vi.fn(() => defaultConnection.status === 'connected'),
-    getCurrentGameId: vi.fn(() => defaultSession?.gameId || null),
-    getCurrentGameState: vi.fn(() => defaultSession?.gameState || null),
-    canStartGame: vi.fn(() => defaultConnection.status === 'connected' && !defaultSession),
+    isConnected: vi.fn(() => defaultConnection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => defaultSession.type === 'active-game' || defaultSession.type === 'game-over' ? defaultSession.gameId : null),
+    getCurrentGameState: vi.fn(() => defaultSession.type === 'active-game' || defaultSession.type === 'game-over' ? defaultSession.state : null),
+    canStartGame: vi.fn(() => defaultConnection.type === 'connected' && defaultSession.type === 'no-game'),
     canMakeMove: vi.fn(() => false),
-    isGameActive: vi.fn(() => !!defaultSession?.gameState && !defaultSession.gameState.isGameOver),
+    isGameActive: vi.fn(() => defaultSession.type === 'active-game'),
+    getSelectedHistoryIndex: vi.fn(() => defaultUIState.selectedHistoryIndex),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
 
     // Legacy compatibility methods (for gradual migration)
     setGameId: vi.fn((id: string | null) => {
       if (id) {
         store.session = { 
+          type: 'active-game',
           gameId: id, 
-          gameState: store.session?.gameState || null,
-          createdAt: Date.now()
+          state: store.session.type === 'active-game' || store.session.type === 'game-over' ? store.session.state : null,
+          lastSync: new Date()
         };
       } else {
-        store.session = null;
+        store.session = { type: 'no-game' };
       }
     }),
     setGameState: vi.fn((state: GameState | null) => {
-      if (store.session) {
-        store.session.gameState = state;
+      if (store.session.type === 'active-game') {
+        store.session = {
+          ...store.session,
+          state
+        };
       }
     }),
     setGameSettings: vi.fn((settings: Partial<GameSettings>) => {
       store.settings.gameSettings = { ...store.settings.gameSettings, ...settings };
     }),
     setIsConnected: vi.fn((connected: boolean) => {
-      store.connection.status = connected ? 'connected' : 'disconnected';
-    }),
-    setIsLoading: vi.fn((loading: boolean) => {
-      store.isLoading = loading;
-    }),
-    setIsCreatingGame: vi.fn((creating: boolean) => {
-      store.isCreatingGame = creating;
+      store.connection = connected 
+        ? { type: 'connected', clientId: 'test-client', since: new Date(), canReset: true }
+        : { type: 'disconnected', canReset: true };
     }),
     setError: vi.fn((error: string | null) => {
       store.error = error;
@@ -108,19 +109,17 @@ export function createMockStore(overrides?: Partial<MockGameStore>) {
       store.ui.selectedHistoryIndex = index;
     }),
     reset: vi.fn(() => {
-      store.session = null;
-      store.connection.status = 'connected';
+      store.session = { type: 'no-game' };
+      store.connection = { type: 'connected', clientId: 'test-client', since: new Date(), canReset: true };
       store.ui = defaultUIState;
       store.error = null;
     }),
     addMoveToHistory: vi.fn(),
 
-    // Legacy compatibility getters
-    gameId: defaultSession?.gameId || null,
-    gameState: defaultSession?.gameState || null,
+    // Legacy compatibility getters  
+    gameId: null,
+    gameState: null,
     gameSettings: defaultSettings.gameSettings,
-    isLoading: false,
-    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: defaultUIState.selectedHistoryIndex,
     
@@ -130,12 +129,12 @@ export function createMockStore(overrides?: Partial<MockGameStore>) {
 
   // Update legacy getters to be reactive
   Object.defineProperty(store, 'gameId', {
-    get: () => store.session?.gameId || null,
+    get: () => store.session.type === 'active-game' || store.session.type === 'game-over' ? store.session.gameId : null,
     configurable: true
   });
 
   Object.defineProperty(store, 'gameState', {
-    get: () => store.session?.gameState || null,
+    get: () => store.session.type === 'active-game' || store.session.type === 'game-over' ? store.session.state : null,
     configurable: true
   });
 
@@ -145,7 +144,7 @@ export function createMockStore(overrides?: Partial<MockGameStore>) {
   });
 
   Object.defineProperty(store, 'isConnected', {
-    get: () => store.connection.status === 'connected',
+    get: () => store.connection.type === 'connected',
     configurable: true
   });
 
@@ -175,25 +174,31 @@ export function updateMockStore(store: MockGameStore, updates: Partial<MockGameS
   
   // Update method return values if needed
   if (updates.connection) {
-    (store.isConnected as any).mockReturnValue(updates.connection.status === 'connected');
+    (store.isConnected as any).mockReturnValue(updates.connection.type === 'connected');
   }
   if (updates.session) {
-    (store.getCurrentGameId as any).mockReturnValue(updates.session?.gameId || null);
-    (store.getCurrentGameState as any).mockReturnValue(updates.session?.gameState || null);
-    (store.isGameActive as any).mockReturnValue(
-      !!updates.session?.gameState && !updates.session.gameState.isGameOver
-    );
+    const gameId = updates.session.type === 'active-game' || updates.session.type === 'game-over' ? updates.session.gameId : null;
+    const gameState = updates.session.type === 'active-game' || updates.session.type === 'game-over' ? updates.session.state : null;
+    (store.getCurrentGameId as any).mockReturnValue(gameId);
+    (store.getCurrentGameState as any).mockReturnValue(gameState);
+    (store.isGameActive as any).mockReturnValue(updates.session.type === 'active-game');
   }
   if (updates.settings) {
     // Settings UI state might need updating based on new settings
-    const canModify = store.connection.status === 'connected' && !store.session;
-    (store.getSettingsUI as any).mockReturnValue({
-      isVisible: true,
-      isExpanded: store.ui.settingsExpanded,
-      canModify,
-      showStartButton: !store.session,
-      isLoading: store.isLoading || false
-    });
+    const connected = store.connection.type === 'connected';
+    const hasGame = store.session.type === 'active-game' || store.session.type === 'game-over';
+    
+    if (hasGame) {
+      (store.getSettingsUI as any).mockReturnValue({
+        type: 'button-visible',
+        enabled: connected
+      });
+    } else {
+      (store.getSettingsUI as any).mockReturnValue({
+        type: 'panel-visible',
+        canStartGame: connected
+      });
+    }
   }
 }
 
@@ -234,14 +239,15 @@ export interface MockGameStore extends Partial<AppState> {
   canStartGame: ReturnType<typeof vi.fn>;
   canMakeMove: ReturnType<typeof vi.fn>;
   isGameActive: ReturnType<typeof vi.fn>;
+  getSelectedHistoryIndex: ReturnType<typeof vi.fn>;
+  getLatestError: ReturnType<typeof vi.fn>;
+  getIsLoading: ReturnType<typeof vi.fn>;
 
   // Legacy compatibility methods
   setGameId: ReturnType<typeof vi.fn>;
   setGameState: ReturnType<typeof vi.fn>;
   setGameSettings: ReturnType<typeof vi.fn>;
   setIsConnected: ReturnType<typeof vi.fn>;
-  setIsLoading: ReturnType<typeof vi.fn>;
-  setIsCreatingGame: ReturnType<typeof vi.fn>;
   setError: ReturnType<typeof vi.fn>;
   setSelectedHistoryIndex: ReturnType<typeof vi.fn>;
   reset: ReturnType<typeof vi.fn>;
@@ -251,8 +257,6 @@ export interface MockGameStore extends Partial<AppState> {
   gameId: string | null;
   gameState: GameState | null;
   gameSettings: GameSettings;
-  isLoading: boolean;
-  isCreatingGame: boolean;
   error: string | null;
   selectedHistoryIndex: number | null;
 }

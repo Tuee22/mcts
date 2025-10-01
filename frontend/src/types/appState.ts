@@ -28,7 +28,7 @@ export type GameSession =
  * Settings UI state - derived from connection and session states
  */
 export type SettingsUIState =
-  | { type: 'panel-visible'; canStartGame: boolean; isCreating: boolean }
+  | { type: 'panel-visible'; canStartGame: boolean }
   | { type: 'button-visible'; enabled: boolean };
 
 /**
@@ -133,32 +133,6 @@ export function canMakeMove(state: AppState): boolean {
          state.session.state.winner === null;
 }
 
-/**
- * Pure functional derivations for UI state
- * These functions make UI state predictable and testable
- */
-
-export function deriveSettingsUIState(state: AppState): SettingsUIState {
-  // Settings are a panel when no game is active
-  if (state.session.type === 'no-game') {
-    return {
-      type: 'panel-visible',
-      canStartGame: isConnected(state.connection),
-      isCreating: false
-    };
-  }
-
-  // Settings are a button during active gameplay or game over
-  if (state.session.type === 'active-game' || state.session.type === 'game-over') {
-    return {
-      type: 'button-visible',
-      enabled: isConnected(state.connection)
-    };
-  }
-
-  // This case should never happen with the simplified state machine
-  return exhaustiveCheck(state.session);
-}
 
 export function deriveConnectionDisplayText(state: ConnectionState): string {
   switch (state.type) {

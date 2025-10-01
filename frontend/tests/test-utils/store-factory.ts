@@ -2,7 +2,7 @@
  * Test utilities for creating valid store states and converting legacy patterns
  */
 
-import { GameState, GameSettings, Connection, Session, AppState } from '@/types/appState';
+import { GameState, GameSettings, ConnectionState, GameSession, AppState } from '@/types/appState';
 
 // Default game settings
 export const defaultGameSettings: GameSettings = {
@@ -32,7 +32,8 @@ export function createConnectedStore(overrides: Partial<AppState> = {}): Partial
     connection: {
       type: 'connected',
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: { type: 'no-game' },
     settings: {
@@ -55,7 +56,7 @@ export function createConnectedStore(overrides: Partial<AppState> = {}): Partial
 export function createDisconnectedStore(overrides: Partial<AppState> = {}): Partial<AppState> {
   return {
     ...createConnectedStore(overrides),
-    connection: { type: 'disconnected' },
+    connection: { type: 'disconnected', canReset: true },
     ...overrides
   };
 }
@@ -101,27 +102,6 @@ export function createGameOverStore(
   };
 }
 
-/**
- * Create a game-over store state
- */
-export function createGameOverStore(
-  gameId: string,
-  winner: number,
-  finalState: GameState = defaultGameState,
-  overrides: Partial<AppState> = {}
-): Partial<AppState> {
-  return {
-    ...createConnectedStore(),
-    session: {
-      type: 'game-over',
-      gameId,
-      winner,
-      finalState,
-      endedAt: new Date()
-    },
-    ...overrides
-  };
-}
 
 /**
  * Convert legacy setter calls to dispatch actions
@@ -154,18 +134,8 @@ export function legacySetterToDispatch(setter: string, value: any): any {
         ? { type: 'NOTIFICATION_ADDED', notification: { id: Math.random().toString(), type: 'error', message: value, timestamp: new Date() } }
         : null; // No action for clearing errors - handled differently in new architecture
         
-    case 'setIsLoading':
-      return value
-        ? { type: 'START_GAME' }
-        : { type: 'GAME_CREATE_FAILED', error: 'Loading cancelled' };
-        
     case 'setSelectedHistoryIndex':
       return { type: 'HISTORY_INDEX_SET', index: value };
-      
-    case 'setIsCreatingGame':
-      return value
-        ? { type: 'START_GAME' }
-        : { type: 'GAME_CREATE_FAILED', error: 'Creation cancelled' };
         
     default:
       throw new Error(`Unknown setter: ${setter}`);
@@ -179,9 +149,7 @@ export function setupGameCreation(dispatch: Function, gameId: string, state: Gam
   // Follow proper connection flow: disconnected -> connecting -> connected
   dispatch({ type: 'CONNECTION_START' });
   dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-  // Start creation
-  dispatch({ type: 'START_GAME' });
-  // Complete creation
+  // In simplified state machine, create game directly
   dispatch({ type: 'GAME_CREATED', gameId, state });
 }
 
@@ -189,10 +157,8 @@ export function setupGameCreation(dispatch: Function, gameId: string, state: Gam
  * Helper to setup game ending flow
  */
 export function setupGameEnding(dispatch: Function, gameId: string, winner: number, finalState: GameState = defaultGameState) {
-  // Click new game
-  dispatch({ type: 'NEW_GAME_CLICKED' });
-  // Complete ending
-  dispatch({ type: 'GAME_ENDING_COMPLETE' });
+  // Transition directly to new game (functional design - no intermediate states)
+  dispatch({ type: 'NEW_GAME_REQUESTED' });
 }
 
 /**
@@ -210,7 +176,7 @@ export function simulateConnectionRecovery(dispatch: Function, clientId: string 
 /**
  * Mock getSettingsUI implementation that matches the actual store logic
  */
-export function getMockSettingsUI(session: Session, connection: Connection) {
+export function getMockSettingsUI(session: GameSession, connection: ConnectionState) {
   const hasGame = session.type === 'active-game' || 
                   session.type === 'game-over';
   const connected = connection.type === 'connected';
@@ -218,7 +184,7 @@ export function getMockSettingsUI(session: Session, connection: Connection) {
   if (hasGame) {
     return { type: 'button-visible' as const, enabled: connected };
   } else if (connected) {
-    return { type: 'panel-visible' as const, canStartGame: true, isCreating: false };
+    return { type: 'panel-visible' as const, canStartGame: true };
   } else {
     return { type: 'button-visible' as const, enabled: false };
   }

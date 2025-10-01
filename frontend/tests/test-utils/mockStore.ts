@@ -10,7 +10,6 @@ export interface MockStoreState {
   gameId: string | null;
   gameState: GameState | null;
   isConnected: boolean;
-  isLoading: boolean;
   error: string | null;
   selectedHistoryIndex: number | null;
   
@@ -53,7 +52,6 @@ export function createMockGameStore() {
     gameId: null,
     gameState: null,
     isConnected: false,
-    isLoading: false,
     error: null,
     selectedHistoryIndex: null,
     
@@ -118,7 +116,7 @@ export function createMockGameStore() {
       if (hasGame) {
         return { type: 'button-visible' as const, enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible' as const, canStartGame: true, isCreating: false };
+        return { type: 'panel-visible' as const, canStartGame: true };
       } else {
         return { type: 'button-visible' as const, enabled: false };
       }
@@ -138,6 +136,22 @@ export function createMockGameStore() {
     isGameActive: vi.fn(() => {
       return state.session.type === 'active-game';
     }),
+    
+    getSelectedHistoryIndex: vi.fn(() => {
+      return state.ui.selectedHistoryIndex;
+    }),
+    
+    getLatestError: vi.fn(() => {
+      const errorNotifications = state.ui.notifications.filter(n => n.type === 'error');
+      if (errorNotifications.length > 0) {
+        const latest = errorNotifications.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+        return latest.message;
+      }
+      return null;
+    }),
+    
+    getIsLoading: vi.fn(() => false),
+    
     
     // Main dispatch method
     dispatch: vi.fn((action: any) => {
@@ -179,13 +193,11 @@ export function createMockGameStore() {
             };
             state.gameId = action.gameId;
             state.gameState = action.state;
-            state.isLoading = false;
           }
           break;
           
         case 'GAME_CREATE_FAILED':
           state.session = { type: 'no-game' };
-          state.isLoading = false;
           state.ui.notifications.push({
             id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(),
             type: 'error',
@@ -212,17 +224,6 @@ export function createMockGameStore() {
           }
           break;
           
-        case 'NEW_GAME_CLICKED':
-          if (state.session.type === 'game-over' || state.session.type === 'active-game') {
-            state.session = {
-              type: 'game-ending',
-              gameId: state.session.gameId!,
-              winner: state.session.type === 'game-over' ? state.session.winner : null,
-              finalState: state.gameState!
-            };
-          }
-          break;
-          
         case 'NEW_GAME_REQUESTED':
           state.session = { type: 'no-game' };
           state.gameId = null;
@@ -233,7 +234,6 @@ export function createMockGameStore() {
           state.session = { type: 'no-game' };
           state.gameId = null;
           state.gameState = null;
-          state.isLoading = false;
           state.selectedHistoryIndex = null;
           state.ui.selectedHistoryIndex = null;
           state.ui.notifications = [];
@@ -317,8 +317,6 @@ export function createMockGameStore() {
     // Legacy getters
     get gameId() { return state.gameId; },
     get gameState() { return state.gameState; },
-    get isLoading() { return state.isLoading; },
-    get isCreatingGame() { return false; }, // No longer creating games in intermediate state
     get error() { return state.error; },
     get selectedHistoryIndex() { return state.selectedHistoryIndex; },
     get settings() { return state.settings; },

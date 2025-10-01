@@ -18,7 +18,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     connection: {
       type: 'connected' as const,
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: { type: 'no-game' as const },
     settings: {
@@ -42,9 +43,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     getSettingsUI: vi.fn(() => {
       // When there's a game, show the toggle button
       // When there's no game and connected, show the panel
-      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending';
+      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
-      const isCreating = mockGameStore.session.type === 'creating-game';
       
       if (hasGame) {
         return {
@@ -54,8 +54,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       } else if (connected) {
         return {
           type: 'panel-visible',
-          canStartGame: true,
-          isCreating: isCreating
+          canStartGame: true
         };
       } else {
         return {
@@ -66,7 +65,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     }),
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
-      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
       return null;
@@ -80,6 +79,9 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     canStartGame: vi.fn(() => false),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => false),
+    getSelectedHistoryIndex: vi.fn(() => null),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
     
     // Legacy compatibility
     gameState: null,
@@ -90,7 +92,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       board_size: 9
     },
     gameId: null,
-    isLoading: false,
     error: null,
     selectedHistoryIndex: null,
     // setGameState removed - use dispatch,

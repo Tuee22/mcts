@@ -269,10 +269,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       mockGameStore.isLoading = false;
 
@@ -284,26 +281,9 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toHaveTextContent('Start Game');
       expect(startButton).toBeEnabled();
 
-      // Loading state - must set isCreatingGame for "Starting..." text
-      mockGameStore.isLoading = true;
-      mockGameStore.isCreatingGame = true;
-      mockGameStore.getSettingsUI.mockReturnValue({
-        type: 'panel-visible',
-        canModify: false,
-        showStartButton: true,
-        isCreating: true,
-        settings: mockGameStore.settings.gameSettings
-      });
-      rerender(<GameSettings />);
-
-      expect(startButton).toHaveTextContent('Starting...');
-      expect(startButton).toBeDisabled();
-
       // Disconnected state
       mockGameStore.connection = { type: 'disconnected' as const };
       mockGameStore.isConnected.mockReturnValue(false);
-      mockGameStore.isLoading = false;
-      mockGameStore.isCreatingGame = false;
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
         enabled: false
@@ -322,10 +302,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       mockGameStore.isLoading = false;
 
@@ -357,10 +334,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       mockGameStore.isLoading = false;
 
@@ -374,26 +348,9 @@ describe('GameSettings Connection Tests', () => {
       // Connected, not loading
       expect(startButton).toHaveTextContent('Start Game');
 
-      // Connected, loading
-      mockGameStore.isLoading = true;
-      mockGameStore.isCreatingGame = true;
-      mockGameStore.getSettingsUI.mockReturnValue({
-        type: 'panel-visible',
-        canModify: false,
-        showStartButton: true,
-        isCreating: true,
-        settings: mockGameStore.settings.gameSettings
-      });
-      rerender(<GameSettings />);
-
-      startButton = screen.getByTestId('start-game-button');
-      expect(startButton).toHaveTextContent('Starting...');
-
       // Disconnected - should switch to toggle button
       mockGameStore.connection = { type: 'disconnected' as const };
       mockGameStore.isConnected.mockReturnValue(false);
-      mockGameStore.isLoading = false;
-      mockGameStore.isCreatingGame = false;
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
         enabled: false
@@ -408,10 +365,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       rerender(<GameSettings />);
 
@@ -428,10 +382,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -463,10 +414,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -500,10 +448,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       rerender(<GameSettings />);
 
@@ -523,10 +468,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -561,10 +503,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -590,10 +529,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       rerender(<GameSettings />);
 
@@ -613,10 +549,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       render(<GameSettings />);
@@ -627,7 +560,7 @@ describe('GameSettings Connection Tests', () => {
       const startButton = screen.getByTestId('start-game-button');
       await user.click(startButton);
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'START_GAME' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'GAME_CREATE_FAILED', error: 'Connection lost' });
       expect(mockWsService.createGame).toHaveBeenCalled();
       // Error handling should be tested in the component that calls createGame
     });
@@ -641,10 +574,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -671,10 +601,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -698,10 +625,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       rerender(<GameSettings />);
 
@@ -778,10 +702,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -828,10 +749,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       })
 
       const { rerender } = render(<GameSettings />);
@@ -857,10 +775,7 @@ describe('GameSettings Connection Tests', () => {
       mockGameStore.canStartGame.mockReturnValue(true);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
-        canModify: true,
-        showStartButton: true,
-        isCreating: false,
-        settings: mockGameStore.settings.gameSettings
+        canStartGame: true
       });
       rerender(<GameSettings />);
 

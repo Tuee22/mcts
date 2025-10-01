@@ -101,6 +101,9 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     canStartGame: vi.fn(() => false),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => false),
+    getSelectedHistoryIndex: vi.fn(() => null),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
     
     // Legacy compatibility
     gameId: null,

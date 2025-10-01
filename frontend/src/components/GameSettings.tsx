@@ -89,8 +89,6 @@ export const GameSettings: React.FC = () => {
     <GameSettingsPanel
       settings={settingsData}
       isConnected={isConnected}
-      isLoading={settingsUI.isCreating}
-      isCreatingGame={settingsUI.isCreating}
       gameId={gameId}
       onModeChange={handleModeChange}
       onDifficultyChange={handleDifficultyChange}

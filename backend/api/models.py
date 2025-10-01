@@ -166,26 +166,26 @@ class GameSession(BaseModel):
 
 class BoardStateResponse(BaseModel):
     """Board state response with consistent fields."""
-    
+
     game_id: str
     board: str
     current_turn: int
     move_count: int
     status: GameStatus
     winner: Optional[int] = None
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 
 class LegalMovesResponse(BaseModel):
     """Legal moves response with consistent fields."""
-    
+
     game_id: str
     current_player: int
     legal_moves: List[str]
     status: GameStatus
     winner: Optional[int] = None
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 

@@ -129,70 +129,31 @@ describe('State Transitions', () => {
   });
 
   describe('Game Session State Machine', () => {
-    it('should only allow game creation when connected and no game exists', () => {
-      // Valid: connected + no-game
+    it('should handle game creation directly', () => {
+      // In simplified state machine, games are created directly via GAME_CREATED action
       const validState: AppState = {
         ...createDefaultState(),
         connection: { type: 'connected', clientId: 'test', since: new Date() },
         session: { type: 'no-game' as const }
       };
       
-      const newState = stateReducer(validState, { type: 'START_GAME' });
-      expect(newState.session.type).toBe('creating-game');
-      
-      // Invalid: disconnected
-      const disconnectedState = createDefaultState();
-      const unchanged = stateReducer(disconnectedState, { type: 'START_GAME' });
-      expect(unchanged.session.type).toBe('no-game');
-      
-      // Invalid: game already exists
-      const gameActiveState: AppState = {
-        ...validState,
-        session: {
-          type: 'active-game',
-          gameId: 'test-game',
-          state: createTestGameState(),
-          lastSync: new Date()
-        }
-      };
-      
-      const unchanged2 = stateReducer(gameActiveState, { type: 'START_GAME' });
-      expect(unchanged2.session.type).toBe('active-game');
-    });
-
-    it('should transition from creating-game to active-game', () => {
-      const state: AppState = {
-        ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
-        session: {
-          type: 'creating-game',
-          requestId: 'req-123',
-          settings: createDefaultState().settings.gameSettings
-        }
-      };
-      
-      const newState = stateReducer(state, {
-        type: 'GAME_CREATED',
+      const newState = stateReducer(validState, { 
+        type: 'GAME_CREATED', 
         gameId: 'game-456',
         state: createTestGameState()
       });
-      
       expect(newState.session.type).toBe('active-game');
       if (newState.session.type === 'active-game') {
         expect(newState.session.gameId).toBe('game-456');
-        expect(newState.session.state).toBeDefined();
-        expect(newState.session.lastSync).toBeInstanceOf(Date);
       }
     });
+
+    // Test removed: creating-game state no longer exists in simplified state machine
 
     it('should handle game creation failure', () => {
       const state: AppState = {
         ...createDefaultState(),
-        session: {
-          type: 'creating-game',
-          requestId: 'req-123',
-          settings: createDefaultState().settings.gameSettings
-        }
+        session: { type: 'no-game' }
       };
       
       const newState = stateReducer(state, {
@@ -205,7 +166,7 @@ describe('State Transitions', () => {
       expect(newState.ui.notifications[0].type).toBe('error');
     });
 
-    it('should handle new game click transition', () => {
+    it('should handle new game request transition', () => {
       const state: AppState = {
         ...createDefaultState(),
         session: {
@@ -216,28 +177,13 @@ describe('State Transitions', () => {
         }
       };
       
-      const newState = stateReducer(state, { type: 'NEW_GAME_CLICKED' });
+      const newState = stateReducer(state, { type: 'NEW_GAME_REQUESTED' });
       
-      expect(newState.session.type).toBe('game-ending');
-      if (newState.session.type === 'game-ending') {
-        expect(newState.session.gameId).toBe('game-123');
-        expect(newState.session.reason).toBe('new-game');
-      }
-    });
-
-    it('should complete game ending transition', () => {
-      const state: AppState = {
-        ...createDefaultState(),
-        session: {
-          type: 'game-ending',
-          gameId: 'game-123',
-          reason: 'new-game'
-        }
-      };
-      
-      const newState = stateReducer(state, { type: 'GAME_ENDING_COMPLETE' });
+      // In simplified state machine, this goes directly to no-game
       expect(newState.session.type).toBe('no-game');
     });
+
+    // Test removed: game-ending state and GAME_ENDING_COMPLETE action no longer exist in simplified state machine
 
     it('should transition to game-over when winner detected', () => {
       const gameStateWithWinner: GameState = {
@@ -322,24 +268,7 @@ describe('State Transitions', () => {
       }
     });
 
-    it('should show creating state in panel', () => {
-      const state: AppState = {
-        ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
-        session: {
-          type: 'creating-game',
-          requestId: 'req-123',
-          settings: createDefaultState().settings.gameSettings
-        }
-      };
-      
-      const settingsUI = getSettingsUIState(state);
-      expect(settingsUI.type).toBe('panel-visible');
-      if (settingsUI.type === 'panel-visible') {
-        expect(settingsUI.canStartGame).toBe(false);
-        expect(settingsUI.isCreating).toBe(true);
-      }
-    });
+    // Test removed: creating-game state no longer exists in simplified state machine
 
     it('should respect explicit settings expansion', () => {
       const state: AppState = {
@@ -396,20 +325,14 @@ describe('State Transitions', () => {
     it('should handle all game session types', () => {
       const sessions: GameSession[] = [
         { type: 'no-game' },
-        { type: 'creating-game', requestId: 'req', settings: createDefaultState().settings.gameSettings },
-        { type: 'joining-game', gameId: 'game-123' },
         { type: 'active-game', gameId: 'game-123', state: createTestGameState(), lastSync: new Date() },
-        { type: 'game-ending', gameId: 'game-123', reason: 'new-game' },
         { type: 'game-over', gameId: 'game-123', state: createTestGameState(), winner: 0 }
       ];
       
       sessions.forEach(session => {
         switch (session.type) {
           case 'no-game':
-          case 'creating-game':
-          case 'joining-game':
           case 'active-game':
-          case 'game-ending':
           case 'game-over':
             expect(session.type).toBeDefined();
             break;

@@ -4,22 +4,61 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Mock the game store first with vi.hoisted (same pattern as other tests)
 const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
   const store = {
-    gameId: null,
-    gameState: null,
-    gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-    isConnected: false,
-    isLoading: false,
-    error: null,
-    selectedHistoryIndex: null,
-    // setGameId removed - use dispatch,
-    // setGameState removed - use dispatch,
+    // Structured state
+    connection: {
+      type: 'connected' as const,
+      clientId: 'test-client',
+      since: new Date(),
+      canReset: true
+    },
+    session: { type: 'no-game' as const },
+    settings: {
+      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
+      theme: 'light',
+      soundEnabled: true
+    },
+    ui: {
+      settingsExpanded: false,
+      selectedHistoryIndex: null,
+      notifications: []
+    },
+    
+    // New API methods
+    dispatch: vi.fn(),
+    isConnected: vi.fn(() => store.connection.type === 'connected'),
+    getCurrentGameId: vi.fn(() => {
+      if (store.session.type === 'active-game' || store.session.type === 'game-over') {
+        return store.session.gameId || null;
+      }
+      return null;
+    }),
+    getCurrentGameState: vi.fn(() => {
+      if (store.session.type === 'active-game' || store.session.type === 'game-over') {
+        return store.session.state || null;
+      }
+      return null;
+    }),
+    canStartGame: vi.fn(() => store.connection.type === 'connected' && store.session.type === 'no-game'),
+    canMakeMove: vi.fn(() => store.connection.type === 'connected' && store.session.type === 'active-game'),
+    isGameActive: vi.fn(() => store.session.type === 'active-game'),
+    getSelectedHistoryIndex: vi.fn(() => store.ui.selectedHistoryIndex),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
+    getSettingsUI: vi.fn(() => ({ type: 'button-visible', enabled: false })),
+    
+    // Legacy compatibility methods
     setGameSettings: vi.fn(),
-    // setIsConnected removed - use dispatch,
-    // setIsLoading removed - use dispatch,
     setError: vi.fn(),
     setSelectedHistoryIndex: vi.fn(),
     addMoveToHistory: vi.fn(),
-    reset: vi.fn()
+    reset: vi.fn(),
+    
+    // Legacy properties (reactive getters)
+    get gameId() { return store.getCurrentGameId(); },
+    get gameState() { return store.getCurrentGameState(); },
+    get gameSettings() { return store.settings.gameSettings; },
+    get error() { return null; },
+    get selectedHistoryIndex() { return store.ui.selectedHistoryIndex; }
   };
 
   // Create a proper Zustand-style mock that returns the store
@@ -41,7 +80,7 @@ vi.mock('@/services/websocket', () => ({
   wsService: {
     connect: vi.fn(() => Promise.resolve()),
     disconnect: vi.fn(),
-    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    isConnected: vi.fn(() => mockGameStore.isConnected()),
     createGame: vi.fn(() => Promise.resolve({ gameId: 'test-game-123' })),
     makeMove: vi.fn(() => Promise.resolve()),
     getAIMove: vi.fn(() => Promise.resolve()),
@@ -69,20 +108,20 @@ describe('GameBoard Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset the game store state for each test
-    Object.assign(mockGameStore, {
-      gameId: 'test-game-123',
-      gameState: mockInitialGameState,
-      gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-      isConnected: false,
-      isLoading: false,
-      error: null,
-      selectedHistoryIndex: null
-    });
+    mockGameStore.connection = { type: 'connected', clientId: 'test-client', since: new Date(), canReset: true };
+    mockGameStore.session = { 
+      type: 'active-game', 
+      gameId: 'test-game-123', 
+      state: mockInitialGameState, 
+      lastSync: new Date() 
+    };
+    mockGameStore.settings.gameSettings = { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 };
+    mockGameStore.ui = { settingsExpanded: false, selectedHistoryIndex: null, notifications: [] };
   });
 
   describe('Basic Rendering', () => {
     it('renders empty state when no game exists', () => {
-      mockGameStore.gameState = null;
+      mockGameStore.session = { type: 'no-game' };
 
       render(<GameBoard />);
 

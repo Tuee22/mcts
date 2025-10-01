@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useGameStore } from '@/store/gameStore';
-import { setupGameCreation, defaultGameState } from '../test-utils/store-factory';
+import { defaultGameState, setupGameCreation } from '../test-utils/store-factory';
 
 // Mock WebSocket service to control connection state
 const mockWsService = {
@@ -122,7 +122,7 @@ describe('Game Store Race Condition Tests', () => {
           if (gameId) {
             // First reset any existing game, then create new one
             result.current.dispatch({ type: 'RESET_GAME' });
-            result.current.dispatch({ type: 'START_GAME' });
+            result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
             result.current.dispatch({ type: 'GAME_CREATED', gameId: gameId, state: defaultGameState });
           } else {
             result.current.dispatch({ type: 'RESET_GAME' });
@@ -203,7 +203,7 @@ describe('Game Store Race Condition Tests', () => {
       for (let i = 0; i < 20; i++) {
         act(() => {
           if (i % 2 === 0) {
-            result.current.dispatch({ type: 'START_GAME' });
+            result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
           } else {
             result.current.dispatch({ type: 'GAME_CREATE_FAILED', error: 'Test error' });
           }
@@ -226,7 +226,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Simulate game creation sequence with rapid state changes
       act(() => {
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       });
 
       await act(async () => {
@@ -243,7 +243,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Rapid reset and recreate
       act(() => {
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({ type: 'RESET_GAME' });
       });
 
@@ -299,7 +299,7 @@ describe('Game Store Race Condition Tests', () => {
 
       // Make other state changes that should not clear the error
       act(() => {
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         // Test should verify that error persists through game state changes
         setupGameCreation(result.current.dispatch, 'test-game', defaultGameState);
       });
@@ -365,7 +365,7 @@ describe('Game Store Race Condition Tests', () => {
         setupGameCreation(result.current.dispatch, 'test-game', defaultGameState);
         result.current.dispatch({ type: 'CONNECTION_START' });
         result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-        result.current.dispatch({ type: 'START_GAME' });
+        result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
         result.current.dispatch({ type: 'NOTIFICATION_ADDED', notification: { id: Math.random().toString(), type: 'error', message: 'Test error', timestamp: new Date() } });
         result.current.dispatch({ 
           type: 'SETTINGS_UPDATED', 
@@ -407,7 +407,7 @@ describe('Game Store Race Condition Tests', () => {
           // Create a game first
           result.current.dispatch({ type: 'CONNECTION_START' });
           result.current.dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-          result.current.dispatch({ type: 'START_GAME' });
+          result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
           result.current.dispatch({ type: 'GAME_CREATED', gameId: `game-${i}`, state: defaultGameState });
           // Then reset
           result.current.dispatch({ type: 'RESET_GAME' });
@@ -449,10 +449,10 @@ describe('Game Store Race Condition Tests', () => {
           
           // Loading state first, then resolve it
           if (operation.isLoading) {
-            result.current.dispatch({ type: 'START_GAME' });
+            result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
             // Keep it in loading state (creating-game)
           } else {
-            result.current.dispatch({ type: 'START_GAME' });
+            result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
             result.current.dispatch({ type: 'GAME_CREATED', gameId: operation.gameId, state: defaultGameState });
           }
           

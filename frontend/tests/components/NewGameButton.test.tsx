@@ -72,6 +72,9 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     canStartGame: vi.fn(() => mockGameStore.connection.type === 'connected' && !mockGameStore.session),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => !!mockGameStore.session?.state && !mockGameStore.session.state.isGameOver),
+    getSelectedHistoryIndex: vi.fn(() => null),
+    getLatestError: vi.fn(() => null),
+    getIsLoading: vi.fn(() => false),
     
     // Legacy compatibility
     gameId: gameId || null,
