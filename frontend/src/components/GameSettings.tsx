@@ -1,37 +1,61 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { wsService } from '../services/websocket';
 import { GameMode } from '../types/game';
+import { SettingsUIState } from '../types/appState';
 import { GameSettingsPanel, GameSettingsData } from './GameSettingsPanel';
 import { createGameCreationSettings, GameSettingsInput } from '../utils/aiConfig';
 import './GameSettings.css';
 
 export const GameSettings: React.FC = () => {
-  const store = useGameStore();
-  const settingsUI = store.getSettingsUI();
-  const { gameSettings } = store.settings;
-  const isConnected = store.isConnected();
-  const gameId = store.getCurrentGameId();
+  // Select primitive values to avoid object creation in selectors
+  const connection = useGameStore((store) => store.connection);
+  const session = useGameStore((store) => store.session);
+  const settingsExpanded = useGameStore((store) => store.ui.settingsExpanded);
+  const gameSettings = useGameStore((store) => store.settings.gameSettings);
+  const dispatch = useGameStore((store) => store.dispatch);
+  
+  // Compute derived values using useMemo to prevent infinite loops
+  const isConnected = useMemo(() => connection.type === 'connected', [connection.type]);
+  const gameId = useMemo(() => {
+    return (session.type === 'active-game' || session.type === 'game-over') 
+      ? session.gameId : null;
+  }, [session]);
+  const canStartGame = useMemo(() => isConnected && session.type === 'no-game', [isConnected, session.type]);
+  const settingsUI = useMemo((): SettingsUIState => {
+    if (settingsExpanded) {
+      return { type: 'panel-visible', canStartGame };
+    }
+    switch (session.type) {
+      case 'no-game':
+        return { type: 'panel-visible', canStartGame };
+      case 'active-game':
+      case 'game-over':
+        return { type: 'button-visible', enabled: isConnected };
+      default:
+        return { type: 'button-visible', enabled: false };
+    }
+  }, [settingsExpanded, canStartGame, session.type, isConnected]);
 
   const handleModeChange = (mode: GameMode) => {
-    store.dispatch({ type: 'SETTINGS_UPDATED', settings: { mode } });
+    dispatch({ type: 'SETTINGS_UPDATED', settings: { mode } });
   };
 
   const handleDifficultyChange = (difficulty: 'easy' | 'medium' | 'hard' | 'expert') => {
-    store.dispatch({ type: 'SETTINGS_UPDATED', settings: { ai_difficulty: difficulty } });
+    dispatch({ type: 'SETTINGS_UPDATED', settings: { ai_difficulty: difficulty } });
   };
 
   const handleTimeLimitChange = (time: number) => {
-    store.dispatch({ type: 'SETTINGS_UPDATED', settings: { ai_time_limit: time } });
+    dispatch({ type: 'SETTINGS_UPDATED', settings: { ai_time_limit: time } });
   };
 
   const handleBoardSizeChange = (size: number) => {
-    store.dispatch({ type: 'SETTINGS_UPDATED', settings: { board_size: size } });
+    dispatch({ type: 'SETTINGS_UPDATED', settings: { board_size: size } });
   };
 
   const startNewGame = async () => {
     // Type-safe: can only start game in valid state
-    if (!store.canStartGame()) {
+    if (!canStartGame) {
       return;
     }
 
@@ -47,7 +71,7 @@ export const GameSettings: React.FC = () => {
       await wsService.createGame(gameCreationSettings);
     } catch (error) {
       console.error('Failed to create game:', error);
-      store.dispatch({ 
+      dispatch({ 
         type: 'GAME_CREATE_FAILED', 
         error: error instanceof Error ? error.message : 'Failed to create game' 
       });
@@ -55,11 +79,11 @@ export const GameSettings: React.FC = () => {
   };
 
   const handleToggleSettings = () => {
-    store.dispatch({ type: 'SETTINGS_TOGGLED' });
+    dispatch({ type: 'SETTINGS_TOGGLED' });
   };
 
   const handleCancel = () => {
-    store.dispatch({ type: 'SETTINGS_TOGGLED' });
+    dispatch({ type: 'SETTINGS_TOGGLED' });
   };
 
   // Always render based on UI state - no complex conditionals

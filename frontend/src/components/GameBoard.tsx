@@ -5,10 +5,9 @@ import { Position, Wall } from '../types/game';
 import './GameBoard.css';
 
 export const GameBoard: React.FC = () => {
-  const store = useGameStore();
-  const gameState = store.getCurrentGameState();
-  const gameId = store.getCurrentGameId();
-  const selectedHistoryIndex = store.getSelectedHistoryIndex();
+  const gameState = useGameStore((store) => store.getCurrentGameState());
+  const gameId = useGameStore((store) => store.getCurrentGameId());
+  const selectedHistoryIndex = useGameStore((store) => store.getSelectedHistoryIndex());
   const [hoveredCell, setHoveredCell] = useState<Position | null>(null);
   const [hoveredWall, setHoveredWall] = useState<Wall | null>(null);
   const [wallPlacementMode, setWallPlacementMode] = useState(false);

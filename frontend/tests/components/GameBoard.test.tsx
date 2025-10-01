@@ -140,7 +140,12 @@ describe('GameBoard Component', () => {
     });
 
     it('adapts to different board sizes', () => {
-      mockGameStore.gameState = mockSmallBoardState;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-small-board',
+        state: mockSmallBoardState,
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -167,7 +172,12 @@ describe('GameBoard Component', () => {
     });
 
     it('highlights current player', () => {
-      mockGameStore.gameState = { ...mockInitialGameState, current_player: 1 };
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-current-player',
+        state: { ...mockInitialGameState, current_player: 1 },
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -185,7 +195,12 @@ describe('GameBoard Component', () => {
     });
 
     it('shows no legal moves when array is empty', () => {
-      mockGameStore.gameState = mockStalemateGameState;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-stalemate',
+        state: mockStalemateGameState,
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -196,7 +211,12 @@ describe('GameBoard Component', () => {
 
   describe('Wall Rendering', () => {
     it('renders walls when present', () => {
-      mockGameStore.gameState = mockWallHeavyGameState;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-walls',
+        state: mockWallHeavyGameState,
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -207,7 +227,12 @@ describe('GameBoard Component', () => {
     });
 
     it('distinguishes between horizontal and vertical walls', () => {
-      mockGameStore.gameState = mockMidGameState;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-wall-types',
+        state: mockMidGameState,
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -234,9 +259,14 @@ describe('GameBoard Component', () => {
     });
 
     it('updates wall counts correctly', () => {
-      mockGameStore.gameState = {
-        ...mockInitialGameState,
-        walls_remaining: [8, 7]
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-wall-counts',
+        state: {
+          ...mockInitialGameState,
+          walls_remaining: [8, 7]
+        },
+        lastSync: new Date()
       };
 
       render(<GameBoard />);
@@ -255,7 +285,12 @@ describe('GameBoard Component', () => {
 
   describe('Game Over State', () => {
     it('displays game over message when winner exists', () => {
-      mockGameStore.gameState = mockCompletedGameState;
+      mockGameStore.session = {
+        type: 'game-over',
+        gameId: 'test-completed',
+        state: mockCompletedGameState,
+        winner: mockCompletedGameState.winner || 0
+      };
 
       render(<GameBoard />);
 
@@ -264,7 +299,12 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents interactions when game is over', async () => {
-      mockGameStore.gameState = mockCompletedGameState;
+      mockGameStore.session = {
+        type: 'game-over',
+        gameId: 'test-game-over-interaction',
+        state: mockCompletedGameState,
+        winner: mockCompletedGameState.winner || 0
+      };
 
       render(<GameBoard />);
       const user = createUser();
@@ -316,8 +356,8 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents moves when not connected', async () => {
-      mockGameStore.isConnected = false;
-      mockGameStore.gameId = null; // No gameId means no moves can be made
+      mockGameStore.connection = { type: 'disconnected', canReset: true };
+      mockGameStore.session = { type: 'no-game' };
 
       render(<GameBoard />);
       const user = createUser();
@@ -331,7 +371,7 @@ describe('GameBoard Component', () => {
     });
 
     it('prevents moves when viewing history', async () => {
-      mockGameStore.selectedHistoryIndex = 0;
+      mockGameStore.ui.selectedHistoryIndex = 0;
 
       render(<GameBoard />);
       const user = createUser();
@@ -393,8 +433,13 @@ describe('GameBoard Component', () => {
 
   describe('History Integration', () => {
     it('displays historical position when history is selected', () => {
-      mockGameStore.selectedHistoryIndex = 0;
-      mockGameStore.gameState = mockMidGameState;
+      mockGameStore.ui.selectedHistoryIndex = 0;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-history',
+        state: mockMidGameState,
+        lastSync: new Date()
+      };
 
       render(<GameBoard />);
 
@@ -406,7 +451,7 @@ describe('GameBoard Component', () => {
 
   describe('Error Handling', () => {
     it('handles missing game ID gracefully', async () => {
-      mockGameStore.gameId = null;
+      mockGameStore.session = { type: 'no-game' };
 
       render(<GameBoard />);
       const user = createUser();
@@ -437,9 +482,14 @@ describe('GameBoard Component', () => {
     });
 
     it('handles invalid game state gracefully', () => {
-      mockGameStore.gameState = {
-        ...mockInitialGameState,
-        players: [] // Invalid - no players
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-invalid',
+        state: {
+          ...mockInitialGameState,
+          players: [] // Invalid - no players
+        },
+        lastSync: new Date()
       };
 
       // Should not crash
@@ -501,9 +551,14 @@ describe('GameBoard Component', () => {
 
   describe('Performance', () => {
     it('renders large boards efficiently', () => {
-      mockGameStore.gameState = {
-        ...mockInitialGameState,
-        board_size: 19 // Large board
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-large-board',
+        state: {
+          ...mockInitialGameState,
+          board_size: 19 // Large board
+        },
+        lastSync: new Date()
       };
 
       const start = performance.now();
@@ -515,7 +570,12 @@ describe('GameBoard Component', () => {
     });
 
     it('handles many walls efficiently', () => {
-      mockGameStore.gameState = mockWallHeavyGameState;
+      mockGameStore.session = {
+        type: 'active-game',
+        gameId: 'test-wall-heavy',
+        state: mockWallHeavyGameState,
+        lastSync: new Date()
+      };
 
       const start = performance.now();
       render(<GameBoard />);

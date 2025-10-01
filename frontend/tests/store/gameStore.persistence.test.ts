@@ -12,10 +12,13 @@ import { defaultGameState } from '../test-utils/store-factory';
 // Create a mock store for testing
 const createMockStore = () => {
   let state = {
-    gameId: null as string | null,
-    gameState: null as any,
-    isConnected: false,
-    isLoading: false,
+    connection: {
+      type: 'disconnected' as const,
+      canReset: true
+    },
+    session: {
+      type: 'no-game' as const
+    },
     error: null as string | null,
     settings: {
       gameSettings: {
@@ -25,8 +28,10 @@ const createMockStore = () => {
         board_size: 9
       }
     },
-    selectedHistoryIndex: null as number | null,
-    notifications: [] as any[]
+    ui: {
+      selectedHistoryIndex: null as number | null,
+      notifications: [] as any[]
+    }
   };
 
   const subscribers = new Set<() => void>();
@@ -37,40 +42,64 @@ const createMockStore = () => {
 
   return {
     getState: () => state,
-    getCurrentGameId: () => state.gameId,
-    getCurrentGameState: () => state.gameState,
-    isConnected: () => state.isConnected,
+    getCurrentGameId: () => {
+      if (state.session.type === 'active-game' || state.session.type === 'game-over') {
+        return state.session.gameId || null;
+      }
+      return null;
+    },
+    getCurrentGameState: () => {
+      if (state.session.type === 'active-game' || state.session.type === 'game-over') {
+        return state.session.state || null;
+      }
+      return null;
+    },
+    isConnected: () => state.connection.type === 'connected',
     getLatestError: () => state.error,
-    get isLoading() { return state.isLoading; },
+    getIsLoading: () => false, // Functional design has no loading states
     get error() { return state.error; },
+    get isLoading() { return false; }, // Functional design has no loading states
     get settings() { return state.settings; },
-    get selectedHistoryIndex() { return state.selectedHistoryIndex; },
+    get selectedHistoryIndex() { return state.ui.selectedHistoryIndex; },
     
     dispatch: vi.fn((action: any) => {
       switch (action.type) {
         case 'CONNECTION_ESTABLISHED':
-          state.isConnected = true;
+          state.connection = {
+            type: 'connected',
+            clientId: action.clientId,
+            since: new Date(),
+            canReset: true
+          };
           break;
         case 'CONNECTION_LOST':
-          state.isConnected = false;
+          state.connection = {
+            type: 'disconnected',
+            error: action.error,
+            canReset: true
+          };
           break;
         case 'GAME_CREATED':
-          state.isLoading = true;
-          break;
-        case 'GAME_CREATED':
-          state.gameId = action.gameId;
-          state.gameState = action.state;
-          state.isLoading = false;
+          state.session = {
+            type: 'active-game',
+            gameId: action.gameId,
+            state: action.state,
+            lastSync: new Date()
+          };
           break;
         case 'GAME_STATE_UPDATED':
-          state.gameState = action.state;
+          if (state.session.type === 'active-game') {
+            state.session = {
+              ...state.session,
+              state: action.state,
+              lastSync: new Date()
+            };
+          }
           break;
         case 'RESET_GAME':
-          state.gameId = null;
-          state.gameState = null;
+          state.session = { type: 'no-game' };
           state.error = null;
-          state.isLoading = false;
-          state.selectedHistoryIndex = null;
+          state.ui.selectedHistoryIndex = null;
           // Reset settings to defaults
           state.settings.gameSettings = {
             mode: 'human_vs_ai',
@@ -80,7 +109,7 @@ const createMockStore = () => {
           };
           break;
         case 'HISTORY_INDEX_SET':
-          state.selectedHistoryIndex = action.index;
+          state.ui.selectedHistoryIndex = action.index;
           break;
       }
       notify();
@@ -100,12 +129,13 @@ const createMockStore = () => {
     }),
     
     reset: vi.fn(() => {
-      state.gameId = null;
-      state.gameState = null;
+      state.session = { type: 'no-game' };
+      state.connection = {
+        type: 'disconnected',
+        canReset: true
+      };
       state.error = null;
-      state.isLoading = false;
-      state.isConnected = false;  // Reset connection state
-      state.selectedHistoryIndex = null;
+      state.ui.selectedHistoryIndex = null;
       state.settings.gameSettings = {
         mode: 'human_vs_ai',
         ai_difficulty: 'medium',
@@ -380,7 +410,7 @@ describe('Game Store Persistence Tests', () => {
       expect(result.current.isConnected()).toBe(true);
     });
 
-    it('should track loading state', () => {
+    it('should have no loading state in functional design', () => {
       const { result } = renderHook(() => useGameStore());
 
       expect(result.current.isLoading).toBe(false);
@@ -393,7 +423,9 @@ describe('Game Store Persistence Tests', () => {
         result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
       });
 
-      expect(result.current.isLoading).toBe(true);
+      // Functional design: transitions are atomic, no loading states
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.getCurrentGameId()).toBe('test-game-123');
     });
 
     it('should track disconnection but preserve game state', () => {
@@ -504,7 +536,9 @@ describe('Game Store Persistence Tests', () => {
 
       expect(result.current.error).toBeNull();
       expect(result.current.isConnected()).toBe(true);
-      expect(result.current.isLoading).toBe(true);
+      // Functional design: transitions are atomic, no loading states
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.getCurrentGameId()).toBe('test-game-123');
     });
 
     it('should maintain state consistency during rapid updates', () => {
@@ -553,7 +587,7 @@ describe('Game Store Persistence Tests', () => {
       expect(result.current.getCurrentGameId()).toBe('rapid-test');
     });
 
-    it('should handle state updates during loading', () => {
+    it('should handle state updates with atomic transitions', () => {
       const { result } = renderHook(() => useGameStore());
 
       act(() => {
@@ -562,11 +596,13 @@ describe('Game Store Persistence Tests', () => {
           clientId: 'test-client'
         });
         result.current.dispatch({ type: 'GAME_CREATED', gameId: 'test-game-123', state: defaultGameState });
-        result.current.setError('Loading error');
+        result.current.setError('Processing error');
       });
 
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.error).toBe('Loading error');
+      // Functional design: transitions are atomic, no loading states
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe('Processing error');
+      expect(result.current.getCurrentGameId()).toBe('test-game-123');
     });
   });
 

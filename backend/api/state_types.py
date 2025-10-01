@@ -63,33 +63,33 @@ class DisconnectedState(TypedDict):
 
     type: Literal["disconnected"]
     error: Optional[str]
-    can_reset: Literal[True]
+    canReset: Literal[True]
 
 
 class ConnectingState(TypedDict):
     """Connection state when attempting to connect."""
 
     type: Literal["connecting"]
-    attempt_number: int
-    can_reset: Literal[False]
+    attemptNumber: int
+    canReset: Literal[False]
 
 
 class ConnectedState(TypedDict):
     """Connection state when successfully connected."""
 
     type: Literal["connected"]
-    client_id: str
+    clientId: str
     since: str  # ISO timestamp
-    can_reset: Literal[True]
+    canReset: Literal[True]
 
 
 class ReconnectingState(TypedDict):
     """Connection state when attempting to reconnect."""
 
     type: Literal["reconnecting"]
-    last_client_id: str
-    attempt_number: int
-    can_reset: Literal[False]
+    lastClientId: str
+    attemptNumber: int
+    canReset: Literal[False]
 
 
 ConnectionState = Union[
@@ -111,16 +111,16 @@ class ActiveGameSession(TypedDict):
     """Session state when game is active."""
 
     type: Literal["active-game"]
-    game_id: str
+    gameId: str
     state: GameStateDict
-    last_sync: str  # ISO timestamp
+    lastSync: str  # ISO timestamp
 
 
 class GameOverSession(TypedDict):
     """Session state when game has ended."""
 
     type: Literal["game-over"]
-    game_id: str
+    gameId: str
     state: GameStateDict
     winner: int  # Player index (0 or 1)
 
@@ -329,7 +329,7 @@ def is_connected(state: ConnectionState) -> bool:
 
 def can_reset(state: ConnectionState) -> bool:
     """Check if reset operation is allowed in this connection state."""
-    return state["can_reset"]
+    return state["canReset"]
 
 
 def is_game_active(session: GameSession) -> bool:

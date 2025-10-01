@@ -3,19 +3,19 @@ import { useGameStore } from '../store/gameStore';
 import './MoveHistory.css';
 
 export const MoveHistory: React.FC = () => {
-  const store = useGameStore();
-  const gameState = store.getCurrentGameState();
-  const selectedHistoryIndex = store.getSelectedHistoryIndex();
+  const gameState = useGameStore((store) => store.getCurrentGameState());
+  const selectedHistoryIndex = useGameStore((store) => store.getSelectedHistoryIndex());
+  const dispatch = useGameStore((store) => store.dispatch);
 
   if (!gameState) {
     return <div className="move-history-empty">No moves yet</div>;
   }
 
   const handleMoveClick = (index: number) => {
-    if (index === gameState.move_history.length) {
-      store.dispatch({ type: 'HISTORY_INDEX_SET', index: null });
+    if (index === gameState?.move_history?.length) {
+      dispatch({ type: 'HISTORY_INDEX_SET', index: null });
     } else {
-      store.dispatch({ type: 'HISTORY_INDEX_SET', index });
+      dispatch({ type: 'HISTORY_INDEX_SET', index });
     }
   };
 
@@ -27,7 +27,7 @@ export const MoveHistory: React.FC = () => {
         {selectedHistoryIndex !== null && (
           <button 
             className="retro-btn-small"
-            onClick={() => store.dispatch({ type: 'HISTORY_INDEX_SET', index: null })}
+            onClick={() => dispatch({ type: 'HISTORY_INDEX_SET', index: null })}
           >
             Current
           </button>
@@ -81,7 +81,7 @@ export const MoveHistory: React.FC = () => {
       <div className="move-history-controls">
         <button
           className="retro-btn-small"
-          onClick={() => store.dispatch({ type: 'HISTORY_INDEX_SET', index: 0 })}
+          onClick={() => dispatch({ type: 'HISTORY_INDEX_SET', index: 0 })}
           disabled={!gameState.move_history.length}
         >
           ⏮
@@ -90,9 +90,9 @@ export const MoveHistory: React.FC = () => {
           className="retro-btn-small"
           onClick={() => {
             if (selectedHistoryIndex === null) {
-              store.dispatch({ type: 'HISTORY_INDEX_SET', index: gameState.move_history.length - 1 });
+              dispatch({ type: 'HISTORY_INDEX_SET', index: gameState.move_history.length - 1 });
             } else if (selectedHistoryIndex > 0) {
-              store.dispatch({ type: 'HISTORY_INDEX_SET', index: selectedHistoryIndex - 1 });
+              dispatch({ type: 'HISTORY_INDEX_SET', index: selectedHistoryIndex - 1 });
             }
           }}
           disabled={selectedHistoryIndex === 0}
@@ -103,9 +103,9 @@ export const MoveHistory: React.FC = () => {
           className="retro-btn-small"
           onClick={() => {
             if (selectedHistoryIndex !== null && selectedHistoryIndex < gameState.move_history.length - 1) {
-              store.dispatch({ type: 'HISTORY_INDEX_SET', index: selectedHistoryIndex + 1 });
+              dispatch({ type: 'HISTORY_INDEX_SET', index: selectedHistoryIndex + 1 });
             } else {
-              store.dispatch({ type: 'HISTORY_INDEX_SET', index: null });
+              dispatch({ type: 'HISTORY_INDEX_SET', index: null });
             }
           }}
           disabled={selectedHistoryIndex === null}
@@ -114,7 +114,7 @@ export const MoveHistory: React.FC = () => {
         </button>
         <button
           className="retro-btn-small"
-          onClick={() => store.dispatch({ type: 'HISTORY_INDEX_SET', index: null })}
+          onClick={() => dispatch({ type: 'HISTORY_INDEX_SET', index: null })}
           disabled={selectedHistoryIndex === null}
         >
           ⏭

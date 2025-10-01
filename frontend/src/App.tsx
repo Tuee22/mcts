@@ -16,10 +16,11 @@ import { exhaustiveCheck } from './types/appState';
 import './App.css';
 
 function App() {
-  const store = useGameStore();
-  const { session } = store;
-  const { gameSettings } = store.settings;
-  const isConnected = store.isConnected();
+  const session = useGameStore((store) => store.session);
+  const gameSettings = useGameStore((store) => store.settings.gameSettings);
+  const isConnected = useGameStore((store) => store.isConnected());
+  const dispatch = useGameStore((store) => store.dispatch);
+  const currentGameId = useGameStore((store) => store.getCurrentGameId());
   
   // Handle connection lifecycle and tab coordination
   useEffect(() => {
@@ -28,13 +29,13 @@ function App() {
       if (result.shouldShowConflictWarning && result.conflictMessage) {
         // Handle multi-tab conflict functionally
         if (!result.isPrimary) {
-          store.dispatch({
+          dispatch({
             type: 'CONNECTION_LOST',
             error: 'Multiple tabs open - this tab is inactive'
           });
         }
         
-        store.dispatch({
+        dispatch({
           type: 'NOTIFICATION_ADDED',
           notification: {
             id: result.isPrimary ? 'primary-tab-info' : 'multi-tab-conflict',
@@ -45,11 +46,11 @@ function App() {
         });
       } else {
         // Clear any existing multi-tab notifications
-        store.dispatch({
+        dispatch({
           type: 'NOTIFICATION_REMOVED',
           id: 'multi-tab-conflict'
         });
-        store.dispatch({
+        dispatch({
           type: 'NOTIFICATION_REMOVED',
           id: 'primary-tab-info'
         });
@@ -57,18 +58,18 @@ function App() {
     });
     
     wsService.connect();
-    store.dispatch({ type: 'CONNECTION_START' });
+    dispatch({ type: 'CONNECTION_START' });
     
     return () => {
       wsService.disconnect();
-      store.dispatch({ type: 'CONNECTION_LOST' });
+      dispatch({ type: 'CONNECTION_LOST' });
       cleanupTabCoordinator();
     };
-  }, [store]);
+  }, [dispatch]);
 
   // Handle notifications
+  const notifications = useGameStore((store) => store.ui.notifications);
   useEffect(() => {
-    const notifications = store.ui.notifications;
     notifications.forEach(notification => {
       if (notification.type === 'error') {
         toast.error(notification.message, {
@@ -97,16 +98,16 @@ function App() {
       // Remove notification after displaying (except persistent ones)
       if (notification.id !== 'multi-tab-conflict') {
         setTimeout(() => {
-          store.dispatch({ type: 'NOTIFICATION_REMOVED', id: notification.id });
+          dispatch({ type: 'NOTIFICATION_REMOVED', id: notification.id });
         }, notification.type === 'warning' ? 6000 : 4000);
       }
     });
-  }, [store.ui.notifications, store]);
+  }, [notifications, dispatch]);
 
   // Handle tab coordinator integration with game state
   useEffect(() => {
     const coordinator = getTabCoordinator();
-    const gameId = store.getCurrentGameId();
+    const gameId = currentGameId;
     
     if (coordinator) {
       if (gameId) {
@@ -115,7 +116,7 @@ function App() {
         coordinator.notifyGameEnded();
       }
     }
-  }, [store]);
+  }, [currentGameId]);
 
   // Handle AI moves for AI games
   useEffect(() => {
