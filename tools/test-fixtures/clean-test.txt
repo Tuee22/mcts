@@ -1,0 +1,9 @@
+This is a clean test file with proper UTF-8 encoding.
+It contains:
+- Regular ASCII text
+- Unicode characters: áéíóú
+- Emoji: 🚀 🎉 ✅ 
+- Mathematical symbols: ∑ ∞ π
+- Various languages: Здравствуй العالم 世界 
+
+All characters should be properly encoded and cause no surrogate issues.

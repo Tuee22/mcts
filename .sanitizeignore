@@ -1,0 +1,95 @@
+# Sanitizer ignore patterns
+# Binary file patterns - never scan these
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+*.webp
+*.bmp
+*.tiff
+
+# Font files
+*.woff
+*.woff2
+*.eot
+*.ttf
+*.otf
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.7z
+*.rar
+
+# Document files
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+# Media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.mp3
+*.wav
+*.flac
+*.ogg
+
+# Executable files
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Build directories - large and generated
+node_modules/
+build/
+dist/
+.next/
+coverage/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.benchmarks/
+frontend/build/
+backend/build/
+
+# Version control
+.git/
+.svn/
+.hg/
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.orig
+*.core
+core.*
+debug-*.png
+test-screenshots/
+
+# Specific large files we know about
+core
+REFACTOR_STATUS.md
+test_race_condition_validation_report.md
+
+# Test fixtures (contain intentional issues for testing)
+tools/test-fixtures/

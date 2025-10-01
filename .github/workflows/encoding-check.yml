@@ -1,0 +1,87 @@
+name: Encoding Safety Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  encoding-check:
+    name: Check for UTF-16 Surrogate Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install ripgrep (for faster scanning)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ripgrep
+        
+    - name: Check for unpaired UTF-16 surrogates
+      run: |
+        echo "🔍 Scanning repository for unpaired UTF-16 surrogates..."
+        node tools/sanitize.js --check --verbose
+        
+    - name: Validate encoding configuration
+      run: |
+        echo "📋 Validating encoding configuration files..."
+        
+        # Check .editorconfig exists and has UTF-8 charset
+        if [ ! -f .editorconfig ]; then
+          echo "❌ .editorconfig not found"
+          exit 1
+        fi
+        
+        if ! grep -q "charset = utf-8" .editorconfig; then
+          echo "❌ .editorconfig does not enforce UTF-8"
+          exit 1
+        fi
+        
+        # Check .vscode/settings.json exists and has UTF-8 enforcement
+        if [ ! -f .vscode/settings.json ]; then
+          echo "❌ .vscode/settings.json not found"
+          exit 1
+        fi
+        
+        if ! grep -q '"files.encoding": "utf8"' .vscode/settings.json; then
+          echo "❌ VS Code settings do not enforce UTF-8"
+          exit 1
+        fi
+        
+        echo "✅ Encoding configuration is valid"
+        
+    - name: Check sanitizer tool functionality
+      run: |
+        echo "🧪 Testing sanitizer tool functionality..."
+        
+        # Test with a known clean file
+        echo "Hello, World!" > test_clean.txt
+        if ! node tools/sanitize.js --check test_clean.txt; then
+          echo "❌ Sanitizer failed on clean file"
+          rm test_clean.txt
+          exit 1
+        fi
+        
+        rm test_clean.txt
+        echo "✅ Sanitizer tool is working correctly"
+        
+    - name: Summarize results
+      if: always()
+      run: |
+        echo ""
+        echo "🏁 Encoding Safety Check Complete"
+        echo ""
+        echo "This workflow protects against:"
+        echo "• Unpaired UTF-16 surrogate characters"
+        echo "• 'no low surrogate' errors in Claude Code"
+        echo "• Encoding inconsistencies across the repository"
+        echo ""
+        echo "If this check fails, run: npm run sanitize:fix"

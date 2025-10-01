@@ -135,8 +135,9 @@ coverage/
 .env.local
 .env.*.local
 
-# Claude AI files
-.claude/
+# Claude AI files (exclude logs and temp, but keep config)
+.claude/logs/
+.claude/temp/
 
 # OS generated files (never needed in container)
 .DS_Store

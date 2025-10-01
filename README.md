@@ -527,15 +527,42 @@ Corridors is a two-player board game where players race to reach the opposite si
 | `use_probs` | Use action probabilities | `False` | Requires evaluation function |
 | `decide_using_visits` | Choose by visit count | `True` | vs average reward |
 
+## AI-Assisted Development
+
+This repository includes a hardened Claude Code workflow system that prevents "no low surrogate" errors and ensures reliable AI-assisted development.
+
+### Quick Start
+
+```bash
+# Start a new AI session
+npm run ai:session:new
+
+# Check for encoding issues
+npm run sanitize:check
+
+# Verify your setup
+npm run ai:verify
+```
+
+### Key Protection Features
+
+- **UTF-16 Surrogate Protection**: Automatically detects and fixes encoding issues that cause Claude errors
+- **Payload Size Management**: Prevents oversized requests with auto-chunking recommendations  
+- **Pre-commit Hooks**: Blocks problematic code from entering the repository
+- **CI Integration**: Validates encoding safety on all pull requests
+
+**📖 For complete documentation, see: [docs/ai-usage.md](docs/ai-usage.md)**
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Run tests (`poetry run test`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+5. **Run AI safety checks** (`npm run ai:verify`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
 
 ## Performance Notes
 

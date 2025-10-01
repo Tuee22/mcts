@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CRITICAL: Never make git commits automatically. All git commits must be explicitly requested by the user.**
 
-This project uses the @no-git-commits agent policy. You may stage changes with `git add` but must stop before committing. Only create commits when the user explicitly asks with phrases like "commit this", "create a commit", or "git commit".
+You may stage changes with `git add` but must stop before committing. Only create commits when the user explicitly asks with phrases like "commit this", "create a commit", or "git commit".
 
 ## **Build Artifacts Policy**
 
@@ -208,139 +208,7 @@ For any game to work with the MCTS template, it must implement:
 - Docker containers provide GCC-13, Python 3.12, and all required dependencies
 - Poetry manages Python dependencies with strict version pinning for reproducibility
 
-## Claude Code Integration
-
-This repository uses Claude Code agents and automated quality assurance hooks for development.
-
-### Claude Code Workflow
-
-This repository uses a **loop-safe** quality gate workflow that runs **ONCE** when you finish implementing a feature.
-
-#### How It Works
-
-The workflow executes on the **Stop hook** (when Claude finishes responding) and runs:
-**Black → mypy → tests**
-
-#### Loop Prevention
-
-- **First Stop run**: If any stage fails, the hook exits with code 2 (blocking) and feeds the error back to Claude for automatic fixing
-- **Second Stop run** (continuation): If stages still fail, the hook exits with code 1 (non-blocking) to prevent infinite loops and requires manual intervention
-
-#### Environment Detection
-
-The orchestrator automatically:
-- **Prefers Docker**: Runs commands inside the `mcts` Docker Compose service with `poetry run`
-- **Falls back locally**: If Docker unavailable, runs equivalent local Poetry commands
-- **Auto-starts services**: Starts the `mcts` container if not running
-
-#### Manual Execution
-
-Run the quality gate manually:
-```bash
-# Full quality gate
-.claude/hooks/quality-gate-safe.py
-
-# Individual stages
-docker compose exec mcts poetry run black .
-docker compose exec mcts poetry run mypy --strict .
-docker compose exec mcts poetry run pytest -q
-```
-
-### Available Agents
-
-#### Core Quality Assurance
-- **@formatter-black**: Python code formatting with Black (PEP 8 compliance)
-- **@mypy-type-checker**: Comprehensive type checking with zero tolerance policy
-- **@builder-docker**: Docker container builds for development and CI
-- **@tester-pytest**: Test suite execution and validation
-
-#### Specialized Build Agents
-- **@builder-cpu**: CPU-only Docker builds for development/CI
-- **@builder-gpu**: GPU-enabled Docker builds (AMD64 only)
-- **@no-git-commits**: Policy agent preventing automatic git commits
-
-### Environment Configuration
-
-Control the automated pipeline with environment variables:
-
-```bash
-export MCTS_FORMAT_CMD="docker compose exec mcts poetry run black ."
-export MCTS_TYPECHECK_CMD="docker compose exec mcts poetry run mypy --strict ."
-export MCTS_BUILD_CMD="docker compose build"
-export MCTS_TEST_CMD="docker compose exec mcts poetry run pytest -q"
-export MCTS_BLACK_TIMEOUT="60"
-export MCTS_MYPY_TIMEOUT="300"
-export MCTS_PYTEST_TIMEOUT="120"
-export MCTS_TEST_SCOPE="fast"  # Use "all" for full test suite
-export MCTS_SKIP_BUILD="false"
-export MCTS_SKIP_TESTS="false"
-export MCTS_VERBOSE="false"
-export MCTS_FAIL_FAST="true"
-```
-
-#### Configuration
-
-**Default behavior**: Quality gate runs automatically on Stop hook.
-
-**Override behavior**: Create `.claude/settings.local.json`:
-```json
-{
-  "hooks": {
-    "Stop": []
-  }
-}
-```
-
-**Test scope**: The orchestrator runs the full test suite by default. If Docker services unavailable, falls back to Python-only tests.
-
-#### Troubleshooting
-
-**Quality gate logs**: Check `.claude/logs/quality-gate-*.log` for detailed execution logs.
-
-**Docker issues**: Ensure Docker is running and `mcts` service is available:
-```bash
-cd docker && docker compose up -d mcts
-```
-
-**Tool availability**: Black and mypy are managed by Poetry in the container.
-
-#### Optional Test Guard
-
-An optional test guard warns when modifying existing passing tests:
-
-**Enable test guard**: Add to `.claude/settings.json` PreToolUse hooks:
-```json
-{
-  "matcher": "Edit|Write", 
-  "hooks": [{"type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/test-guard.py"}]
-}
-```
-
-**Configure behavior**: In `.claude/settings.local.json`:
-```json
-{
-  "test_guard": {
-    "mode": "warn"  // or "block" to prevent modifications
-  }
-}
-```
-
-The guard allows new test creation and initial red/green cycles but warns about modifying tests that were previously passing in the same session.
-
-### Development Workflow
-
-1. **Implement features**: Write code and tests normally
-2. **Automatic quality check**: Stop hook runs Black → mypy → tests once when you finish
-3. **Fix issues**: On failures, Claude automatically fixes and re-runs the sequence
-4. **Manual intervention**: If issues persist after one fix cycle, use suggested agents
-
-### Agent Documentation
-
-- **Agent Registry**: `.claude/AGENTS.md` - Complete agent documentation
-- **Machine-Readable**: `.claude/agents.json` - Programmatic agent definitions
-- **Hook Configuration**: `.claude/settings.json` - Pipeline settings
-
-### Quality Standards
+## Development Standards
 
 This project enforces strict quality standards:
 
@@ -350,4 +218,16 @@ This project enforces strict quality standards:
 - **Build Validation**: Docker containers for consistent environments
 - **Custom Type Stubs**: Project maintains custom stubs to eliminate Any usage
 
-The automated pipeline ensures all contributions meet these standards before integration.
+All quality checks should be run manually as needed:
+
+```bash
+# Format code (inside container)
+docker compose exec mcts poetry run black .
+docker compose exec mcts poetry run isort .
+
+# Type checking (inside container)  
+docker compose exec mcts poetry run mypy --strict .
+
+# Run tests (inside container)
+docker compose exec mcts poetry run pytest -q
+```
