@@ -14,7 +14,11 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, Route, expect
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import (
+    SETTINGS_BUTTON_SELECTOR,
+    handle_settings_interaction,
+    handle_rapid_settings_interaction,
+)
 
 
 @pytest.mark.e2e
@@ -36,16 +40,8 @@ class TestRaceConditions:
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create initial game - handle both scenarios (settings button or direct panel)
-        start_button = page.locator('[data-testid="start-game-button"]')
-
-        # If settings panel is not visible, click the settings button to open it
-        if await start_button.count() == 0:
-            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-            await settings_button.click()
-            start_button = page.locator('[data-testid="start-game-button"]')
-
-        await start_button.click()
+        # Create initial game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -55,14 +51,13 @@ class TestRaceConditions:
 
         # Rapid sequence: New Game -> Settings almost simultaneously
         new_game_button = page.locator('button:has-text("New Game")')
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
 
         # Start both actions concurrently
         new_game_task = asyncio.create_task(new_game_button.click())
 
         # Small delay to ensure New Game starts first, then Settings
         await asyncio.sleep(0.1)
-        settings_task = asyncio.create_task(settings_button.click())
+        settings_task = asyncio.create_task(handle_rapid_settings_interaction(page))
 
         # Wait for both to complete
         await asyncio.gather(new_game_task, settings_task, return_exceptions=True)
@@ -102,9 +97,8 @@ class TestRaceConditions:
             "Connected", timeout=10000
         )
 
-        # Open settings
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         start_button = page.locator('[data-testid="start-game-button"]')
         await expect(start_button).to_be_enabled()
@@ -168,12 +162,8 @@ class TestRaceConditions:
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create a game
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -207,6 +197,7 @@ class TestRaceConditions:
         await expect(game_setup).to_be_visible()
 
         # Settings should be functional
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ New Game during reconnection handled correctly")
@@ -224,9 +215,8 @@ class TestRaceConditions:
             "Connected", timeout=10000
         )
 
-        # Open settings
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         # Slow down game creation to create race condition window
         async def delay_game_creation(route: Route) -> None:
@@ -289,12 +279,8 @@ class TestRaceConditions:
             "Connected", timeout=10000
         )
 
-        # Create a game first
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game first using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -330,6 +316,7 @@ class TestRaceConditions:
         await expect(game_setup).to_be_visible()
 
         # Should be able to create new game
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Concurrent New Game clicks handled correctly")
@@ -347,12 +334,8 @@ class TestRaceConditions:
             "Connected", timeout=10000
         )
 
-        # Create a game
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -382,6 +365,7 @@ class TestRaceConditions:
         await expect(game_setup).to_be_visible()
 
         # Should be able to start new game
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Navigation during reset handled correctly")
@@ -398,12 +382,8 @@ class TestRaceConditions:
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create a game
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -451,6 +431,7 @@ class TestRaceConditions:
         await expect(game_setup).to_be_visible()
 
         # Should be functional
+        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         await expect(settings_button).to_be_enabled()
 
         print("✅ Rapid connection changes during reset handled correctly")
@@ -468,9 +449,8 @@ class TestRaceConditions:
             "Connected", timeout=10000
         )
 
-        # Open settings
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         print("✅ Settings opened for race condition test")
 

@@ -13,7 +13,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, Route, expect
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -40,7 +40,7 @@ class TestGameCreationDisconnectionBug:
         # Check if button exists and try to click it immediately
         if await settings_button.count() > 0:
             # Don't wait for connection - click immediately
-            await settings_button.click(timeout=1000)
+            await handle_settings_interaction(page)
 
             # Check for disconnection warning
             disconnection_warning = page.locator('[data-testid="connection-warning"]')
@@ -126,7 +126,7 @@ class TestGameCreationDisconnectionBug:
                     print("ℹ️ Cannot check button title attribute")
             else:
                 # If enabled, clicking should queue the action or show appropriate feedback
-                await settings_button.click()
+                await handle_settings_interaction(page)
 
                 # Should show connecting state or queue the request
                 # Check if settings panel opened (which indicates the click worked)
@@ -146,7 +146,7 @@ class TestGameCreationDisconnectionBug:
 
         # Now verify game creation works after connection
         if await settings_button.count() > 0 and await settings_button.is_enabled():
-            await settings_button.click()
+            await handle_settings_interaction(page)
             start_button = page.locator('[data-testid="start-game-button"]')
             if await start_button.count() > 0 and await start_button.is_enabled():
                 await start_button.click()
@@ -255,7 +255,7 @@ class TestGameCreationDisconnectionBug:
         # Try to create a game
         settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0 and await settings_button.is_enabled():
-            await settings_button.click()
+            await handle_settings_interaction(page)
 
             start_button = page.locator('[data-testid="start-game-button"]')
             if await start_button.count() > 0 and await start_button.is_enabled():
@@ -312,7 +312,7 @@ class TestGameCreationDisconnectionBug:
         # Open game settings
         settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
-            await settings_button.click()
+            await handle_settings_interaction(page)
 
             # Wait for the settings panel to appear
             await page.wait_for_timeout(1000)

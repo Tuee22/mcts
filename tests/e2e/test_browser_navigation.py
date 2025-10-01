@@ -14,7 +14,7 @@ from typing import Dict
 import pytest
 from playwright.async_api import Page, expect, BrowserContext, Browser
 from playwright._impl._errors import TargetClosedError
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -161,15 +161,8 @@ class TestBrowserNavigation:
             print(f"Page 1 state check failed: {e}")
             pytest.skip("Cannot verify page state - known multi-tab issue")
 
-        settings_button_1 = page1.locator(SETTINGS_BUTTON_SELECTOR)
-        try:
-            await settings_button_1.click()
-        except TargetClosedError as e:
-            print(f"Tab 1 closed unexpectedly: {e}")
-            pytest.skip("Tab 1 disconnected - known multi-tab issue")
-
-        start_button_1 = page1.locator('[data-testid="start-game-button"]')
-        await start_button_1.click()
+        # Use helper function to handle both button and panel states
+        await handle_settings_interaction(page1, should_click_start_game=True)
 
         await expect(page1.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -177,14 +170,14 @@ class TestBrowserNavigation:
 
         print("✅ Tab 1 can create games")
 
-        # Test tab 2 independently
-        settings_button_2 = page2.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button_2.click()
+        # Test tab 2 independently - first handle settings interaction
+        await handle_settings_interaction(page2)
 
         # Change settings to different mode
         ai_vs_ai_button = page2.locator('[data-testid="mode-ai-vs-ai"]')
         await ai_vs_ai_button.click()
 
+        # Now start game
         start_button_2 = page2.locator('[data-testid="start-game-button"]')
         await start_button_2.click()
 
@@ -198,53 +191,59 @@ class TestBrowserNavigation:
         try:
             # With multi-tab detection, one tab should become secondary
             # Check if either tab shows a multi-tab warning notification
-            
+
             # Give some time for multi-tab detection to work
             await asyncio.sleep(2.0)
-            
+
             # At least one tab should show some indication of multi-tab detection
             # This could be a warning notification or connection status change
-            
+
             page1_connected = False
             page2_connected = False
-            
+
             try:
                 await expect(connection_text_1).to_have_text("Connected", timeout=3000)
                 page1_connected = True
                 print("✅ Tab 1 remains connected (primary tab)")
             except:
                 print("ℹ️ Tab 1 became secondary due to multi-tab detection")
-            
+
             try:
                 await expect(connection_text_2).to_have_text("Connected", timeout=3000)
                 page2_connected = True
                 print("✅ Tab 2 remains connected (primary tab)")
             except:
                 print("ℹ️ Tab 2 became secondary due to multi-tab detection")
-            
+
             # At least one tab should remain functional
             if page1_connected or page2_connected:
-                print("✅ Multi-tab detection working - at least one tab remains functional")
+                print(
+                    "✅ Multi-tab detection working - at least one tab remains functional"
+                )
             else:
                 print("⚠️ Both tabs disconnected - this may indicate an issue")
-                
+
             # Test New Game in the active tab (whichever is still connected)
             active_page = page1 if page1_connected else page2
-            active_connection_text = connection_text_1 if page1_connected else connection_text_2
-            
+            active_connection_text = (
+                connection_text_1 if page1_connected else connection_text_2
+            )
+
             if page1_connected or page2_connected:
                 new_game_button = active_page.locator('button:has-text("New Game")')
                 try:
                     await new_game_button.click()
                     # Wait for the transition
                     await asyncio.sleep(1.0)
-                    
+
                     # Active tab should remain functional
-                    await expect(active_connection_text).to_have_text("Connected", timeout=5000)
+                    await expect(active_connection_text).to_have_text(
+                        "Connected", timeout=5000
+                    )
                     print("✅ New Game works in active tab after multi-tab detection")
                 except Exception as e:
                     print(f"ℹ️ New Game interaction: {e}")
-            
+
         except Exception as e:
             print(f"Multi-tab detection test: {e}")
             # This is now part of the expected behavior testing, not an error
@@ -278,12 +277,8 @@ class TestBrowserNavigation:
         connection_text = app_page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create a game
-        settings_button = app_page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = app_page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(app_page, should_click_start_game=True)
 
         await expect(app_page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -348,12 +343,8 @@ class TestBrowserNavigation:
         connection_text = page1.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create a game
-        settings_button = page1.locator('button:has-text("⚙️ Game Settings")')
-        await settings_button.click()
-
-        start_button = page1.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(page1, should_click_start_game=True)
 
         await expect(page1.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -383,13 +374,8 @@ class TestBrowserNavigation:
         game_setup = page2.locator('[data-testid="game-setup"]')
         await expect(game_setup).to_be_visible()
 
-        # Should be able to create new game
-        settings_button = page2.locator('button:has-text("⚙️ Game Settings")')
-        await expect(settings_button).to_be_enabled()
-        await settings_button.click()
-
-        start_button = page2.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Should be able to create new game using helper function
+        await handle_settings_interaction(page2, should_click_start_game=True)
 
         await expect(page2.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -413,12 +399,8 @@ class TestBrowserNavigation:
         connection_text = page.locator('[data-testid="connection-text"]')
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Create a game
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create a game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -549,14 +531,14 @@ class TestBrowserNavigation:
 
                 print(f"✅ Browser context {i+1} connected")
 
-                # Create game in each instance
-                settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-                await settings_button.click()
+                # Create game in each instance - handle settings first
+                await handle_settings_interaction(page)
 
                 if i == 1:  # Change mode in second instance
                     ai_vs_ai_button = page.locator('[data-testid="mode-ai-vs-ai"]')
                     await ai_vs_ai_button.click()
 
+                # Now start game
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await start_button.click()
 
@@ -614,9 +596,8 @@ class TestBrowserNavigation:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
         print("✅ Reload after initial load works")
 
-        # Open settings and reload
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings and reload - use helper to handle settings
+        await handle_settings_interaction(page)
 
         await page.reload()
         # Wait for app to be ready instead of networkidle
@@ -630,10 +611,8 @@ class TestBrowserNavigation:
 
         print("✅ Reload during settings works")
 
-        # Create game and reload
-        await settings_button.click()
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create game and reload - use helper to handle settings
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000

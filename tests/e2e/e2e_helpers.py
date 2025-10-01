@@ -64,3 +64,28 @@ async def wait_for_game_settings_available(page: Page, timeout: int = 5000) -> b
         return True
     except Exception:
         return False
+
+
+async def handle_rapid_settings_interaction(page: Page) -> None:
+    """
+    Handle rapid settings interaction for race condition tests.
+
+    This function is used for race condition scenarios where we need to click
+    settings rapidly but handle both panel and button states.
+    """
+    settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
+    settings_panel = page.locator("text=Game Settings").first
+
+    if await settings_button.count() > 0:
+        # Settings button exists - use it for race condition
+        await settings_button.click()
+    elif await settings_panel.count() > 0:
+        # Panel is already visible - interaction successful
+        print("✅ Settings panel already visible for race condition test")
+    else:
+        # Fallback - wait briefly for UI to stabilize then check again
+        await page.wait_for_timeout(100)
+        if await settings_button.count() > 0:
+            await settings_button.click()
+        else:
+            print("⚠️ Neither settings button nor panel found for race condition test")

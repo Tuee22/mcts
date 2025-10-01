@@ -13,7 +13,7 @@ from playwright.async_api import Locator
 
 import pytest
 from playwright.async_api import Page, expect
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 class GameCreationResult(TypedDict):
@@ -572,7 +572,7 @@ class TestCompleteGameplay:
         """Configure game settings."""
         settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
-            await settings_button.click()
+            await handle_settings_interaction(page)
             await page.wait_for_timeout(500)
 
             # Select game mode using button text (no data-testid)

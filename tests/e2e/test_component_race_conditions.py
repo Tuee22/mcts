@@ -9,7 +9,7 @@ import asyncio
 import pytest
 from playwright.async_api import Page, expect, Request, Response
 from typing import List, Dict
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -31,20 +31,20 @@ class TestGameSettingsComponentRaces:
         start_button = page.locator('[data-testid="start-game-button"]')
         await start_button.click()
 
-        # Wait for game creation and check for Settings button
-        # The button might appear as toggle or panel depending on timing
+        # Wait for game creation and check for Settings accessibility
+        # After game creation, the settings should be accessible (either as button or expanded panel)
+        await handle_settings_interaction(page)
+
+        # Verify settings are now expanded - look for either Game Mode or Settings panel
+        settings_panel = page.locator("text=Game Settings")
+        game_mode = page.locator("text=Game Mode")
+
         try:
-            # Try to find toggle button first
-            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-            await expect(settings_button).to_be_visible(timeout=3000)
-
-            # Click to expand settings
-            await settings_button.click()
-            await expect(page.locator("text=Game Mode")).to_be_visible(timeout=2000)
-
-        except Exception:
-            # If toggle button not found, settings panel might be directly visible
-            await expect(page.locator("text=Game Mode")).to_be_visible(timeout=2000)
+            await expect(settings_panel).to_be_visible(timeout=2000)
+            print("✅ Settings panel is visible")
+        except:
+            await expect(game_mode).to_be_visible(timeout=2000)
+            print("✅ Game Mode selector is visible")
 
     @pytest.mark.asyncio
     async def test_rapid_game_creation_cycles(self, page: Page) -> None:

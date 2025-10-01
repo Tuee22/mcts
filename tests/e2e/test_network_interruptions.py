@@ -13,7 +13,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, Route, expect
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -41,7 +41,7 @@ class TestNetworkInterruptions:
         # Create a game to have some state
         settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
-            await settings_button.click()
+            await handle_settings_interaction(page)
 
             start_button = page.locator('[data-testid="start-game-button"]')
             if await start_button.count() > 0:
@@ -180,7 +180,7 @@ class TestNetworkInterruptions:
         # Start game creation process
         settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
         if await settings_button.count() > 0:
-            await settings_button.click()
+            await handle_settings_interaction(page)
 
         # Block network during game creation
         await page.route("**/games**", lambda route: route.abort())

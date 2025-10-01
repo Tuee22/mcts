@@ -13,7 +13,11 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import Page, expect
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import (
+    SETTINGS_BUTTON_SELECTOR,
+    handle_settings_interaction,
+    wait_for_game_settings_available,
+)
 
 
 @pytest.mark.e2e
@@ -46,9 +50,9 @@ class TestPageRefreshScenarios:
         # Connection should be re-established
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-        # Settings should be accessible after refresh
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button).to_be_enabled()
+        # Settings should be accessible after refresh using helper function
+        accessible = await wait_for_game_settings_available(page)
+        assert accessible, "Settings should be available after page refresh"
 
         print("✅ Connection restored after page refresh")
 
@@ -68,11 +72,8 @@ class TestPageRefreshScenarios:
             "Connected", timeout=10000
         )
 
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         # Wait for game to be created
         game_container = page.locator('[data-testid="game-container"]')
@@ -127,11 +128,8 @@ class TestPageRefreshScenarios:
             "Connected", timeout=10000
         )
 
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000
@@ -162,9 +160,8 @@ class TestPageRefreshScenarios:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # Settings should be accessible
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button).to_be_enabled()
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         # Should not show connection warning
         connection_warning = page.locator('[data-testid="connection-warning"]')
@@ -191,8 +188,8 @@ class TestPageRefreshScenarios:
         )
 
         # Open settings and change configuration
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         # Change to AI vs AI mode
         ai_vs_ai_button = page.locator('[data-testid="mode-ai-vs-ai"]')
@@ -217,8 +214,8 @@ class TestPageRefreshScenarios:
         )
 
         # Check if settings are preserved
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
+        # Open settings using helper function
+        await handle_settings_interaction(page)
 
         # Check if our settings persisted (this depends on implementation)
         # If settings are persisted in localStorage/sessionStorage
@@ -255,12 +252,8 @@ class TestPageRefreshScenarios:
             connection_text = page.locator('[data-testid="connection-text"]')
             await expect(connection_text).to_have_text("Connected", timeout=10000)
 
-            # Settings should be accessible
-            settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-            await expect(settings_button).to_be_enabled()
-
-            # Try to create a game
-            await settings_button.click()
+            # Settings should be accessible and try to create a game
+            await handle_settings_interaction(page)
             start_button = page.locator('[data-testid="start-game-button"]')
             await expect(start_button).to_be_enabled()
 
@@ -284,11 +277,8 @@ class TestPageRefreshScenarios:
         )
 
         # Start game creation
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         # Immediately refresh before game creation completes
         await page.reload()
@@ -303,9 +293,11 @@ class TestPageRefreshScenarios:
         game_setup = page.locator('[data-testid="game-setup"]')
         await expect(game_setup).to_be_visible()
 
-        # Settings should still work
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button).to_be_enabled()
+        # Settings should still work - check availability using helper
+        accessible = await wait_for_game_settings_available(page)
+        assert (
+            accessible
+        ), "Settings should be available after refresh during game creation"
 
         print("✅ Refresh during game creation handled gracefully")
 
@@ -375,11 +367,8 @@ class TestPageRefreshScenarios:
         initial_errors = len(console_errors)
 
         # Perform some actions that might trigger the disconnection bug
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await settings_button.click()
-
-        start_button = page.locator('[data-testid="start-game-button"]')
-        await start_button.click()
+        # Create game using helper function
+        await handle_settings_interaction(page, should_click_start_game=True)
 
         await expect(page.locator('[data-testid="game-container"]')).to_be_visible(
             timeout=10000

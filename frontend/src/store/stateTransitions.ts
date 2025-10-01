@@ -669,6 +669,7 @@ export function validateAppState(state: AppState): void {
   }
 }
 
+
 function createNotification(
   type: 'info' | 'success' | 'warning' | 'error',
   message: string

@@ -5,7 +5,7 @@ from typing import Dict
 
 import pytest
 from playwright.async_api import BrowserType, async_playwright
-from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR
+from tests.e2e.e2e_helpers import SETTINGS_BUTTON_SELECTOR, handle_settings_interaction
 
 
 @pytest.mark.e2e
@@ -120,10 +120,8 @@ class TestBrowserCompatibility:
 
                 # Test game creation if possible
                 try:
-                    settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-                    if await settings_button.is_visible():
-                        await settings_button.click()
-                        print("✅ Game settings accessible")
+                    await handle_settings_interaction(page)
+                    print("✅ Game settings accessible")
                 except Exception as e:
                     print(
                         f"⚠️  Game settings not accessible: {e} (may not be implemented)"
