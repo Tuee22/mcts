@@ -65,13 +65,13 @@ function getDefaultUIState(): UIState {
 }
 
 /**
- * Game store interface with actions and derived getters
+ * Game store interface with pure functional API
  */
 interface GameStore extends AppState {
-  // Action dispatcher
+  // Action dispatcher - the only way to change state
   dispatch: (action: StateAction) => void;
   
-  // Derived getters
+  // Pure derived getters - the only way to access state
   getSettingsUI: () => SettingsUIState;
   canMakeMove: () => boolean;
   canStartGame: () => boolean;
@@ -79,26 +79,9 @@ interface GameStore extends AppState {
   isConnected: () => boolean;
   getCurrentGameId: () => string | null;
   getCurrentGameState: () => GameState | null;
-  
-  // Legacy compatibility methods (will be removed after migration)
-  setGameId: (id: string | null) => void;
-  setGameState: (state: GameState | null) => void;
-  setGameSettings: (settings: Partial<GameSettings>) => void;
-  setIsConnected: (connected: boolean) => void;
-  setIsLoading: (loading: boolean) => void;
-  setIsCreatingGame: (creating: boolean) => void;
-  setError: (error: string | null) => void;
-  setSelectedHistoryIndex: (index: number | null) => void;
-  reset: () => void;
-  
-  // Legacy compatibility getters
-  gameId: string | null;
-  gameState: GameState | null;
-  gameSettings: GameSettings;
-  isLoading: boolean;
-  isCreatingGame: boolean;
-  error: string | null;
-  selectedHistoryIndex: number | null;
+  getLatestError: () => string | null;
+  getSelectedHistoryIndex: () => number | null;
+  getIsLoading: () => boolean;
 }
 
 /**
@@ -160,116 +143,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
       
-      // Legacy compatibility methods
-      setGameId: (id: string | null) => {
-        console.warn('setGameId is deprecated. Use dispatch with GAME_CREATED or GAME_ENDING_COMPLETE actions instead.');
-        if (id) {
-          // Simulate game creation
-          get().dispatch({ 
-            type: 'GAME_CREATED', 
-            gameId: id, 
-            state: get().gameState || createEmptyGameState() 
-          });
-        } else {
-          // Simulate game ending
-          get().dispatch({ type: 'GAME_ENDING_COMPLETE' });
-        }
-      },
-      
-      setGameState: (state: GameState | null) => {
-        console.warn('setGameState is deprecated. Use dispatch with GAME_STATE_UPDATED action instead.');
-        if (state) {
-          get().dispatch({ type: 'GAME_STATE_UPDATED', state });
-        }
-      },
-      
-      setGameSettings: (settings: Partial<GameSettings>) => {
-        console.warn('setGameSettings is deprecated. Use dispatch with SETTINGS_UPDATED action instead.');
-        get().dispatch({ type: 'SETTINGS_UPDATED', settings });
-      },
-      
-      setIsConnected: (connected: boolean) => {
-        console.warn('setIsConnected is deprecated. Use dispatch with CONNECTION_* actions instead.');
-        if (connected) {
-          // Synchronous state transitions only
-          const state = get();
-          if (state.connection.type === 'disconnected') {
-            // First transition to connecting
-            set(stateReducer(state, { type: 'CONNECTION_START' }));
-            // Then immediately to connected
-            set(stateReducer(get(), { type: 'CONNECTION_ESTABLISHED', clientId: 'legacy-client' }));
-          }
-        } else {
-          get().dispatch({ type: 'CONNECTION_LOST' });
-        }
-      },
-      
-      setIsLoading: (loading: boolean) => {
-        console.warn('setIsLoading is deprecated. Use dispatch with START_GAME action instead.');
-        // Can only set loading to true, not false (it's derived from session state)
-        if (loading && get().session.type === 'no-game' && isConnected(get().connection)) {
-          get().dispatch({ type: 'START_GAME' });
-        }
-        // Else: no-op (can't force loading state)
-      },
-      
-      setIsCreatingGame: (creating: boolean) => {
-        console.warn('setIsCreatingGame is deprecated. Use dispatch with START_GAME action instead.');
-        // Same as setIsLoading - it's derived state
-        if (creating && get().session.type === 'no-game' && isConnected(get().connection)) {
-          get().dispatch({ type: 'START_GAME' });
-        }
-        // Else: no-op (can't force creating state)
-      },
-      
-      setError: (error: string | null) => {
-        console.warn('setError is deprecated. Use dispatch with NOTIFICATION_ADDED action instead.');
-        if (error) {
-          get().dispatch({
-            type: 'NOTIFICATION_ADDED',
-            notification: {
-              id: crypto.randomUUID(),
-              type: 'error',
-              message: error,
-              timestamp: new Date()
-            }
-          });
-        }
-      },
-      
-      setSelectedHistoryIndex: (index: number | null) => {
-        console.warn('setSelectedHistoryIndex is deprecated. Use dispatch with HISTORY_INDEX_SET action instead.');
-        get().dispatch({ type: 'HISTORY_INDEX_SET', index });
-      },
-      
-      reset: () => {
-        console.warn('reset is deprecated. Use dispatch with RESET_GAME action instead.');
-        // Use dispatch to go through proper state transitions
-        get().dispatch({ type: 'RESET_GAME' });
-      },
-      
-      // Legacy compatibility getters
-      get gameId() {
-        return get().getCurrentGameId();
-      },
-      
-      get gameState() {
-        return get().getCurrentGameState();
-      },
-      
-      get gameSettings() {
-        return get().settings.gameSettings;
-      },
-      
-      get isLoading() {
-        return get().session.type === 'creating-game';
-      },
-      
-      get isCreatingGame() {
-        return get().session.type === 'creating-game';
-      },
-      
-      get error() {
+      getLatestError: () => {
         const notifications = get().ui.notifications;
         const lastError = notifications
           .filter(n => n.type === 'error')
@@ -277,8 +151,12 @@ export const useGameStore = create<GameStore>()(
         return lastError?.message || null;
       },
       
-      get selectedHistoryIndex() {
+      getSelectedHistoryIndex: () => {
         return get().ui.selectedHistoryIndex;
+      },
+      
+      getIsLoading: () => {
+        return get().session.type === 'creating-game';
       }
     }),
     {
@@ -302,21 +180,3 @@ export const useGameStore = create<GameStore>()(
   )
 );
 
-/**
- * Helper function to create an empty game state for legacy compatibility
- */
-function createEmptyGameState(): GameState {
-  return {
-    board_size: 9,
-    current_player: 0,
-    players: [
-      { x: 4, y: 0 },
-      { x: 4, y: 8 }
-    ],
-    walls: [],
-    walls_remaining: [10, 10],
-    legal_moves: [],
-    winner: null,
-    move_history: []
-  };
-}

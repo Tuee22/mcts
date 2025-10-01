@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useGameStore } from './store/gameStore';
 import { wsService } from './services/websocket';
+import { getTabManager, cleanupTabManager } from './services/tabManager';
 import { GameBoard } from './components/GameBoard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameSettings } from './components/GameSettings';
@@ -15,14 +16,18 @@ function App() {
   const { gameSettings } = store.settings;
   const isConnected = store.isConnected();
   
-  // Handle connection lifecycle
+  // Handle connection lifecycle and tab management
   useEffect(() => {
+    // Initialize tab manager
+    const tabManager = getTabManager();
+    
     wsService.connect();
     store.dispatch({ type: 'CONNECTION_START' });
     
     return () => {
       wsService.disconnect();
       store.dispatch({ type: 'CONNECTION_LOST' });
+      cleanupTabManager();
     };
   }, []);
 
@@ -41,13 +46,39 @@ function App() {
             fontSize: '10px',
           },
         });
+      } else if (notification.type === 'warning') {
+        toast(notification.message, {
+          id: notification.id,
+          duration: 6000,
+          icon: '⚠️',
+          style: {
+            background: '#ffaa00',
+            color: '#000000',
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: '10px',
+          },
+        });
       }
-      // Remove notification after displaying
-      setTimeout(() => {
-        store.dispatch({ type: 'NOTIFICATION_REMOVED', id: notification.id });
-      }, 4000);
+      // Remove notification after displaying (except persistent ones)
+      if (notification.id !== 'multi-tab-conflict') {
+        setTimeout(() => {
+          store.dispatch({ type: 'NOTIFICATION_REMOVED', id: notification.id });
+        }, notification.type === 'warning' ? 6000 : 4000);
+      }
     });
   }, [store.ui.notifications]);
+
+  // Handle tab manager integration with game state
+  useEffect(() => {
+    const tabManager = getTabManager();
+    const gameId = store.getCurrentGameId();
+    
+    if (gameId) {
+      tabManager.notifyGameCreated(gameId);
+    } else {
+      tabManager.notifyGameEnded();
+    }
+  }, [store.getCurrentGameId()]);
 
   // Handle AI moves for AI games
   useEffect(() => {

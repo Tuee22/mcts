@@ -173,10 +173,11 @@ export function legacySetterToDispatch(setter: string, value: any): any {
 }
 
 /**
- * Helper to setup a game creation flow
+ * Helper to setup a game creation flow following proper state machine
  */
 export function setupGameCreation(dispatch: Function, gameId: string, state: GameState = defaultGameState) {
-  // Ensure connected
+  // Follow proper connection flow: disconnected -> connecting -> connected
+  dispatch({ type: 'CONNECTION_START' });
   dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
   // Start creation
   dispatch({ type: 'START_GAME' });

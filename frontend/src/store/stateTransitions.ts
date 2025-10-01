@@ -357,12 +357,24 @@ function handleResetGame(state: AppState): AppState {
     ? state.ui.notifications.filter(n => n.type === 'error') // Keep error info when disconnected
     : []; // Clear notifications when connected
   
-  // Reset to no-game state while preserving connection and settings
+  // Reset game settings to defaults
+  const defaultSettings = {
+    gameSettings: {
+      mode: 'human_vs_ai' as const,
+      ai_difficulty: 'medium' as const,
+      ai_time_limit: 5000,
+      board_size: 9
+    },
+    theme: state.settings.theme, // Preserve non-game settings
+    soundEnabled: state.settings.soundEnabled // Preserve non-game settings
+  };
+  
+  // Reset to no-game state while preserving connection but resetting game data
   return {
     ...state,
     connection: state.connection, // Preserve entire connection state
     session: { type: 'no-game' },
-    settings: state.settings, // Preserve user settings for better UX
+    settings: defaultSettings, // Reset game settings to defaults
     ui: {
       ...state.ui,
       selectedHistoryIndex: null,

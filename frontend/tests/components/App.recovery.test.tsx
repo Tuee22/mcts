@@ -67,7 +67,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
         };
       }
     }),
-    isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
+    isConnected: vi.fn(() => store.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
       if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
         return mockGameStore.session.gameId;
@@ -80,16 +80,22 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
       }
       return null;
     }),
-    canStartGame: vi.fn(() => false),
+    canStartGame: vi.fn(() => {
+      // Can start game when connected and no active session
+      const connected = mockGameStore.connection.type === 'connected';
+      const noActiveSession = mockGameStore.session.type === 'no-game';
+      return connected && noActiveSession;
+    }),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => false),
+    getIsLoading: vi.fn(() => mockGameStore.session.type === 'creating-game'),
+    getLatestError: vi.fn(() => null),
+    getSelectedHistoryIndex: vi.fn(() => mockGameStore.ui.selectedHistoryIndex),
     
     // Legacy compatibility
     gameId: null,
     gameState: null,
     gameSettings: { mode: 'human_vs_ai', ai_difficulty: 'medium', ai_time_limit: 5000, board_size: 9 },
-    isLoading: false,
-    isCreatingGame: false,
     error: null,
     selectedHistoryIndex: null,
     // setGameId removed - use dispatch,
@@ -134,7 +140,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
       store.gameState = null;
     }
     store.gameSettings = store.settings.gameSettings;
-    store.isConnected.mockReturnValue(store.connection.type === 'connected');
+    // isConnected() method is now dynamic and reads current state
     store.error = store.connection.lastError;
     store.selectedHistoryIndex = store.ui.selectedHistoryIndex;
     
@@ -474,16 +480,23 @@ describe('App Connection Recovery Tests', () => {
     });
 
     it('should prevent multiple game creation attempts during loading', async () => {
-      // Set initial state: connected but loading and creating game
+      // Set initial state: connected and creating game
       updateStoreAndRerender({
         connection: {
           type: 'connected' as const,
           clientId: 'test-client',
           since: new Date()
         },
-        session: { type: 'no-game' as const },
-        isLoading: true,
-        isCreatingGame: true
+        session: { 
+          type: 'creating-game' as const,
+          requestId: 'test-request',
+          settings: {
+            mode: 'human_vs_ai',
+            ai_difficulty: 'medium',
+            ai_time_limit: 5000,
+            board_size: 9
+          }
+        }
       });
 
       render(<App />);
@@ -544,7 +557,7 @@ describe('App Connection Recovery Tests', () => {
         }
       });
 
-      render(<App />);
+      const { rerender } = render(<App />);
 
       expect(screen.getByTestId('game-board-mock')).toBeInTheDocument();
 
@@ -553,10 +566,12 @@ describe('App Connection Recovery Tests', () => {
         connection: {
           type: 'connected' as const,
           clientId: 'test-client',
-          since: new Date(),
-          lastError: null
+          since: new Date()
         }
-      });
+      }, () => rerender(<App />));
+
+      // Wait for any state updates to propagate
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Game should remain visible and functional
       expect(screen.getByTestId('game-board-mock')).toBeInTheDocument();
@@ -665,20 +680,22 @@ describe('App Connection Recovery Tests', () => {
         }
       });
 
-      render(<App />);
+      const { rerender } = render(<App />);
 
       // Test error handling without complex state timing
       updateStoreAndRerender({
         connection: {
           type: 'connected' as const,
           clientId: 'test-client',
-          since: new Date(),
-          lastError: null
+          since: new Date()
         },
         ui: {
           notifications: []
         }
-      });
+      }, () => rerender(<App />));
+
+      // Wait for any state updates to propagate
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       // Test that the app continues to function
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');

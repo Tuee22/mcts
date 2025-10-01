@@ -39,6 +39,7 @@ const createMockStore = () => {
     getCurrentGameId: () => state.gameId,
     getCurrentGameState: () => state.gameState,
     isConnected: () => state.isConnected,
+    getLatestError: () => state.error,
     get isLoading() { return state.isLoading; },
     get error() { return state.error; },
     get settings() { return state.settings; },
@@ -573,7 +574,19 @@ describe('Game Store Persistence Tests', () => {
       const { result } = renderHook(() => useGameStore());
 
       act(() => {
-        result.current.setError('Some error');
+        // Add error notification using functional API
+        result.current.dispatch({
+          type: 'NOTIFICATION_ADDED',
+          notification: {
+            id: crypto.randomUUID(),
+            type: 'error',
+            message: 'Some error',
+            timestamp: new Date()
+          }
+        });
+        
+        // Set up connection and game
+        result.current.dispatch({ type: 'CONNECTION_START' });
         result.current.dispatch({
           type: 'CONNECTION_ESTABLISHED',
           clientId: 'test-client'
@@ -584,10 +597,9 @@ describe('Game Store Persistence Tests', () => {
           gameId: 'reset-test',
           state: {
             board_size: 9,
-            players: [{ row: 0, col: 4 }, { row: 8, col: 4 }],
+            players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
             current_player: 0,
             winner: null,
-            is_terminal: false,
             walls: [],
             legal_moves: [],
             move_history: [],
@@ -600,13 +612,13 @@ describe('Game Store Persistence Tests', () => {
       expect(result.current.isConnected()).toBe(true);
 
       act(() => {
-        result.current.reset();
+        result.current.dispatch({ type: 'RESET_GAME' });
       });
 
       // Game state should be reset
       expect(result.current.getCurrentGameId()).toBeNull();
       expect(result.current.getCurrentGameState()).toBeNull();
-      expect(result.current.error).toBeNull();
+      expect(result.current.getLatestError()).toBeNull();
       // Connection preserved
       expect(result.current.isConnected()).toBe(true);
       // Settings reset to defaults
