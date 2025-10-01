@@ -175,7 +175,7 @@ class WebSocketService {
             if (data.data && data.data.game_id === this.currentGameId) {
               const gameState = this.transformApiResponseToGameState(data.data);
               if (gameState) {
-                useGameStore.getState().setGameState(gameState);
+                useGameStore.getState().dispatch({ type: 'GAME_STATE_UPDATED', state: gameState });
               }
             }
             break;
@@ -190,13 +190,21 @@ class WebSocketService {
             if (data.data && data.data.game_id === this.currentGameId) {
               const gameState = this.transformApiResponseToGameState(data.data);
               if (gameState) {
-                useGameStore.getState().setGameState(gameState);
+                useGameStore.getState().dispatch({ type: 'GAME_STATE_UPDATED', state: gameState });
               }
             }
             break;
           case 'error':
             if (data.error) {
-              useGameStore.getState().setError(data.error);
+              useGameStore.getState().dispatch({ 
+                type: 'NOTIFICATION_ADDED', 
+                notification: { 
+                  id: Date.now().toString(), 
+                  type: 'error', 
+                  message: data.error, 
+                  timestamp: new Date() 
+                } 
+              });
             }
             break;
           default:
@@ -341,11 +349,18 @@ class WebSocketService {
   async createGame(settings: any) {
     try {
       if (!this.isConnected()) {
-        useGameStore.getState().setError('Not connected to server');
+        useGameStore.getState().dispatch({ 
+          type: 'NOTIFICATION_ADDED', 
+          notification: { 
+            id: Date.now().toString(), 
+            type: 'error', 
+            message: 'Not connected to server', 
+            timestamp: new Date() 
+          } 
+        });
         return;
       }
 
-      useGameStore.getState().setIsLoading(true);
 
       // Create game via REST API instead of WebSocket
       const gameRequest = {
@@ -373,36 +388,50 @@ class WebSocketService {
 
       const gameData = await response.json();
 
-      // Set game ID and state
-      useGameStore.getState().setGameId(gameData.game_id);
-
-      // Transform API response to GameState if we have the data
+      // Transform API response to GameState and create game
       if (gameData) {
         const gameState = this.transformApiResponseToGameState(gameData);
         if (gameState) {
-          useGameStore.getState().dispatch({ type: 'GAME_STATE_UPDATED', state: gameState });
+          useGameStore.getState().dispatch({ 
+            type: 'GAME_CREATED', 
+            gameId: gameData.game_id, 
+            state: gameState 
+          });
         }
       }
 
-      useGameStore.getState().setIsLoading(false);
 
       // Connect to game-specific WebSocket for real-time updates
       this.connectToGame(gameData.game_id);
 
     } catch (error) {
       console.error('Error creating game:', error);
-      useGameStore.getState().setError(`Failed to create game: ${error}`);
-      useGameStore.getState().setIsLoading(false);
+      useGameStore.getState().dispatch({ 
+        type: 'NOTIFICATION_ADDED', 
+        notification: { 
+          id: Date.now().toString(), 
+          type: 'error', 
+          message: `Failed to create game: ${error}`, 
+          timestamp: new Date() 
+        } 
+      });
     }
   }
 
   joinGame(gameId: string) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      useGameStore.getState().setError('Not connected to server');
+      useGameStore.getState().dispatch({ 
+        type: 'NOTIFICATION_ADDED', 
+        notification: { 
+          id: Date.now().toString(), 
+          type: 'error', 
+          message: 'Not connected to server', 
+          timestamp: new Date() 
+        } 
+      });
       return;
     }
 
-    useGameStore.getState().setIsLoading(true);
     this.socket.send(JSON.stringify({
       type: 'join_game',
       game_id: gameId
@@ -412,7 +441,15 @@ class WebSocketService {
   async makeMove(gameId: string, move: string) {
     try {
       if (!this.isConnected()) {
-        useGameStore.getState().setError('Not connected to server');
+        useGameStore.getState().dispatch({ 
+          type: 'NOTIFICATION_ADDED', 
+          notification: { 
+            id: Date.now().toString(), 
+            type: 'error', 
+            message: 'Not connected to server', 
+            timestamp: new Date() 
+          } 
+        });
         return;
       }
 
@@ -432,20 +469,36 @@ class WebSocketService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const moveData = await response.json();
+      await response.json();
 
       // Request updated game state after successful move
       await this.requestGameState(gameId);
 
     } catch (error) {
       console.error('Error making move:', error);
-      useGameStore.getState().setError(`Failed to make move: ${error}`);
+      useGameStore.getState().dispatch({ 
+        type: 'NOTIFICATION_ADDED', 
+        notification: { 
+          id: Date.now().toString(), 
+          type: 'error', 
+          message: `Failed to make move: ${error}`, 
+          timestamp: new Date() 
+        } 
+      });
     }
   }
 
   getAIMove(gameId: string) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      useGameStore.getState().setError('Not connected to server');
+      useGameStore.getState().dispatch({ 
+        type: 'NOTIFICATION_ADDED', 
+        notification: { 
+          id: Date.now().toString(), 
+          type: 'error', 
+          message: 'Not connected to server', 
+          timestamp: new Date() 
+        } 
+      });
       return;
     }
 

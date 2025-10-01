@@ -36,9 +36,6 @@ export const GameSettings: React.FC = () => {
     }
 
     try {
-      // Dispatch start game action
-      store.dispatch({ type: 'START_GAME' });
-
       const settingsInput: GameSettingsInput = {
         mode: gameSettings.mode,
         ai_difficulty: gameSettings.ai_difficulty,

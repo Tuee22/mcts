@@ -17,7 +17,7 @@ export interface TabRegistry {
   lastUpdate: number;
 }
 
-interface TabCoordinationResult {
+export interface TabCoordinationResult {
   isPrimary: boolean;
   shouldShowConflictWarning: boolean;
   conflictMessage?: string;
@@ -77,10 +77,10 @@ export function updateTabInRegistry(
     tabs: {
       ...registry.tabs,
       [tabId]: {
+        ...registry.tabs[tabId],
         id: tabId,
         timestamp: currentTime,
         isVisible: true,
-        ...registry.tabs[tabId],
         ...update
       }
     },

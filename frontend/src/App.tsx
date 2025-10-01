@@ -17,14 +17,14 @@ import './App.css';
 
 function App() {
   const store = useGameStore();
-  const { connection, session } = store;
+  const { session } = store;
   const { gameSettings } = store.settings;
   const isConnected = store.isConnected();
   
   // Handle connection lifecycle and tab coordination
   useEffect(() => {
     // Initialize functional tab coordinator
-    const coordinator = initializeTabCoordinator((result: TabCoordinationResult) => {
+    initializeTabCoordinator((result: TabCoordinationResult) => {
       if (result.shouldShowConflictWarning && result.conflictMessage) {
         // Handle multi-tab conflict functionally
         if (!result.isPrimary) {
@@ -64,7 +64,7 @@ function App() {
       store.dispatch({ type: 'CONNECTION_LOST' });
       cleanupTabCoordinator();
     };
-  }, []);
+  }, [store]);
 
   // Handle notifications
   useEffect(() => {
@@ -101,7 +101,7 @@ function App() {
         }, notification.type === 'warning' ? 6000 : 4000);
       }
     });
-  }, [store.ui.notifications]);
+  }, [store.ui.notifications, store]);
 
   // Handle tab coordinator integration with game state
   useEffect(() => {
@@ -115,7 +115,7 @@ function App() {
         coordinator.notifyGameEnded();
       }
     }
-  }, [store.getCurrentGameId()]);
+  }, [store]);
 
   // Handle AI moves for AI games
   useEffect(() => {
@@ -149,21 +149,6 @@ function App() {
           </div>
         );
       
-      case 'creating-game':
-        return (
-          <div className="game-setup" data-testid="game-setup">
-            <GameSettings />
-            <div className="loading-message">Creating game...</div>
-          </div>
-        );
-      
-      case 'joining-game':
-        return (
-          <div className="game-loading" data-testid="game-loading">
-            <GameSettings />
-            <div className="loading-message">Joining game...</div>
-          </div>
-        );
       
       case 'active-game':
         return (
@@ -226,14 +211,6 @@ function App() {
                 </button>
               </div>
             </div>
-          </div>
-        );
-      
-      case 'game-ending':
-        return (
-          <div className="game-loading" data-testid="game-loading">
-            <GameSettings />
-            <div className="loading-message">Ending game...</div>
           </div>
         );
       

@@ -18,7 +18,7 @@ import {
   canStartGame as canStartGameCheck,
   canMakeMove as canMakeMoveCheck
 } from '../types/appState';
-import { GameState, GameSettings } from '../types/game';
+import { GameState } from '../types/game';
 import { stateReducer, getSettingsUIState } from './stateTransitions';
 
 /**
@@ -124,7 +124,6 @@ export const useGameStore = create<GameStore>()(
         const session = get().session;
         switch (session.type) {
           case 'active-game':
-          case 'game-ending':
           case 'game-over':
             return session.gameId;
           default:
@@ -156,7 +155,7 @@ export const useGameStore = create<GameStore>()(
       },
       
       getIsLoading: () => {
-        return get().session.type === 'creating-game';
+        return false; // No loading states in simplified state machine
       }
     }),
     {

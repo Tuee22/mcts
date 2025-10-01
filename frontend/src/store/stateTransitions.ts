@@ -5,8 +5,6 @@
 
 import {
   AppState,
-  ConnectionState,
-  GameSession,
   SettingsUIState,
   StateAction,
   exhaustiveCheck,
@@ -151,10 +149,8 @@ function handleConnectionEstablished(state: AppState, clientId: string): AppStat
 }
 
 function handleConnectionLost(state: AppState, error?: string): AppState {
-  // If game was creating, mark it as failed
-  const session = state.session.type === 'creating-game'
-    ? { type: 'no-game' } as GameSession
-    : state.session;
+  // With simplified state machine, no intermediate states to handle
+  const session = state.session;
   
   return {
     ...state,
@@ -175,10 +171,9 @@ function handleConnectionRetry(state: AppState): AppState {
     return state;
   }
   
-  const lastClientId = state.connection.type === 'disconnected' ? undefined :
-                       state.connection.type === 'connected' ? state.connection.clientId :
-                       state.connection.type === 'reconnecting' ? state.connection.lastClientId :
-                       undefined;
+  // Since we already know state.connection.type === 'disconnected', 
+  // lastClientId is always undefined
+  const lastClientId = undefined;
   
   if (!lastClientId) {
     return handleConnectionStart(state);
@@ -420,7 +415,7 @@ export function getSettingsUIState(state: AppState): SettingsUIState {
   
   // If settings are explicitly expanded, show panel
   if (state.ui.settingsExpanded) {
-    const isCreating = state.session.type === 'creating-game';
+    const isCreating = false; // No creating state in simplified state machine
     const canStart = connected && state.session.type === 'no-game';
     return { type: 'panel-visible', canStartGame: canStart, isCreating };
   }
@@ -434,16 +429,7 @@ export function getSettingsUIState(state: AppState): SettingsUIState {
         isCreating: false 
       };
     
-    case 'creating-game':
-      return { 
-        type: 'panel-visible', 
-        canStartGame: false,
-        isCreating: true 
-      };
-    
-    case 'joining-game':
     case 'active-game':
-    case 'game-ending':
     case 'game-over':
       return { 
         type: 'button-visible', 
@@ -497,10 +483,7 @@ export function validateStateTransition(
     throw new Error(`Invalid action: RESET_GAME not allowed when canReset is false`);
   }
   
-  // Validate game creation constraints
-  if (nextSession === 'creating-game' && !isConnected(nextState.connection)) {
-    throw new Error(`Invalid state: cannot be creating-game while disconnected`);
-  }
+  // No validation needed for simplified state machine
 }
 
 /**
@@ -511,17 +494,11 @@ export function validateAppState(state: AppState): void {
   // Connection state validation
   switch (state.connection.type) {
     case 'disconnected':
-      // No session allowed when disconnected except game-over
-      if (state.session.type === 'creating-game' || state.session.type === 'joining-game') {
-        throw new Error('Cannot create or join game while disconnected');
-      }
+      // With simplified state machine, no intermediate states to validate
       break;
     case 'connecting':
     case 'reconnecting':
-      // Creating game not allowed during connection attempts
-      if (state.session.type === 'creating-game') {
-        throw new Error('Cannot create game while connecting');
-      }
+      // With simplified state machine, no intermediate states to validate
       break;
     case 'connected':
       // All session states valid when connected
@@ -538,26 +515,11 @@ export function validateAppState(state: AppState): void {
         throw new Error('Cannot have history index without active game');
       }
       break;
-    case 'creating-game':
-      // Must be connected to create game
-      if (!isConnected(state.connection)) {
-        throw new Error('Must be connected to create game');
-      }
-      break;
-    case 'joining-game':
-      // Must be connected to join game
-      if (!isConnected(state.connection)) {
-        throw new Error('Must be connected to join game');
-      }
-      break;
     case 'active-game':
       // Game state must be present and not terminal
       if (state.session.state.winner !== null) {
         throw new Error('Active game cannot have winner');
       }
-      break;
-    case 'game-ending':
-      // Transitional state - no specific validation
       break;
     case 'game-over':
       // Must have a winner
