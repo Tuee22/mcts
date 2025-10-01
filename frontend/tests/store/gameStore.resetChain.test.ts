@@ -38,25 +38,23 @@ describe('GameStore Reset Chain Tests (Bug-detecting)', () => {
   });
 
   describe('Reset During Active Operations', () => {
-    it('should handle reset during game creation (loading state)', () => {
-      // Set up loading state as if game creation is in progress
+    it('should handle reset during game creation', () => {
+      // Set up connected state (no intermediate loading state in simplified machine)
       getStore().dispatch({ type: 'CONNECTION_START' });
       getStore().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'test-client' });
-      getStore().dispatch({ type: 'START_GAME' });
       getStore().dispatch({ 
         type: 'SETTINGS_UPDATED', 
         settings: { mode: 'human_vs_ai', ai_difficulty: 'hard', board_size: 7 } 
       });
 
-      // Verify loading state
-      expect(getStore().getIsLoading()).toBe(true);
+      // Verify connected state
       expect(getStore().isConnected()).toBe(true);
 
-      // Reset during loading (user clicks New Game while creation in progress)
+      // Reset while connected (user resets before creating game)  
       getStore().dispatch({ type: 'RESET_GAME' });
 
-      // Loading should be cleared, connection preserved, settings reset to defaults
-      expect(getStore().getIsLoading()).toBe(false); // Loading cleared
+      // Connection preserved, settings reset to defaults
+      expect(getStore().getIsLoading()).toBe(false); // No loading state
       expect(getStore().isConnected()).toBe(true); // Connection preserved (canReset=true for connected state)
       expect(getStore().getCurrentGameId()).toBe(null); // Game data cleared
       expect(getStore().settings.gameSettings).toEqual({

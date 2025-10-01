@@ -16,14 +16,12 @@ export type ConnectionState =
   | { type: 'reconnecting'; lastClientId: string; attemptNumber: number; canReset: false };
 
 /**
- * Game session state machine - all possible game states
+ * Simplified Game session state machine - removes problematic intermediate states
+ * Transitions should be immediate to prevent race conditions
  */
 export type GameSession =
   | { type: 'no-game' }
-  | { type: 'creating-game'; requestId: string; settings: GameSettings }
-  | { type: 'joining-game'; gameId: string }
   | { type: 'active-game'; gameId: string; state: GameState; lastSync: Date }
-  | { type: 'game-ending'; gameId: string; reason: 'new-game' | 'disconnect' | 'complete' }
   | { type: 'game-over'; gameId: string; state: GameState; winner: Player };
 
 /**
@@ -81,14 +79,11 @@ export type StateAction =
   | { type: 'CONNECTION_LOST'; error?: string }
   | { type: 'CONNECTION_RETRY' }
   
-  // Game session actions
-  | { type: 'START_GAME' }
+  // Game session actions - simplified to prevent illegal states
   | { type: 'GAME_CREATED'; gameId: string; state: GameState }
   | { type: 'GAME_CREATE_FAILED'; error: string }
-  | { type: 'NEW_GAME_CLICKED' }
-  | { type: 'GAME_ENDED'; reason: 'complete' | 'disconnect' }
+  | { type: 'NEW_GAME_REQUESTED' }  // Direct transition to no-game
   | { type: 'GAME_STATE_UPDATED'; state: GameState }
-  | { type: 'GAME_ENDING_COMPLETE' }
   | { type: 'RESET_GAME' }  // Reset game while preserving connection and settings
   
   // Settings actions
@@ -136,4 +131,54 @@ export function canMakeMove(state: AppState): boolean {
   return isConnected(state.connection) && 
          isGameActive(state.session) && 
          state.session.state.winner === null;
+}
+
+/**
+ * Pure functional derivations for UI state
+ * These functions make UI state predictable and testable
+ */
+
+export function deriveSettingsUIState(state: AppState): SettingsUIState {
+  // Settings are a panel when no game is active
+  if (state.session.type === 'no-game') {
+    return {
+      type: 'panel-visible',
+      canStartGame: isConnected(state.connection),
+      isCreating: false
+    };
+  }
+
+  // Settings are a button during active gameplay or game over
+  if (state.session.type === 'active-game' || state.session.type === 'game-over') {
+    return {
+      type: 'button-visible',
+      enabled: isConnected(state.connection)
+    };
+  }
+
+  // This case should never happen with the simplified state machine
+  return exhaustiveCheck(state.session);
+}
+
+export function deriveConnectionDisplayText(state: ConnectionState): string {
+  switch (state.type) {
+    case 'disconnected':
+      return 'Disconnected';
+    case 'connecting':
+      return 'Connecting...';
+    case 'connected':
+      return 'Connected';
+    case 'reconnecting':
+      return 'Reconnecting...';
+    default:
+      return exhaustiveCheck(state);
+  }
+}
+
+export function shouldShowGameContainer(session: GameSession): boolean {
+  return session.type === 'active-game' || session.type === 'game-over';
+}
+
+export function shouldShowGameSetup(state: AppState): boolean {
+  return state.session.type === 'no-game';
 }

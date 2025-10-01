@@ -85,7 +85,8 @@ core.*
 core.[0-9]*
 
 # IDE and editor files
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

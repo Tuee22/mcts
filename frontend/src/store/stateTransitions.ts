@@ -40,11 +40,7 @@ export function stateReducer(state: AppState, action: StateAction): AppState {
       newState = handleConnectionRetry(state);
       break;
     
-    // Game session actions
-    case 'START_GAME':
-      newState = handleStartGame(state);
-      break;
-    
+    // Game session actions - simplified
     case 'GAME_CREATED':
       newState = handleGameCreated(state, action.gameId, action.state);
       break;
@@ -53,20 +49,12 @@ export function stateReducer(state: AppState, action: StateAction): AppState {
       newState = handleGameCreateFailed(state, action.error);
       break;
     
-    case 'NEW_GAME_CLICKED':
-      newState = handleNewGameClick(state);
-      break;
-    
-    case 'GAME_ENDED':
-      newState = handleGameEnded(state, action.reason);
+    case 'NEW_GAME_REQUESTED':
+      newState = handleNewGameRequested(state);
       break;
     
     case 'GAME_STATE_UPDATED':
       newState = handleGameStateUpdated(state, action.state);
-      break;
-    
-    case 'GAME_ENDING_COMPLETE':
-      newState = handleGameEndingComplete(state);
       break;
     
     case 'RESET_GAME':
@@ -204,26 +192,10 @@ function handleConnectionRetry(state: AppState): AppState {
 
 // Game session state transitions
 
-function handleStartGame(state: AppState): AppState {
-  // Can only start from no-game state when connected
-  if (!isConnected(state.connection) || state.session.type !== 'no-game') {
-    return state;
-  }
-  
-  const requestId = crypto.randomUUID();
-  return {
-    ...state,
-    session: { 
-      type: 'creating-game', 
-      requestId, 
-      settings: state.settings.gameSettings 
-    }
-  };
-}
-
 function handleGameCreated(state: AppState, gameId: string, gameState: GameState): AppState {
-  if (state.session.type !== 'creating-game') {
-    return state; // Unexpected game creation
+  // Only create from no-game state to prevent race conditions
+  if (state.session.type !== 'no-game') {
+    return state;
   }
   
   return {
@@ -245,13 +217,9 @@ function handleGameCreated(state: AppState, gameId: string, gameState: GameState
 }
 
 function handleGameCreateFailed(state: AppState, error: string): AppState {
-  if (state.session.type !== 'creating-game') {
-    return state;
-  }
-  
+  // Add error notification but keep session state as-is
   return {
     ...state,
-    session: { type: 'no-game' },
     ui: {
       ...state.ui,
       notifications: [
@@ -262,48 +230,16 @@ function handleGameCreateFailed(state: AppState, error: string): AppState {
   };
 }
 
-function handleNewGameClick(state: AppState): AppState {
-  if (!isGameActive(state.session)) {
-    return state;
-  }
-  
-  return {
-    ...state,
-    session: {
-      type: 'game-ending',
-      gameId: state.session.gameId,
-      reason: 'new-game'
-    }
-  };
-}
-
-function handleGameEnded(state: AppState, reason: 'complete' | 'disconnect'): AppState {
-  if (!isGameActive(state.session)) {
-    return state;
-  }
-  
-  const winner = state.session.state.winner;
-  
-  if (winner !== null) {
+function handleNewGameRequested(state: AppState): AppState {
+  // Direct transition to no-game state - no intermediate states
+  if (state.session.type === 'active-game' || state.session.type === 'game-over') {
     return {
       ...state,
-      session: {
-        type: 'game-over',
-        gameId: state.session.gameId,
-        state: state.session.state,
-        winner
-      }
+      session: { type: 'no-game' }
     };
   }
   
-  return {
-    ...state,
-    session: {
-      type: 'game-ending',
-      gameId: state.session.gameId,
-      reason
-    }
-  };
+  return state;
 }
 
 function handleGameStateUpdated(state: AppState, gameState: GameState): AppState {
@@ -331,17 +267,6 @@ function handleGameStateUpdated(state: AppState, gameState: GameState): AppState
       state: gameState,
       lastSync: new Date()
     }
-  };
-}
-
-function handleGameEndingComplete(state: AppState): AppState {
-  if (state.session.type !== 'game-ending') {
-    return state;
-  }
-  
-  return {
-    ...state,
-    session: { type: 'no-game' }
   };
 }
 
@@ -553,18 +478,18 @@ export function validateStateTransition(
     throw new Error(`Invalid transition: connecting can only go to disconnected via CONNECTION_LOST`);
   }
   
-  // Session state machine rules  
+  // Session state machine rules (simplified)
   const prevSession = prevState.session.type;
   const nextSession = nextState.session.type;
   
-  if (prevSession === 'no-game' && nextSession === 'active-game') {
-    throw new Error(`Invalid transition: cannot go directly from no-game to active-game (must go through creating-game)`);
-  }
-  if (prevSession === 'active-game' && nextSession === 'no-game' && action.type !== 'RESET_GAME') {
-    throw new Error(`Invalid transition: active-game can only go directly to no-game via RESET_GAME`);
-  }
-  if (prevSession === 'game-over' && nextSession === 'active-game') {
-    throw new Error(`Invalid transition: cannot go from game-over to active-game (must start new game)`);
+  // With simplified state machine, these transitions are allowed:
+  // no-game -> active-game (via GAME_CREATED)
+  // active-game -> no-game (via NEW_GAME_REQUESTED or RESET_GAME)
+  // active-game -> game-over (via GAME_STATE_UPDATED with winner)
+  // game-over -> no-game (via NEW_GAME_REQUESTED or RESET_GAME)
+  
+  if (prevSession === 'no-game' && nextSession === 'active-game' && action.type !== 'GAME_CREATED') {
+    throw new Error(`Invalid transition: no-game can only transition to active-game via GAME_CREATED`);
   }
   
   // Validate reset action constraints

@@ -25,12 +25,14 @@ from pydantic import ValidationError
 from backend.api.game_manager import GameManager
 from corridors.async_mcts import ConcurrencyViolationError
 from backend.api.models import (
+    BoardStateResponse,
     GameCreateRequest,
     GameListResponse,
     GameResponse,
     GameSession,
     GameSettings,
     GameStatus,
+    LegalMovesResponse,
     MoveRequest,
     MoveResponse,
     Player,
@@ -112,6 +114,15 @@ def get_game_status(game: GameState) -> str:
             return GameStatus.COMPLETED.value
         case WaitingGame():
             return GameStatus.WAITING.value
+
+
+def get_game_winner(game: GameState) -> Optional[int]:
+    """Get game winner using pattern matching."""
+    match game:
+        case CompletedGame():
+            return game.winner
+        case _:
+            return None
 
 
 def get_opponent_name(game: GameState, player_id: str) -> Optional[str]:
@@ -446,10 +457,10 @@ async def make_move(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/games/{game_id}/legal-moves")
+@app.get("/games/{game_id}/legal-moves", response_model=LegalMovesResponse)
 async def get_legal_moves(
     game_id: str, player_id: Optional[str] = None
-) -> Dict[str, Union[str, int, List[str]]]:
+) -> LegalMovesResponse:
     """Get all legal moves for the current position."""
     if game_manager is None:
         raise HTTPException(status_code=500, detail="Server not initialized")
@@ -463,11 +474,13 @@ async def get_legal_moves(
             raise HTTPException(status_code=403, detail="Not a player in this game")
 
         legal_moves = await game_manager.get_legal_moves(game_id)
-        return {
-            "game_id": game_id,
-            "current_player": get_game_current_turn(game) or 0,
-            "legal_moves": legal_moves,
-        }
+        return LegalMovesResponse(
+            game_id=game_id,
+            current_player=get_game_current_turn(game) or 0,
+            legal_moves=legal_moves,
+            status=get_game_status(game),
+            winner=get_game_winner(game),
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -475,10 +488,10 @@ async def get_legal_moves(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/games/{game_id}/board")
+@app.get("/games/{game_id}/board", response_model=BoardStateResponse)
 async def get_board_state(
     game_id: str, player_id: Optional[str] = None, flip: bool = False
-) -> Dict[str, Union[str, int, Optional[str], Optional[int]]]:
+) -> BoardStateResponse:
     """Get the current board state visualization."""
     if game_manager is None:
         raise HTTPException(status_code=500, detail="Server not initialized")
@@ -488,13 +501,14 @@ async def get_board_state(
             raise HTTPException(status_code=404, detail="Game not found")
 
         board_display = await game_manager.get_board_display(game_id, flip)
-        return {
-            "game_id": game_id,
-            "board": board_display,
-            "current_turn": get_game_current_turn(game),
-            "move_count": get_game_move_count(game),
-            "status": get_game_status(game),
-        }
+        return BoardStateResponse(
+            game_id=game_id,
+            board=board_display,
+            current_turn=get_game_current_turn(game),
+            move_count=get_game_move_count(game),
+            status=get_game_status(game),
+            winner=get_game_winner(game),
+        )
     except HTTPException:
         raise
     except Exception as e:

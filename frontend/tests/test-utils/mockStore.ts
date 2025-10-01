@@ -22,13 +22,11 @@ export interface MockStoreState {
   };
   
   session: {
-    type: 'no-game' | 'creating-game' | 'joining-game' | 'active-game' | 'game-ending' | 'game-over';
+    type: 'no-game' | 'active-game' | 'game-over';
     gameId?: string;
     state?: GameState;
     winner?: number;
-    finalState?: GameState;
     lastSync?: Date;
-    endedAt?: Date;
   };
   
   settings: {
@@ -93,7 +91,6 @@ export function createMockGameStore() {
     getCurrentGameId: vi.fn(() => {
       switch (state.session.type) {
         case 'active-game':
-        case 'game-ending':
         case 'game-over':
           return state.session.gameId || null;
         default:
@@ -115,15 +112,13 @@ export function createMockGameStore() {
     
     getSettingsUI: vi.fn(() => {
       const hasGame = state.session.type === 'active-game' || 
-                     state.session.type === 'game-ending' || 
                      state.session.type === 'game-over';
       const connected = state.connection.type === 'connected';
-      const isCreating = state.session.type === 'creating-game';
       
       if (hasGame) {
         return { type: 'button-visible' as const, enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible' as const, canStartGame: !isCreating, isCreating };
+        return { type: 'panel-visible' as const, canStartGame: true, isCreating: false };
       } else {
         return { type: 'button-visible' as const, enabled: false };
       }
@@ -174,15 +169,8 @@ export function createMockGameStore() {
           }
           break;
           
-        case 'START_GAME':
-          if (state.connection.type === 'connected') {
-            state.session = { type: 'creating-game' };
-            state.isLoading = true;
-          }
-          break;
-          
         case 'GAME_CREATED':
-          if (state.session.type === 'creating-game') {
+          if (state.session.type === 'no-game') {
             state.session = {
               type: 'active-game',
               gameId: action.gameId,
@@ -235,7 +223,7 @@ export function createMockGameStore() {
           }
           break;
           
-        case 'GAME_ENDING_COMPLETE':
+        case 'NEW_GAME_REQUESTED':
           state.session = { type: 'no-game' };
           state.gameId = null;
           state.gameState = null;
@@ -330,7 +318,7 @@ export function createMockGameStore() {
     get gameId() { return state.gameId; },
     get gameState() { return state.gameState; },
     get isLoading() { return state.isLoading; },
-    get isCreatingGame() { return state.session.type === 'creating-game'; },
+    get isCreatingGame() { return false; }, // No longer creating games in intermediate state
     get error() { return state.error; },
     get selectedHistoryIndex() { return state.selectedHistoryIndex; },
     get settings() { return state.settings; },

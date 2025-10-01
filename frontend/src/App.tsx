@@ -2,7 +2,12 @@ import React, { useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { useGameStore } from './store/gameStore';
 import { wsService } from './services/websocket';
-import { getTabManager, cleanupTabManager } from './services/tabManager';
+import { 
+  initializeTabCoordinator, 
+  cleanupTabCoordinator, 
+  getTabCoordinator,
+  TabCoordinationResult
+} from './services/functionalTabCoordinator';
 import { GameBoard } from './components/GameBoard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameSettings } from './components/GameSettings';
@@ -16,10 +21,40 @@ function App() {
   const { gameSettings } = store.settings;
   const isConnected = store.isConnected();
   
-  // Handle connection lifecycle and tab management
+  // Handle connection lifecycle and tab coordination
   useEffect(() => {
-    // Initialize tab manager
-    const tabManager = getTabManager();
+    // Initialize functional tab coordinator
+    const coordinator = initializeTabCoordinator((result: TabCoordinationResult) => {
+      if (result.shouldShowConflictWarning && result.conflictMessage) {
+        // Handle multi-tab conflict functionally
+        if (!result.isPrimary) {
+          store.dispatch({
+            type: 'CONNECTION_LOST',
+            error: 'Multiple tabs open - this tab is inactive'
+          });
+        }
+        
+        store.dispatch({
+          type: 'NOTIFICATION_ADDED',
+          notification: {
+            id: result.isPrimary ? 'primary-tab-info' : 'multi-tab-conflict',
+            type: result.isPrimary ? 'warning' : 'error',
+            message: result.conflictMessage,
+            timestamp: new Date()
+          }
+        });
+      } else {
+        // Clear any existing multi-tab notifications
+        store.dispatch({
+          type: 'NOTIFICATION_REMOVED',
+          id: 'multi-tab-conflict'
+        });
+        store.dispatch({
+          type: 'NOTIFICATION_REMOVED',
+          id: 'primary-tab-info'
+        });
+      }
+    });
     
     wsService.connect();
     store.dispatch({ type: 'CONNECTION_START' });
@@ -27,7 +62,7 @@ function App() {
     return () => {
       wsService.disconnect();
       store.dispatch({ type: 'CONNECTION_LOST' });
-      cleanupTabManager();
+      cleanupTabCoordinator();
     };
   }, []);
 
@@ -68,15 +103,17 @@ function App() {
     });
   }, [store.ui.notifications]);
 
-  // Handle tab manager integration with game state
+  // Handle tab coordinator integration with game state
   useEffect(() => {
-    const tabManager = getTabManager();
+    const coordinator = getTabCoordinator();
     const gameId = store.getCurrentGameId();
     
-    if (gameId) {
-      tabManager.notifyGameCreated(gameId);
-    } else {
-      tabManager.notifyGameEnded();
+    if (coordinator) {
+      if (gameId) {
+        coordinator.notifyGameCreated(gameId);
+      } else {
+        coordinator.notifyGameEnded();
+      }
     }
   }, [store.getCurrentGameId()]);
 

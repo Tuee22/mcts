@@ -81,9 +81,9 @@ export function createActiveGameStore(
 }
 
 /**
- * Create a game-ending store state
+ * Create a game-over store state
  */
-export function createGameEndingStore(
+export function createGameOverStore(
   gameId: string,
   winner: number,
   finalState: GameState = defaultGameState,
@@ -92,10 +92,10 @@ export function createGameEndingStore(
   return {
     ...createConnectedStore(),
     session: {
-      type: 'game-ending',
+      type: 'game-over',
       gameId,
-      winner,
-      finalState
+      state: finalState,
+      winner
     },
     ...overrides
   };
@@ -212,15 +212,13 @@ export function simulateConnectionRecovery(dispatch: Function, clientId: string 
  */
 export function getMockSettingsUI(session: Session, connection: Connection) {
   const hasGame = session.type === 'active-game' || 
-                  session.type === 'game-ending' ||
                   session.type === 'game-over';
   const connected = connection.type === 'connected';
-  const isCreating = session.type === 'creating-game';
   
   if (hasGame) {
     return { type: 'button-visible' as const, enabled: connected };
   } else if (connected) {
-    return { type: 'panel-visible' as const, canStartGame: !isCreating, isCreating };
+    return { type: 'panel-visible' as const, canStartGame: true, isCreating: false };
   } else {
     return { type: 'button-visible' as const, enabled: false };
   }

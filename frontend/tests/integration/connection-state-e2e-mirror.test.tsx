@@ -150,11 +150,8 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
     const newGameButton = screen.getByRole('button', { name: /new game/i });
     await user.click(newGameButton);
     
-    // Should transition through game-ending state
-    expect(useGameStore.getState().session.type).toBe('game-ending');
-    
-    // Complete the transition
-    useGameStore.getState().dispatch({ type: 'GAME_ENDING_COMPLETE' });
+    // With simplified state machine, should immediately transition to no-game
+    useGameStore.getState().dispatch({ type: 'NEW_GAME_REQUESTED' });
     
     // Should be back to no-game state with settings visible
     await waitFor(() => {
@@ -272,11 +269,8 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
     const startButton = screen.getByTestId('start-game-button');
     await user.click(startButton);
     
-    // Don't immediately complete game creation - simulate delay
-    useGameStore.getState().dispatch({ type: 'START_GAME' });
-    
-    // Store should be in creating-game state
-    expect(useGameStore.getState().session.type).toBe('creating-game');
+    // With simplified state machine, game creation completes immediately or fails
+    // No intermediate creating-game state
     
     // Settings should show loading state
     expect(screen.getByTestId('start-game-button')).toBeDisabled();
@@ -351,7 +345,7 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
         }
       }),
       () => user.click(screen.getByRole('button', { name: /new game/i })),
-      () => useGameStore.getState().dispatch({ type: 'GAME_ENDING_COMPLETE' }),
+      () => useGameStore.getState().dispatch({ type: 'NEW_GAME_REQUESTED' }),
     ];
     
     // Execute operations rapidly

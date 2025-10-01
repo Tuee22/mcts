@@ -14,34 +14,26 @@ export const NewGameButton: React.FC<NewGameButtonProps> = ({
   const store = useGameStore();
   const isConnected = store.isConnected();
   const gameId = store.getCurrentGameId();
-  const isTransitioning = store.session.type === 'game-ending';
-
-  // Type-safe: Only render when game is active or ending
+  // Type-safe: Only render when game is active or over
   if (!gameId) {
     return null;
   }
 
-  const isDisabled = !isConnected || isTransitioning;
+  const isDisabled = !isConnected;
 
   const getTitle = () => {
     if (!isConnected) return 'Connect to server to start a new game';
-    if (isTransitioning) return 'Ending current game...';
     return 'Start a new game';
   };
 
   const handleNewGame = () => {
     if (isDisabled) return;
 
-    // Type-safe state transition: active-game -> game-ending -> no-game
-    store.dispatch({ type: 'NEW_GAME_CLICKED' });
+    // With simplified state machine: direct transition to no-game
+    store.dispatch({ type: 'NEW_GAME_REQUESTED' });
     
     // Disconnect from game-specific WebSocket
     wsService.disconnectFromGame();
-    
-    // Transition to no-game state after cleanup
-    setTimeout(() => {
-      store.dispatch({ type: 'GAME_ENDING_COMPLETE' });
-    }, 100);
   };
 
   return (

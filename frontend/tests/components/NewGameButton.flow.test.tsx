@@ -65,7 +65,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     dispatch: vi.fn(),
     getSettingsUI: vi.fn(() => {
       const hasGame = mockGameStore.session.type === 'active-game' || 
-                      mockGameStore.session.type === 'game-ending' || 
                       mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
       
@@ -80,7 +79,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
       if (mockGameStore.session.type === 'active-game' || 
-          mockGameStore.session.type === 'game-ending' || 
           mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
@@ -262,22 +260,7 @@ describe('NewGameButton Flow Tests', () => {
       expect(button).toBeDisabled();
     });
 
-    it('should be disabled during game ending transition', () => {
-      // Update store to game-ending state
-      Object.assign(mockGameStore, {
-        session: {
-          type: 'game-ending' as const,
-          gameId: 'ending-game',
-          winner: 0,
-          finalState: mockGameStore.session.state
-        }
-      });
-
-      render(<NewGameButton />);
-
-      const button = screen.getByText('New Game');
-      expect(button).toBeDisabled();
-    });
+    // Note: game-ending state removed in simplified state machine
 
     it('should show appropriate title when disabled due to connection', () => {
       // Update store to disconnected state
@@ -294,21 +277,7 @@ describe('NewGameButton Flow Tests', () => {
       expect(button).toHaveAttribute('title', 'Connect to server to start a new game');
     });
 
-    it('should show appropriate title when disabled due to game ending', () => {
-      // Update store to game-ending state
-      Object.assign(mockGameStore, {
-        session: {
-          type: 'game-ending' as const,
-          gameId: 'ending-game',
-          winner: 0,
-          finalState: mockGameStore.session.state
-        }
-      });
-
-      render(<NewGameButton />);
-
-      const button = screen.getByText('New Game');
-      expect(button).toHaveAttribute('title', 'Ending current game...');
+    // Note: game-ending title test removed - state no longer exists
     });
 
     it('should show default title when enabled', () => {
@@ -320,7 +289,7 @@ describe('NewGameButton Flow Tests', () => {
   });
 
   describe('New game creation flow', () => {
-    it('should call dispatch with NEW_GAME_CLICKED when clicked', () => {
+    it('should call dispatch with NEW_GAME_REQUESTED when clicked', () => {
       Object.assign(mockGameStore, {
         dispatch: vi.fn()
       });
@@ -330,7 +299,7 @@ describe('NewGameButton Flow Tests', () => {
       const button = screen.getByText('New Game');
       fireEvent.click(button);
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
     });
 
     it('should create new game with current settings', () => {
@@ -359,7 +328,7 @@ describe('NewGameButton Flow Tests', () => {
       const button = screen.getByText('New Game');
       fireEvent.click(button);
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -399,7 +368,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -434,7 +403,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -476,7 +445,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -516,7 +485,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -556,7 +525,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -596,7 +565,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -629,7 +598,7 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       // WebSocket disconnect should be called 
       expect(mockWsService.disconnectFromGame).toHaveBeenCalledTimes(1);
     });
@@ -677,8 +646,8 @@ describe('NewGameButton Flow Tests', () => {
 
       fireEvent.click(screen.getByText('New Game'));
 
-      // Dispatch should be called with NEW_GAME_CLICKED action
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      // Dispatch should be called with NEW_GAME_REQUESTED action
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       // Note: Actual game creation happens in GameSettings component after state transition
     });
 
@@ -706,7 +675,7 @@ describe('NewGameButton Flow Tests', () => {
       fireEvent.click(screen.getByText('New Game'));
 
       // Settings should be used as-is for new game creation
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({
@@ -748,7 +717,7 @@ describe('NewGameButton Flow Tests', () => {
         fireEvent.click(screen.getByText('New Game'));
 
         // NewGameButton only dispatches action, doesn't directly create game
-        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
 
         rerender(<div />); // Clean up between iterations
         vi.clearAllMocks();
@@ -780,7 +749,7 @@ describe('NewGameButton Flow Tests', () => {
 
         fireEvent.click(screen.getByText('New Game'));
 
-        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+        expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       expect(mockWsService.disconnectFromGame).toHaveBeenCalled();
       // Note: actual game creation happens in GameSettings after transition
       expect(mockWsService.createGame).not.toHaveBeenCalledWith({

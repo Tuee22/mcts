@@ -124,7 +124,8 @@ coverage/
 .eslintcache
 
 # IDE and editor files (never needed in container)
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

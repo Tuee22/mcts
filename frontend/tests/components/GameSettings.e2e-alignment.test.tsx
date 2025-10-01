@@ -100,8 +100,8 @@ describe('Settings Button E2E Alignment Tests', () => {
     const startButton = screen.getByTestId('start-game-button');
     await user.click(startButton);
     
-    // Game creation starts
-    expect(useGameStore.getState().session.type).toBe('creating-game');
+    // Game creation is handled externally - store remains in no-game until GAME_CREATED
+    expect(useGameStore.getState().session.type).toBe('no-game');
     
     // Complete game creation
     useGameStore.getState().dispatch({
@@ -125,7 +125,7 @@ describe('Settings Button E2E Alignment Tests', () => {
     // CRITICAL: Settings button should be available within e2e timeout expectations
     await waitFor(() => {
       expect(screen.getByTestId('game-container')).toBeInTheDocument();
-    }, { timeout: 10000 }); // Use e2e timeout expectation
+    }, { timeout: 5000 }); // Consistent with simplified state machine - no intermediate states
     
     // Settings button should now be available as a button (not panel)
     const settingsButton = screen.getByRole('button', { name: /⚙️ game settings/i });
@@ -185,8 +185,7 @@ describe('Settings Button E2E Alignment Tests', () => {
     const newGameButton = screen.getByRole('button', { name: /new game/i });
     await user.click(newGameButton);
     
-    // Complete the new game transition
-    useGameStore.getState().dispatch({ type: 'GAME_ENDING_COMPLETE' });
+    // With simplified state machine, this should directly transition to no-game
     
     // After New Game, we should be back to setup state
     await waitFor(() => {
