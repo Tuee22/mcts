@@ -13,7 +13,7 @@ export const GameBoard: React.FC = () => {
   const [wallPlacementMode, setWallPlacementMode] = useState(false);
   const [wallOrientation, setWallOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
 
-  const displayState = selectedHistoryIndex !== null && gameState?.move_history[selectedHistoryIndex]
+  const displayState = selectedHistoryIndex !== null && gameState?.move_history?.[selectedHistoryIndex]
     ? gameState.move_history[selectedHistoryIndex].board_state || gameState
     : gameState;
 
@@ -174,8 +174,8 @@ export const GameBoard: React.FC = () => {
           </button>
         )}
         <div className="walls-remaining" data-testid="walls-remaining">
-          <div>P1 Walls: {displayState.walls_remaining[0]}</div>
-          <div>P2 Walls: {displayState.walls_remaining[1]}</div>
+          <div>P1 Walls: {displayState.walls_remaining?.[0] ?? '?'}</div>
+          <div>P2 Walls: {displayState.walls_remaining?.[1] ?? '?'}</div>
         </div>
         <div className="current-player">
           Current: Player {displayState.current_player + 1}
@@ -194,7 +194,7 @@ export const GameBoard: React.FC = () => {
           Array.from({ length: boardSize }, (_, x) => renderCell(x, y))
         )}
 
-        {displayState.walls.map(renderWall)}
+        {displayState.walls?.map(renderWall) || []}
 
         {wallPlacementMode && Array.from({ length: boardSize - 1 }, (_, y) =>
           Array.from({ length: boardSize - 1 }, (_, x) => (

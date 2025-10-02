@@ -103,9 +103,18 @@ export type StateAction =
 
 /**
  * Helper function for exhaustive pattern matching
+ * Uses safe serialization to avoid UTF-16 surrogate issues
  */
 export function exhaustiveCheck(value: never): never {
-  throw new Error(`Unhandled value: ${JSON.stringify(value)}`);
+  // Safe serialization that handles problematic characters
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch (error) {
+    // Handle JSON serialization errors (e.g., unpaired surrogates)
+    serialized = String(value);
+  }
+  throw new Error(`Unhandled value: ${serialized}`);
 }
 
 /**

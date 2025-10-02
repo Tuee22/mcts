@@ -406,6 +406,14 @@ class WebSocketService {
 
     } catch (error) {
       console.error('Error creating game:', error);
+      
+      // Dispatch game creation failure
+      useGameStore.getState().dispatch({ 
+        type: 'GAME_CREATE_FAILED', 
+        error: `Failed to create game: ${error}` 
+      });
+      
+      // Also add notification for user visibility
       useGameStore.getState().dispatch({ 
         type: 'NOTIFICATION_ADDED', 
         notification: { 
