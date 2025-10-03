@@ -103,6 +103,7 @@ export type StateAction =
 
 /**
  * Helper function for exhaustive pattern matching
+<<<<<<< HEAD
  * Uses safe serialization and provides fallback for invalid states
  */
 export function exhaustiveCheck(value: never): never {
@@ -125,6 +126,20 @@ export function exhaustiveCheck(value: never): never {
   }
   
   throw new Error(`Unhandled value in state machine`);
+=======
+ * Uses safe serialization to avoid UTF-16 surrogate issues
+ */
+export function exhaustiveCheck(value: never): never {
+  // Safe serialization that handles problematic characters
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch (error) {
+    // Handle JSON serialization errors (e.g., unpaired surrogates)
+    serialized = String(value);
+  }
+  throw new Error(`Unhandled value: ${serialized}`);
+>>>>>>> 5150f48c7177f06b06e49d58bfb68152f9c95916
 }
 
 /**
