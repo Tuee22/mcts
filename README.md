@@ -71,7 +71,7 @@ The Docker image includes pre-built C++ extensions. To verify the build succeede
 ```bash
 # Test without bind mounts (uses only artifacts baked into image)
 docker run --rm mcts:cpu python -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
-# Expected output: Extension loaded: /app/backend/build/_corridors_mcts.so
+# Expected output: Extension loaded: /opt/mcts/backend-build/_corridors_mcts.so
 
 # With docker compose (includes bind mounts and volumes)
 docker compose exec mcts python -c "from corridors import _corridors_mcts; print('Extension loaded:', _corridors_mcts.__file__)"
@@ -83,8 +83,8 @@ The Docker setup uses a clean separation between source files and build artifact
 
 - **Source files**: Bind mounted from host to `/app/` for live development
 - **Build artifacts**: Stored in named Docker volumes, never on host filesystem
-  - `backend_build` volume: C++ extension (`_corridors_mcts.so`)
-  - `frontend_build` volume: React production build
+  - `/opt/mcts/backend-build/`: C++ extension (`_corridors_mcts.so`)
+  - `/opt/mcts/frontend-build/`: React production build
 
 This architecture ensures:
 - No build artifacts contaminate the host filesystem
@@ -248,7 +248,7 @@ For detailed frontend documentation, see [frontend/README.md](frontend/README.md
 
 ### Building C++ Components
 
-**Note**: When using Docker, build artifacts are stored in the `backend_build` volume at `/app/backend/build/`. The host filesystem remains clean of all build artifacts.
+**Note**: When using Docker, build artifacts are stored outside the bind-mounted `/app` directory at `/opt/mcts/`. The host filesystem remains clean of all build artifacts.
 
 For hot reload during development:
 ```bash
@@ -275,7 +275,7 @@ scons profile=1
 scons sanitize=1
 ```
 
-The C++ extension (`_corridors_mcts.so`) is built to `backend/build/` directory.
+The C++ extension (`_corridors_mcts.so`) is built to `/opt/mcts/backend-build/` directory.
 
 ### Running Tests
 
@@ -594,8 +594,8 @@ npm run ai:verify
 
 **C++ Extension Issues:**
 - Verify extension built: `docker run --rm mcts:cpu python -c "from corridors import _corridors_mcts"`
-- Check build location: `docker compose exec mcts ls -la /app/backend/build/`
-- Rebuild in container: `docker compose exec mcts cd /app/backend/core && scons`
+- Check build location: `docker compose exec mcts ls -la /opt/mcts/backend-build/`
+- Rebuild in container: `docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts`
 - Build artifacts are in Docker volumes, not on host filesystem
 
 ## License

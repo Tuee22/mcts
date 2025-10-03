@@ -94,7 +94,7 @@ describe('Race Conditions E2E Mirror Tests', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
 
     // Create a game first
@@ -145,7 +145,7 @@ describe('Race Conditions E2E Mirror Tests', () => {
 
     // Should be back at game setup and settings should be accessible
     expect(screen.getByTestId('game-setup')).toBeInTheDocument();
-    expect(screen.getByText('Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     
     console.log('✅ Race condition between New Game and Settings handled correctly');
   });
@@ -172,7 +172,7 @@ describe('Race Conditions E2E Mirror Tests', () => {
 
     // Should show settings panel (no game active)
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
 
     const startButton = screen.getByTestId('start-game-button');
@@ -299,7 +299,7 @@ describe('Race Conditions E2E Mirror Tests', () => {
 
     // Settings should be accessible after rapid changes
     expect(
-      screen.getByText('Game Settings') || screen.queryByTestId('settings-toggle-button')
+      screen.getByText('⚙️ Game Settings') || screen.queryByTestId('settings-toggle-button')
     ).toBeTruthy();
 
     console.log('✅ Rapid connection state changes handled correctly');
@@ -319,7 +319,7 @@ describe('Race Conditions E2E Mirror Tests', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
 
     // Mock slow game creation (2 second delay like e2e test)

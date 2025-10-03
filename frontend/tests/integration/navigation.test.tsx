@@ -46,7 +46,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       if (hasGame) {
         return { type: 'button-visible', enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+        return { type: 'panel-visible', canStartGame: true };
       } else {
         return { type: 'button-visible', enabled: false };
       }
@@ -83,7 +83,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -153,7 +158,7 @@ describe('Navigation Integration Tests', () => {
     mockGameStore.getCurrentGameState.mockReturnValue(null);
     mockGameStore.canStartGame.mockReturnValue(true);
     mockGameStore.isGameActive.mockReturnValue(false);
-    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
     
     vi.mocked(wsService.isConnected).mockReturnValue(true);
   });
@@ -163,7 +168,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // Should show settings panel directly (no game + connected = immediate access)
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByText('Game Mode')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
@@ -176,7 +181,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // Should show settings panel for immediate access
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
   });
@@ -189,7 +194,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // Should show settings panel after "navigation back" (no game + connected)
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByText('Game Mode')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
@@ -198,7 +203,7 @@ describe('Navigation Integration Tests', () => {
       const { rerender } = render(<App />);
 
       // Initially connected - should show settings panel (no game + connected)
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Simulate disconnection (e.g., during navigation)
@@ -222,13 +227,13 @@ describe('Navigation Integration Tests', () => {
       });
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.canStartGame.mockReturnValue(true);
-      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       vi.mocked(wsService.isConnected).mockReturnValue(true);
 
       rerender(<App />);
 
       // Should switch back to settings panel
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
   });
@@ -238,21 +243,21 @@ describe('Navigation Integration Tests', () => {
       // Simulate first tab
       const { unmount: unmountTab1 } = render(<App />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
       unmountTab1();
 
       // Simulate second tab with same state
       render(<App />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
 
     it('should handle independent game states in different "tabs"', () => {
       // Tab 1: No game - should show settings panel
       const { unmount: unmountTab1 } = render(<App />);
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
       unmountTab1();
 
@@ -297,13 +302,13 @@ describe('Navigation Integration Tests', () => {
       });
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.canStartGame.mockReturnValue(true);
-      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+      mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       vi.mocked(wsService.isConnected).mockReturnValue(true);
 
       rerender(<App />);
 
       // Should switch to settings panel (no game + connected)
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
 
@@ -354,7 +359,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // Should show settings panel on fresh load (no game + connected)
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
 
@@ -394,7 +399,7 @@ describe('Navigation Integration Tests', () => {
       expect(screen.getByTestId('mode-human-vs-human')).toBeInTheDocument();
 
       // Settings should be immediately accessible without needing to click
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
 
     it('should match browser back/forward navigation behavior expected by E2E', () => {
@@ -402,7 +407,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // After "back navigation" to app, should show immediate access to settings
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
       expect(screen.getByText('Game Mode')).toBeInTheDocument();
     });
@@ -412,7 +417,7 @@ describe('Navigation Integration Tests', () => {
       const { unmount } = render(<App />);
 
       // Should show immediate access to settings
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
       unmount();
 
@@ -420,7 +425,7 @@ describe('Navigation Integration Tests', () => {
       render(<App />);
 
       // Should also show immediate access to settings
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
     });
   });

@@ -87,7 +87,7 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
     });
 
     // Settings should be visible (no game active)
-    expect(screen.getByText('Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     
     // Start Game button should be disabled when disconnected
     const startButton = screen.getByTestId('start-game-button');
@@ -155,7 +155,7 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
     
     // Should be back to no-game state with settings visible
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
     
     // Connection should remain stable throughout
@@ -357,7 +357,7 @@ describe('Connection State Tests Mirroring E2E Scenarios', () => {
     
     // Final state should be consistent
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
     
     expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');

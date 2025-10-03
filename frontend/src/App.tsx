@@ -12,6 +12,7 @@ import { GameBoard } from './components/GameBoard';
 import { MoveHistory } from './components/MoveHistory';
 import { GameSettings } from './components/GameSettings';
 import { NewGameButton } from './components/NewGameButton';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { exhaustiveCheck } from './types/appState';
 import './App.css';
 
@@ -146,7 +147,9 @@ function App() {
       case 'no-game':
         return (
           <div className="game-setup" data-testid="game-setup">
-            <GameSettings />
+            <ErrorBoundary fallback={<div>Error loading game settings</div>}>
+              <GameSettings />
+            </ErrorBoundary>
           </div>
         );
       
@@ -155,11 +158,17 @@ function App() {
         return (
           <div className="game-container" data-testid="game-container">
             <div className="game-left">
-              <GameSettings />
-              <MoveHistory />
+              <ErrorBoundary fallback={<div>Error loading settings</div>}>
+                <GameSettings />
+              </ErrorBoundary>
+              <ErrorBoundary fallback={<div>Error loading history</div>}>
+                <MoveHistory />
+              </ErrorBoundary>
             </div>
             <div className="game-center">
-              <GameBoard />
+              <ErrorBoundary fallback={<div>Error loading game board</div>}>
+                <GameBoard />
+              </ErrorBoundary>
             </div>
             <div className="game-right">
               <div className="game-info" data-testid="game-info-panel">
@@ -219,23 +228,43 @@ function App() {
         return (
           <div className="game-container" data-testid="game-container">
             <div className="game-left">
-              <GameSettings />
-              <MoveHistory />
+              <ErrorBoundary fallback={<div>Error loading settings</div>}>
+                <GameSettings />
+              </ErrorBoundary>
+              <ErrorBoundary fallback={<div>Error loading history</div>}>
+                <MoveHistory />
+              </ErrorBoundary>
             </div>
             <div className="game-center">
-              <GameBoard />
+              <ErrorBoundary fallback={<div>Error loading game board</div>}>
+                <GameBoard />
+              </ErrorBoundary>
               <div className="game-over-message">
                 Game Over! Winner: Player {session.winner + 1}
               </div>
             </div>
             <div className="game-right">
-              <NewGameButton />
+              <ErrorBoundary fallback={<div>Error loading controls</div>}>
+                <NewGameButton />
+              </ErrorBoundary>
             </div>
           </div>
         );
       
       default:
-        return exhaustiveCheck(session);
+        // Handle unhandled session states gracefully
+        const result = exhaustiveCheck(session);
+        if (result === null) {
+          // Fallback for invalid states in development/testing
+          return (
+            <div className="game-setup" data-testid="game-setup">
+              <ErrorBoundary fallback={<div>Error: Invalid game state</div>}>
+                <GameSettings />
+              </ErrorBoundary>
+            </div>
+          );
+        }
+        return result;
     }
   };
 

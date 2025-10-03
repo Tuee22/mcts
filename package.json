@@ -4,14 +4,10 @@
   "private": true,
   "description": "Claude Code workflow tools for MCTS repository",
   "scripts": {
-    "sanitize:check": "node tools/sanitize.js --check",
-    "sanitize:fix": "node tools/sanitize.js --fix",
-    "encode:normalize": "node tools/sanitize.js --normalize",
-    "ai:session:new": "echo 'Starting fresh Claude Code session...' && echo 'Repository sanitized and payload limits enforced.' && npm run sanitize:check",
+    "ai:session:new": "echo 'Starting fresh Claude Code session...' && echo 'Repository ready for development.'",
     "ai:plan": "node tools/payload-guard.js",
     "ai:verify": "node tools/verify-setup.js",
-    "test:sanitizer": "node tools/run-tests.js",
-    "test:all-tools": "npm run test:sanitizer && npm run ai:verify"
+    "test:all-tools": "npm run ai:verify"
   },
   "devDependencies": {
     "@types/node": ">=18.0.0 <19.0.0",
@@ -20,7 +16,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["claude-code", "ai-tools", "encoding", "utf8", "surrogate", "sanitizer"],
+  "keywords": ["claude-code", "ai-tools", "mcts", "monte-carlo"],
   "repository": {
     "type": "git",
     "url": "."

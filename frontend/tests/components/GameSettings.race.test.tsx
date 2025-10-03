@@ -19,7 +19,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     connection: {
       type: 'connected' as const,
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: { type: 'no-game' as const },
     settings: {
@@ -50,14 +51,13 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     }),
     getSettingsUI: () => {
       // Replicate the actual getSettingsUIState logic
-      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over');
       const connected = mockGameStore.connection.type === 'connected';
       
       // If settings are explicitly expanded, show panel
       if (mockGameStore.ui.settingsExpanded) {
-        const isCreating = mockGameStore.isLoading && mockGameStore.isCreatingGame;
         const canStart = connected && !hasGame;
-        return { type: 'panel-visible', canStartGame: canStart, isCreating };
+        return { type: 'panel-visible', canStartGame: canStart };
       }
       
       // Otherwise, determine based on session state
@@ -69,8 +69,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       } else if (connected) {
         return {
           type: 'panel-visible',
-          canStartGame: true,
-          isCreating: mockGameStore.isLoading && mockGameStore.isCreatingGame
+          canStartGame: true
         };
       } else {
         return {
@@ -82,7 +81,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
       if (mockGameStore.session.type === 'active-game' || 
-          mockGameStore.session.type === 'game-ending' || 
           mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
@@ -91,7 +89,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     getCurrentGameState: vi.fn(() => null),
     canStartGame: vi.fn(() => {
       const connected = mockGameStore.connection.type === 'connected';
-      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over');
       return connected && !hasGame;
     }),
     canMakeMove: vi.fn(() => false),
@@ -120,7 +118,14 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    // If selector is provided, call it with the store
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    // Otherwise return the whole store
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -158,12 +163,8 @@ describe('GameSettings Race Condition Tests', () => {
     user = userEvent.setup();
     
     // Reset the game store state for each test
-    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
-    mockGameStore.session = {
-      gameId: null,
-      gameState: null,
-      createdAt: Date.now()
-    };
+    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
+    mockGameStore.session = { type: 'no-game' as const };
     mockGameStore.ui.settingsExpanded = false;
     mockGameStore.isLoading = false;
     mockGameStore.isCreatingGame = false;
@@ -181,12 +182,12 @@ describe('GameSettings Race Condition Tests', () => {
       const { rerender } = render(<GameSettings />);
 
       // Initially connected - should show settings panel
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Rapid disconnect
       act(() => {
-        mockGameStore.connection = { type: 'disconnected' as const };
+        mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
         mockGameStore.isConnected.mockReturnValue(false);
       });
       rerender(<GameSettings />);
@@ -200,14 +201,14 @@ describe('GameSettings Race Condition Tests', () => {
 
       // Rapid reconnect
       act(() => {
-        mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+        mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
         mockGameStore.isConnected.mockReturnValue(true);
       });
       rerender(<GameSettings />);
 
       // Should restore settings panel
       await waitFor(() => {
-        expect(screen.getByText('Game Settings')).toBeInTheDocument();
+        expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
         expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
       });
     });
@@ -230,8 +231,8 @@ describe('GameSettings Race Condition Tests', () => {
       for (const state of stateSequence) {
         act(() => {
           mockGameStore.connection = state.connected 
-            ? { type: 'connected' as const, clientId: 'test-client', since: new Date() }
-            : { type: 'disconnected' as const };
+            ? { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true }
+            : { type: 'disconnected' as const, canReset: true };
           mockGameStore.isConnected.mockReturnValue(state.connected);
           mockGameStore.isLoading = state.loading;
           mockGameStore.session = state.gameId ? {
@@ -318,7 +319,7 @@ describe('GameSettings Race Condition Tests', () => {
           });
         } else {
           await waitFor(() => {
-            expect(screen.getByText('Game Settings')).toBeInTheDocument();
+            expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
             expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
           });
         }
@@ -424,8 +425,8 @@ describe('GameSettings Race Condition Tests', () => {
       for (const [index, state] of complexStateSequence.entries()) {
         act(() => {
           mockGameStore.connection = state.connected 
-            ? { type: 'connected' as const, clientId: 'test-client', since: new Date() }
-            : { type: 'disconnected' as const };
+            ? { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true }
+            : { type: 'disconnected' as const, canReset: true };
           mockGameStore.isConnected.mockReturnValue(state.connected);
           mockGameStore.isLoading = state.loading;
           mockGameStore.session = state.gameId ? {

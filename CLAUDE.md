@@ -24,7 +24,7 @@ You may stage changes with `git add` but must stop before committing. Only creat
 ### Volume-Based Architecture
 - **Build artifacts stay in Docker volumes**: `backend_build`, `frontend_build`
 - **Host filesystem remains clean**: No `.so`, `build/`, or `node_modules/` on host
-- **Hot reload via container**: `docker compose exec mcts scons` or `npm run build`
+- **Hot reload via container**: `docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts`
 - **Separation of concerns**: Source files (bind mount) vs artifacts (volumes)
 
 ### Excluded from Git and Docker Context
@@ -65,12 +65,12 @@ docker compose down -v  # Remove named volumes
 docker compose build --no-cache
 
 # Managing build artifacts
-docker compose exec mcts rm -rf /app/frontend/build  # Force frontend rebuild
-docker compose exec mcts rm -rf /app/backend/build/*.so  # Force C++ rebuild
+docker compose exec mcts rm -rf /opt/mcts/frontend-build/build  # Force frontend rebuild
+docker compose exec mcts rm -rf /opt/mcts/backend-build/*.so  # Force C++ rebuild  
 docker compose restart mcts  # Restart to trigger rebuilds
 
 # Hot reload (development)
-docker compose exec mcts cd /app/backend/core && scons  # Rebuild C++ extension in volume
+docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts  # Rebuild C++ extension to volume
 ```
 
 ### Building C++ Components

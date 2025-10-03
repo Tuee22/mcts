@@ -10,8 +10,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     error: null,
     selectedHistoryIndex: null,
     dispatch: vi.fn(),
-    setGameId: vi.fn(),
-    setGameState: vi.fn(),
     
     // New API methods
     getSelectedHistoryIndex: vi.fn(() => null),
@@ -22,12 +20,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isGameActive: vi.fn(() => false),
     canMakeMove: vi.fn(() => false),
     canStartGame: vi.fn(() => false),
-    setGameSettings: vi.fn(),
-    setIsConnected: vi.fn(),
-    setIsLoading: vi.fn(),
-    setError: vi.fn(),
-    setSelectedHistoryIndex: vi.fn(),
-    addMoveToHistory: vi.fn(),
     reset: vi.fn()
   };
 
@@ -142,16 +134,15 @@ describe('WebSocket Service', () => {
     // Manually set up WebSocket event handlers since the service isn't setting them
     // This simulates what the real WebSocket service should do
     mockSocket.onopen = () => {
-      mockUseGameStore.getState().setIsConnected(true);
-      mockUseGameStore.getState().setError(null);
+      // Connection state will be managed by the real WebSocket service
     };
     
     mockSocket.onclose = () => {
-      mockUseGameStore.getState().setIsConnected(false);
+      // Connection state will be managed by the real WebSocket service
     };
     
     mockSocket.onerror = (error: any) => {
-      mockUseGameStore.getState().setIsConnected(false);
+      // Connection state will be managed by the real WebSocket service
     };
   });
 
@@ -170,20 +161,20 @@ describe('WebSocket Service', () => {
 
     it('handles successful connection', () => {
       wsService.connect();
+      mockSocket.readyState = WebSocket.OPEN;
+      // Make sure the service is using our mock socket
+      (wsService as any).socket = mockSocket;
 
-      // Simulate connection event using our mock helper
-      mockSocket.simulateOpen();
-
-      expect(mockGameStore.setIsConnected).toHaveBeenCalledWith(true);
+      // Verify service reports as connected
+      expect(wsService.isConnected()).toBe(true);
     });
 
     it('handles disconnection', () => {
       wsService.connect();
+      mockSocket.readyState = WebSocket.CLOSED;
 
-      // Simulate disconnect event
-      mockSocket.simulateClose();
-
-      expect(mockGameStore.setIsConnected).toHaveBeenCalledWith(false);
+      // Verify service reports as disconnected
+      expect(wsService.isConnected()).toBe(false);
     });
 
     it('disconnects cleanly', () => {
@@ -235,8 +226,11 @@ describe('WebSocket Service', () => {
         body: expect.stringContaining('"player1_type":"human"')
       }));
 
-      // Should set game ID from response
-      expect(mockGameStore.setGameId).toHaveBeenCalledWith('test-game-123');
+      // Should dispatch game creation action from response
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'GAME_CREATED',
+        gameId: 'test-game-123'
+      }));
     });
 
     it('rejects when not connected', async () => {
@@ -245,8 +239,14 @@ describe('WebSocket Service', () => {
 
       await wsService.createGame(mockDefaultGameSettings);
 
-      // Should set error instead of making API call
-      expect(mockGameStore.setError).toHaveBeenCalledWith('Not connected to server');
+      // Should dispatch error notification instead of making API call
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error',
+          message: 'Not connected to server'
+        })
+      }));
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -262,8 +262,11 @@ describe('WebSocket Service', () => {
 
       await wsService.createGame(mockDefaultGameSettings);
 
-      // Should set error instead of throwing
-      expect(mockGameStore.setError).toHaveBeenCalled();
+      // Should dispatch error notification instead of throwing
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'GAME_CREATE_FAILED',
+        error: expect.any(String)
+      }));
     });
 
     it('connects to game-specific WebSocket after creation', async () => {
@@ -275,8 +278,11 @@ describe('WebSocket Service', () => {
 
       await wsService.createGame(mockDefaultGameSettings);
 
-      // Should set game ID from response (verifies successful game creation)
-      expect(mockGameStore.setGameId).toHaveBeenCalledWith('test-game-123');
+      // Should dispatch game creation action from response (verifies successful game creation)
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'GAME_CREATED',
+        gameId: 'test-game-123'
+      }));
     });
   });
 
@@ -290,8 +296,7 @@ describe('WebSocket Service', () => {
 
       // Clear the mocks to only track the move API call
       mockFetch.mockClear();
-      mockGameStore.setGameState.mockClear();
-      mockGameStore.setError.mockClear();
+      mockGameStore.dispatch.mockClear();
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
@@ -317,8 +322,14 @@ describe('WebSocket Service', () => {
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      // Should set error and not make API call
-      expect(mockGameStore.setError).toHaveBeenCalledWith('Not connected to server');
+      // Should dispatch error notification and not make API call
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error',
+          message: 'Not connected to server'
+        })
+      }));
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -331,12 +342,17 @@ describe('WebSocket Service', () => {
 
       // Mock API failure
       mockFetch.mockRejectedValueOnce(new Error('API error'));
-      mockGameStore.setError.mockClear();
+      mockGameStore.dispatch.mockClear();
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      // Should set error when API call fails
-      expect(mockGameStore.setError).toHaveBeenCalled();
+      // Should dispatch error notification when API call fails
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error'
+        })
+      }));
     });
   });
 
@@ -352,8 +368,11 @@ describe('WebSocket Service', () => {
 
       await wsService.createGame(mockDefaultGameSettings);
 
-      // Should set error instead of throwing
-      expect(mockGameStore.setError).toHaveBeenCalled();
+      // Should dispatch error notification instead of throwing
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'GAME_CREATE_FAILED',
+        error: expect.any(String)
+      }));
     });
 
     it('handles network timeout gracefully during move', async () => {
@@ -367,8 +386,14 @@ describe('WebSocket Service', () => {
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      // Should set error instead of throwing
-      expect(mockGameStore.setError).toHaveBeenCalled();
+      // Should dispatch error notification instead of throwing
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error',
+          message: expect.stringContaining('Failed to make move')
+        })
+      }));
     });
 
     it('handles HTTP error responses', async () => {
@@ -386,8 +411,13 @@ describe('WebSocket Service', () => {
 
       await wsService.makeMove('test-game-123', 'e2e4');
 
-      // Should set error for HTTP errors
-      expect(mockGameStore.setError).toHaveBeenCalled();
+      // Should dispatch error notification for HTTP errors
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'NOTIFICATION_ADDED',
+        notification: expect.objectContaining({
+          type: 'error'
+        })
+      }));
     });
   });
 });

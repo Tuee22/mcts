@@ -93,7 +93,7 @@ describe('Settings Button E2E Alignment Tests', () => {
     });
     
     // Initial state: Settings should be visible as panel (no game active)
-    expect(screen.getByText('Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     expect(screen.getByTestId('start-game-button')).toBeEnabled();
     
     // Create game rapidly (this is what was timing out in e2e)
@@ -189,7 +189,7 @@ describe('Settings Button E2E Alignment Tests', () => {
     
     // After New Game, we should be back to setup state
     await waitFor(() => {
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
     
     // Settings should be available as panel again (no active game)

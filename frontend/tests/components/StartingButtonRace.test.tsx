@@ -93,7 +93,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -166,7 +171,7 @@ describe('Starting Button Race Condition Tests', () => {
     mockGameStore.getCurrentGameState.mockReturnValue(null);
     mockGameStore.canStartGame.mockReturnValue(true);
     mockGameStore.isGameActive.mockReturnValue(false);
-    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+    mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
   });
 
   describe('Starting Button Stuck State', () => {
@@ -193,7 +198,7 @@ describe('Starting Button Race Condition Tests', () => {
           isCreatingGame: true,
           reset: resetMock
         });
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
 
@@ -244,7 +249,7 @@ describe('Starting Button Race Condition Tests', () => {
         });
         mockGameStore.getCurrentGameId.mockReturnValue(null);
         mockGameStore.canStartGame.mockReturnValue(false); // Still loading
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: false });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
 
@@ -283,7 +288,7 @@ describe('Starting Button Race Condition Tests', () => {
     }  // Keep connected during loading to show settings panel
         });
         mockGameStore.isConnected.mockReturnValue(true);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
 
@@ -309,7 +314,7 @@ describe('Starting Button Race Condition Tests', () => {
         mockGameStore.isConnected.mockReturnValue(true);
         mockGameStore.getCurrentGameId.mockReturnValue(null);
         mockGameStore.canStartGame.mockReturnValue(true);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       });
       rerender(<GameSettings />);
 
@@ -333,7 +338,7 @@ describe('Starting Button Race Condition Tests', () => {
       
       // Simulate opening settings panel
       act(() => {
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       });
       rerender(<GameSettings />);
       
@@ -344,7 +349,7 @@ describe('Starting Button Race Condition Tests', () => {
       
       // Test loading state
       act(() => {
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
       
@@ -370,7 +375,7 @@ describe('Starting Button Race Condition Tests', () => {
           isCreatingGame: true
         });
         mockGameStore.canStartGame.mockReturnValue(false);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
 
@@ -384,7 +389,7 @@ describe('Starting Button Race Condition Tests', () => {
         });
         mockGameStore.getCurrentGameId.mockReturnValue(null);
         mockGameStore.canStartGame.mockReturnValue(true);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       });
       rerender(<GameSettings />);
 
@@ -410,7 +415,7 @@ describe('Starting Button Race Condition Tests', () => {
         });
         mockGameStore.getCurrentGameId.mockReturnValue(null);
         mockGameStore.canStartGame.mockReturnValue(false);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false, isCreating: true });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: false });
       });
       rerender(<GameSettings />);
 
@@ -431,7 +436,7 @@ describe('Starting Button Race Condition Tests', () => {
         });
         mockGameStore.getCurrentGameId.mockReturnValue(null);
         mockGameStore.canStartGame.mockReturnValue(true);
-        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true, isCreating: false });
+        mockGameStore.getSettingsUI.mockReturnValue({ type: 'panel-visible', canStartGame: true });
       });
       rerender(<GameSettings />);
 
@@ -466,9 +471,9 @@ describe('Starting Button Race Condition Tests', () => {
       // Test various UI states to ensure consistency
       const uiStates = [
         { type: 'button-visible', enabled: true },
-        { type: 'panel-visible', canStartGame: true, isCreating: false },
-        { type: 'panel-visible', canStartGame: false, isCreating: true },
-        { type: 'panel-visible', canStartGame: true, isCreating: false }
+        { type: 'panel-visible', canStartGame: true },
+        { type: 'panel-visible', canStartGame: false },
+        { type: 'panel-visible', canStartGame: true }
       ];
 
       for (const uiState of uiStates) {

@@ -21,7 +21,8 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
   const store = {
     // State properties
     connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     },
     session: { type: 'no-game' as const },
     settings: {
@@ -66,7 +67,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
     }),
     isConnected: vi.fn(() => store.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
-      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
       return null;
@@ -107,7 +108,14 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    // If selector is provided, call it with the store
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    // Otherwise return the whole store
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
 
   // Helper function to update store and notify tests to rerender
@@ -126,7 +134,7 @@ const { mockGameStore, mockUseGameStore, updateStoreAndRerender } = vi.hoisted((
     });
     
     // Update legacy compatibility properties
-    if (store.session.type === 'active-game' || store.session.type === 'game-over' || store.session.type === 'game-ending') {
+    if (store.session.type === 'active-game' || store.session.type === 'game-over') {
       store.gameId = store.session.gameId;
     } else {
       store.gameId = null;
@@ -201,7 +209,8 @@ describe('App Connection Recovery Tests', () => {
     
     updateStoreAndRerender({
       connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     },
       session: { type: 'no-game' as const },
       settings: {
@@ -460,7 +469,7 @@ describe('App Connection Recovery Tests', () => {
       mockWebSocketService.createGame.mockImplementation(async () => {
         // Simulate temporary disconnection during creation
         updateStoreAndRerender({ 
-          connection: { type: 'disconnected' as const }
+          connection: { type: 'disconnected' as const, canReset: true }
         });
         await new Promise(resolve => setTimeout(resolve, 100));
         updateStoreAndRerender({ 
@@ -482,32 +491,27 @@ describe('App Connection Recovery Tests', () => {
         connection: {
           type: 'connected' as const,
           clientId: 'test-client',
-          since: new Date()
+          since: new Date(),
+          canReset: true
         },
         session: { 
-          type: 'creating-game' as const,
-          requestId: 'test-request',
-          settings: {
-            mode: 'human_vs_ai',
-            ai_difficulty: 'medium',
-            ai_time_limit: 5000,
-            board_size: 9
-          }
+          type: 'no-game' as const
         }
       });
 
       render(<App />);
+      const user = createUser();
 
       const startGameButton = screen.getByTestId('start-game-button');
-      expect(startGameButton).toBeDisabled();
-      expect(startGameButton).toHaveTextContent('Starting...');
+      expect(startGameButton).toBeEnabled();
+      expect(startGameButton).toHaveTextContent('Start Game');
 
-      // Multiple clicks should not trigger multiple calls since button is disabled
+      // Multiple clicks should trigger calls since button is enabled in simplified state machine
       await user.click(startGameButton);
       await user.click(startGameButton);
 
-      // No calls should have been made since button is disabled
-      expect(mockWebSocketService.createGame).not.toHaveBeenCalled();
+      // With the simplified state machine, multiple clicks will result in calls
+      expect(mockWebSocketService.createGame).toHaveBeenCalled();
     });
   });
 
@@ -775,7 +779,7 @@ describe('App Connection Recovery Tests', () => {
       // App shouldn't interfere with service-level reconnection
       act(() => {
         updateStoreAndRerender({
-          connection: { type: 'disconnected' as const }
+          connection: { type: 'disconnected' as const, canReset: true }
         });
       });
       

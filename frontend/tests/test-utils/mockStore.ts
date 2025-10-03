@@ -18,6 +18,7 @@ export interface MockStoreState {
     type: 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
     clientId?: string;
     since?: Date;
+    canReset: boolean;
   };
   
   session: {
@@ -56,7 +57,7 @@ export function createMockGameStore() {
     selectedHistoryIndex: null,
     
     // Structured state
-    connection: { type: 'disconnected' },
+    connection: { type: 'disconnected', canReset: true },
     session: { type: 'no-game' },
     settings: {
       gameSettings: {
@@ -171,7 +172,7 @@ export function createMockGameStore() {
           break;
           
         case 'CONNECTION_LOST':
-          state.connection = { type: 'disconnected' };
+          state.connection = { type: 'disconnected', canReset: true };
           state.isConnected = false;
           if (action.error) {
             state.ui.notifications.push({

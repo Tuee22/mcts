@@ -79,7 +79,7 @@ describe('E2E Test Alignment - Game Creation Flow', () => {
     expect(screen.getByTestId('connection-text')).toHaveTextContent('Disconnected');
 
     // Settings should be visible (no game active)
-    expect(screen.getByText('Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
 
     // Start Game button should exist but be disabled
     const startButton = screen.getByTestId('start-game-button');

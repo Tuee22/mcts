@@ -62,7 +62,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
   };
 
   // Create a proper Zustand-style mock that returns the store
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   // CRITICAL: getState must return the same store object with all methods
   useGameStoreMock.getState = vi.fn(() => store);
   

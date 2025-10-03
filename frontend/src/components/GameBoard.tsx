@@ -13,7 +13,7 @@ export const GameBoard: React.FC = () => {
   const [wallPlacementMode, setWallPlacementMode] = useState(false);
   const [wallOrientation, setWallOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
 
-  const displayState = selectedHistoryIndex !== null && gameState?.move_history[selectedHistoryIndex]
+  const displayState = selectedHistoryIndex !== null && gameState?.move_history?.[selectedHistoryIndex]
     ? gameState.move_history[selectedHistoryIndex].board_state || gameState
     : gameState;
 
@@ -27,12 +27,12 @@ export const GameBoard: React.FC = () => {
 
   const isLegalMove = (x: number, y: number): boolean => {
     const moveNotation = `${String.fromCharCode(97 + x)}${boardSize - y}`;
-    return displayState.legal_moves.includes(moveNotation);
+    return displayState.legal_moves?.includes(moveNotation) ?? false;
   };
 
   const isLegalWall = (wall: Wall): boolean => {
     const wallNotation = `${String.fromCharCode(97 + wall.x)}${boardSize - wall.y}${wall.orientation[0]}`;
-    return displayState.legal_moves.includes(wallNotation);
+    return displayState.legal_moves?.includes(wallNotation) ?? false;
   };
 
   const handleCellClick = (x: number, y: number) => {
@@ -174,8 +174,8 @@ export const GameBoard: React.FC = () => {
           </button>
         )}
         <div className="walls-remaining" data-testid="walls-remaining">
-          <div>P1 Walls: {displayState.walls_remaining[0]}</div>
-          <div>P2 Walls: {displayState.walls_remaining[1]}</div>
+          <div>P1 Walls: {displayState.walls_remaining?.[0] ?? '?'}</div>
+          <div>P2 Walls: {displayState.walls_remaining?.[1] ?? '?'}</div>
         </div>
         <div className="current-player">
           Current: Player {displayState.current_player + 1}
@@ -194,7 +194,7 @@ export const GameBoard: React.FC = () => {
           Array.from({ length: boardSize }, (_, x) => renderCell(x, y))
         )}
 
-        {displayState.walls.map(renderWall)}
+        {displayState.walls?.map(renderWall) || []}
 
         {wallPlacementMode && Array.from({ length: boardSize - 1 }, (_, y) =>
           Array.from({ length: boardSize - 1 }, (_, x) => (

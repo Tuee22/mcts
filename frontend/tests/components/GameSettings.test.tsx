@@ -10,7 +10,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     connection: {
       type: 'connected' as const,
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: {
       type: 'active-game' as const,
@@ -48,7 +49,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     getSettingsUI: vi.fn(() => {
       // When there's a game, show the toggle button
       // When there's no game and connected, show the panel
-      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over');
       const connected = mockGameStore.connection.type === 'connected';
       
       if (hasGame) {
@@ -60,7 +61,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
         return {
           type: 'panel-visible',
           canStartGame: true,
-          isCreating: false
         };
       } else {
         return {
@@ -96,7 +96,14 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    // If selector is provided, call it with the store
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    // Otherwise return the whole store
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -135,7 +142,7 @@ describe('GameSettings Component', () => {
     vi.clearAllMocks();
 
     // Reset the game store state for each test
-    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+    mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
     mockGameStore.session = {
       type: 'active-game' as const,
       gameId: 'test-game-123',
@@ -176,7 +183,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
       render(<GameSettings />);
 
@@ -185,7 +191,23 @@ describe('GameSettings Component', () => {
     });
 
     it('renders game settings toggle button when game is active', () => {
-      // Set gameId to show toggle button instead of panel
+      // Set up active game state to show toggle button instead of panel
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
         enabled: true
@@ -199,7 +221,23 @@ describe('GameSettings Component', () => {
     });
 
     it('expands settings panel when clicked', async () => {
-      // Set gameId to show toggle button instead of panel
+      // Set up active game state to show toggle button first
+      mockGameStore.session = {
+        type: 'active-game' as const,
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
+      };
+      mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
         enabled: true
@@ -222,7 +260,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
       render(<GameSettings />);
 
@@ -245,7 +282,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
 
       render(<GameSettings />);
@@ -266,7 +302,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
 
       render(<GameSettings />);
@@ -281,7 +316,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
       render(<GameSettings />);
       const user = createUser();
@@ -302,7 +336,6 @@ describe('GameSettings Component', () => {
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
     });
 
@@ -326,7 +359,7 @@ describe('GameSettings Component', () => {
 
   describe('Connection Status', () => {
     it('shows disabled toggle button when not connected', () => {
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getCurrentGameId.mockReturnValue('test-game-123');
       mockGameStore.getSettingsUI.mockReturnValue({
@@ -349,7 +382,7 @@ describe('GameSettings Component', () => {
     });
 
     it('disables toggle button when not connected and game is active', () => {
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.session = {
       type: 'active-game' as const,
@@ -380,14 +413,13 @@ describe('GameSettings Component', () => {
     });
 
     it('enables all controls when connected', async () => {
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       mockGameStore.isConnected.mockReturnValue(true);
       mockGameStore.session = { type: 'no-game' as const };
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'panel-visible',
         canStartGame: true,
-        isCreating: false
       });
 
       render(<GameSettings />);

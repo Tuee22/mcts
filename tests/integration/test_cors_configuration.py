@@ -123,7 +123,7 @@ class TestSingleServerConfiguration:
             base_url=f"http://{test_config['api_host']}:{test_config['api_port']}"
         ) as client:
             # Test that CSS files are served - get actual filename from build directory
-            build_dir = Path("/app/frontend/build/static")
+            build_dir = Path("/opt/mcts/frontend-build/build/static")
             if build_dir.exists():
                 # Find CSS file
                 css_files = list((build_dir / "css").glob("main.*.css"))

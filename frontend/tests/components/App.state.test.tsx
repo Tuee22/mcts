@@ -105,7 +105,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -136,7 +141,7 @@ vi.mock('../../src/services/websocket', () => ({
 vi.mock('../../src/components/GameSettings', () => {
   const React = require('react');
   return {
-    GameSettings: () => React.createElement('div', { 'data-testid': 'game-settings' }, 'Game Settings Component')
+    GameSettings: () => React.createElement('div', { 'data-testid': 'game-settings' }, '⚙️ Game Settings Component')
   };
 });
 
@@ -595,7 +600,7 @@ describe('App State Management', () => {
 
   describe('Error states', () => {
     it('should handle connection errors gracefully', () => {
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.connection.lastError = 'WebSocket connection failed';
       mockGameStore.ui.notifications = []; // Ensure notifications are handled
       // Update legacy properties

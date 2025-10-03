@@ -79,7 +79,7 @@ Runs the app in development mode with hot reloading.
 Launches the test runner for component and service tests.
 
 ### `npm run build`
-Builds the app for production to the `build/` folder.
+Builds the app for production. In the Docker container, builds are created in `/opt/mcts/frontend-build/build/`.
 
 ### `npm run eject`
 ⚠️ **One-way operation** - Ejects from Create React App configuration.

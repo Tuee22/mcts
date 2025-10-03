@@ -9,7 +9,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     connection: {
       type: 'connected' as const,
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: {
       type: 'active-game' as const,
@@ -48,7 +49,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       // When there's a game, show the toggle button
       // When there's no game and connected, show the panel
       const hasGame = mockGameStore.session.type === 'active-game' || 
-                     mockGameStore.session.type === 'game-ending' ||
                      mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
       
@@ -61,7 +61,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
         return {
           type: 'panel-visible' as const,
           canStartGame: true,
-          isCreating: false
         };
       } else {
         return {
@@ -97,7 +96,14 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    // If selector is provided, call it with the store
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    // Otherwise return the whole store
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -181,7 +187,7 @@ describe('GameSettings Connection Tests', () => {
       expect(toggleButton).toBeEnabled();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -207,7 +213,7 @@ describe('GameSettings Connection Tests', () => {
       expect(toggleButton).toBeEnabled();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -233,7 +239,7 @@ describe('GameSettings Connection Tests', () => {
       expect(toggleButton).toBeEnabled();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -282,7 +288,7 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toBeEnabled();
 
       // Disconnected state
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -312,7 +318,7 @@ describe('GameSettings Connection Tests', () => {
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
       // Simulate loading while disconnected (edge case)
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.isLoading = true;
       mockGameStore.isCreatingGame = true;
@@ -349,7 +355,7 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toHaveTextContent('Start Game');
 
       // Disconnected - should switch to toggle button
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -394,7 +400,7 @@ describe('GameSettings Connection Tests', () => {
       expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'SETTINGS_UPDATED', settings: { mode: 'ai_vs_ai' } });
 
       // Simulate disconnection and update store to reflect the change
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.settings.gameSettings.mode = 'ai_vs_ai'; // Simulate persisted setting
       mockGameStore.getSettingsUI.mockReturnValue({
@@ -432,7 +438,7 @@ describe('GameSettings Connection Tests', () => {
       // Update store to reflect the changes and brief disconnection
       mockGameStore.settings.gameSettings.ai_difficulty = 'hard';
       mockGameStore.settings.gameSettings.board_size = 7;
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -478,7 +484,7 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toBeEnabled();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -512,7 +518,7 @@ describe('GameSettings Connection Tests', () => {
       expect(startButton).toBeEnabled();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -579,10 +585,10 @@ describe('GameSettings Connection Tests', () => {
 
       const { rerender } = render(<GameSettings />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
 
       // Lose connection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -606,10 +612,10 @@ describe('GameSettings Connection Tests', () => {
 
       const { rerender } = render(<GameSettings />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
 
       // Simulate disconnection
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -630,13 +636,13 @@ describe('GameSettings Connection Tests', () => {
       rerender(<GameSettings />);
 
       // Should switch back to settings panel
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
     });
   });
 
   describe('Toggle Button Connection States', () => {
     it('should disable toggle button when disconnected', () => {
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -681,7 +687,7 @@ describe('GameSettings Connection Tests', () => {
       expect(toggleButton).toHaveAttribute('title', 'Game Settings');
       
       // Disconnected state
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',
@@ -707,7 +713,7 @@ describe('GameSettings Connection Tests', () => {
 
       const { rerender } = render(<GameSettings />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeEnabled();
 
       // Simulate store reset (New Game button clicked elsewhere)
@@ -727,7 +733,6 @@ describe('GameSettings Connection Tests', () => {
           type: 'panel-visible',
           canModify: true,
           showStartButton: true,
-          isCreating: false,
           settings: mockGameStore.settings.gameSettings
         });
         expect(screen.getByTestId('start-game-button')).toBeEnabled();
@@ -754,11 +759,11 @@ describe('GameSettings Connection Tests', () => {
 
       const { rerender } = render(<GameSettings />);
 
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
 
       // Reset causes false disconnection
       mockGameStore.reset();
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false); // Simulate the bug
       mockGameStore.getSettingsUI.mockReturnValue({
         type: 'button-visible',

@@ -71,7 +71,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       if (hasGame) {
         return { type: 'button-visible', enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+        return { type: 'panel-visible', canStartGame: true };
       } else {
         return { type: 'button-visible', enabled: false };
       }
@@ -119,7 +119,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -249,7 +254,8 @@ describe('NewGameButton Flow Tests', () => {
       // Update store to disconnected state
       Object.assign(mockGameStore, {
         connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     }
       });
       mockGameStore.isConnected.mockReturnValue(false);
@@ -266,7 +272,8 @@ describe('NewGameButton Flow Tests', () => {
       // Update store to disconnected state
       Object.assign(mockGameStore, {
         connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     }
       });
       mockGameStore.isConnected.mockReturnValue(false);
@@ -606,7 +613,8 @@ describe('NewGameButton Flow Tests', () => {
     it('should not create game when not connected', () => {
       Object.assign(mockGameStore, {
         connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     }
       });
       mockGameStore.isConnected.mockReturnValue(false);
@@ -787,7 +795,8 @@ describe('NewGameButton Flow Tests', () => {
     it('should provide clear feedback when disabled', () => {
       Object.assign(mockGameStore, {
         connection: {
-      type: 'disconnected' as const
+      type: 'disconnected' as const,
+      canReset: true
     }
       });
       mockGameStore.isConnected.mockReturnValue(false);

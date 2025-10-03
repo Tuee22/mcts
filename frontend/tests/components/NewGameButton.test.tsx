@@ -48,13 +48,13 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     // New API methods
     dispatch: vi.fn(),
     getSettingsUI: vi.fn(() => {
-      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-ending' || mockGameStore.session.type === 'game-over');
+      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over');
       const connected = mockGameStore.connection.type === 'connected';
       
       if (hasGame) {
         return { type: 'button-visible', enabled: connected };
       } else if (connected) {
-        return { type: 'panel-visible', canStartGame: true, isCreating: false };
+        return { type: 'panel-visible', canStartGame: true };
       } else {
         return { type: 'button-visible', enabled: false };
       }
@@ -62,7 +62,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
       if (mockGameStore.session.type === 'active-game' || 
-          mockGameStore.session.type === 'game-ending' || 
           mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
@@ -96,7 +95,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     reset: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -262,7 +266,7 @@ describe('New Game Button Tests', () => {
         expect(screen.getByTestId('game-setup')).toBeInTheDocument();
       }, { timeout: 1000 });
       
-      // Game Settings button should be enabled (not disabled due to false disconnection)
+      // ⚙️ Game Settings button should be enabled (not disabled due to false disconnection)
       const gameSettingsButton = screen.getByRole('button', { name: /game settings/i });
       expect(gameSettingsButton).toBeEnabled();
       
@@ -270,7 +274,7 @@ describe('New Game Button Tests', () => {
       await user.click(gameSettingsButton);
       
       // Settings panel should open without connection warnings
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
     });
   });
@@ -295,7 +299,7 @@ describe('New Game Button Tests', () => {
       await user.click(settingsButton);
       
       // Step 4: Settings should open without connection warning
-      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
       expect(screen.queryByTestId('connection-warning')).not.toBeInTheDocument();
       
       // Step 5: Start Game button should be enabled and not show "Disconnected"

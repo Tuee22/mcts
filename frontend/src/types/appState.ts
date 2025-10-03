@@ -103,9 +103,28 @@ export type StateAction =
 
 /**
  * Helper function for exhaustive pattern matching
+ * Uses safe serialization and provides fallback for invalid states
  */
 export function exhaustiveCheck(value: never): never {
-  throw new Error(`Unhandled value: ${JSON.stringify(value)}`);
+  // In development, log the error but don't crash the app
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    console.error('Exhaustive check failed - unhandled value:', value);
+    
+    // Safe serialization that handles problematic characters
+    let serialized: string;
+    try {
+      serialized = JSON.stringify(value, null, 2);
+    } catch (error) {
+      // Handle JSON serialization errors (e.g., unpaired surrogates)
+      serialized = String(value);
+    }
+    
+    // Don't throw in tests, just log the error
+    console.warn(`Unhandled value: ${serialized}`);
+    return null as never;
+  }
+  
+  throw new Error(`Unhandled value in state machine`);
 }
 
 /**

@@ -195,7 +195,7 @@ describe('Game Store', () => {
     });
   });
 
-  describe('Game Settings Management', () => {
+  describe('⚙️ Game Settings Management', () => {
     it('updates game mode', () => {
       const store = useGameStore();
       
@@ -287,7 +287,7 @@ describe('Game Store', () => {
     });
   });
 
-  describe('Game Settings Management', () => {
+  describe('⚙️ Game Settings Management', () => {
     it('updates game mode', () => {
       const { setGameSettings } = mockStore;
       setGameSettings({ mode: 'human_vs_human' });

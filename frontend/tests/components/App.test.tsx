@@ -38,7 +38,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     connection: {
       type: 'connected' as const,
       clientId: 'test-client',
-      since: new Date()
+      since: new Date(),
+      canReset: true
     },
     session: { type: 'no-game' as const },
     settings: {
@@ -63,9 +64,8 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     getSettingsUI: vi.fn(() => {
       // When there's a game, show the toggle button
       // When there's no game and connected, show the panel
-      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending';
+      const hasGame = mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over';
       const connected = mockGameStore.connection.type === 'connected';
-      const isCreating = mockGameStore.session.type === 'creating-game';
       
       if (hasGame) {
         return {
@@ -76,7 +76,6 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
         return {
           type: 'panel-visible',
           canStartGame: true,
-          isCreating: isCreating
         };
       } else {
         return {
@@ -87,7 +86,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     }),
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
     getCurrentGameId: vi.fn(() => {
-      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+      if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
         return mockGameStore.session.gameId;
       }
       return null;
@@ -122,7 +121,14 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     addMoveToHistory: vi.fn()
   };
 
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    // If selector is provided, call it with the store
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    // Otherwise return the whole store
+    return store;
+  });
   useGameStoreMock.getState = vi.fn(() => store);
   
   return {
@@ -169,8 +175,7 @@ describe('App Component', () => {
     
     Object.assign(mockGameStore.connection, {
       type: 'disconnected' as const,
-      retryCount: 0,
-      lastError: null
+      canReset: true
     });
     Object.assign(mockGameStore.session, {
       type: 'no-game'
@@ -186,7 +191,7 @@ describe('App Component', () => {
       notifications: []
     });
     // Update legacy compatibility properties
-    if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over' || mockGameStore.session.type === 'game-ending') {
+    if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
       mockGameStore.gameId = mockGameStore.session.gameId;
       if (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over') {
         mockGameStore.gameState = mockGameStore.session.state;
@@ -244,7 +249,7 @@ describe('App Component', () => {
 
   describe('Connection Status Display', () => {
     it('shows connected status when connected', () => {
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       mockGameStore.isConnected.mockReturnValue(true);
 
       render(<App />);
@@ -257,7 +262,7 @@ describe('App Component', () => {
     });
 
     it('shows disconnected status when not connected', () => {
-      mockGameStore.connection = { type: 'disconnected' as const };
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
       mockGameStore.isConnected.mockReturnValue(false);
 
       render(<App />);
@@ -285,7 +290,8 @@ describe('App Component', () => {
       Object.assign(mockGameStore.connection, {
         type: 'connected' as const,
           clientId: 'test-client',
-          since: new Date()
+          since: new Date(),
+          canReset: true
       });
       Object.assign(mockGameStore.ui, {
         selectedHistoryIndex: null
@@ -356,7 +362,7 @@ describe('App Component', () => {
         state: mockMidGameState,
         lastSync: new Date()
       };
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       // Legacy properties
       mockGameStore.gameId = 'test-game-123';
       mockGameStore.gameState = mockMidGameState;
@@ -373,13 +379,17 @@ describe('App Component', () => {
       // Check that the button is not disabled
       expect(newGameButton).not.toBeDisabled();
 
+      // Clear any dispatch calls that happened during render/mount
+      mockGameStore.dispatch.mockClear();
+      mockWebSocketService.disconnectFromGame.mockClear();
+
       await act(async () => {
         await user.click(newGameButton);
       });
 
       // Check immediately - these should be called synchronously
       expect(mockWebSocketService.disconnectFromGame).toHaveBeenCalled();
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
     });
 
     it('renders Copy Moves button and handles clipboard operation', async () => {
@@ -487,7 +497,6 @@ describe('App Component', () => {
     });
 
     it('does not show toast when no error exists', () => {
-      mockGameStore.connection.lastError = null;
       mockGameStore.error = null;
 
       render(<App />);
@@ -735,7 +744,7 @@ describe('App Component', () => {
         state: mockMidGameState,
         lastSync: new Date()
       };
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       // Legacy properties
       mockGameStore.gameId = 'test-game-123';
       mockGameStore.gameState = mockMidGameState;
@@ -767,22 +776,26 @@ describe('App Component', () => {
         state: mockMidGameState,
         lastSync: new Date()
       };
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       // Legacy properties
       mockGameStore.gameId = 'test-game-123';
       mockGameStore.gameState = mockMidGameState;
       mockGameStore.isConnected.mockReturnValue(true);
       
       render(<App />);
+      const user = createUser();
+      
+      // Clear any dispatch calls that happened during render/mount
+      mockGameStore.dispatch.mockClear();
       
       // Click New Game to reset
       const newGameButton = screen.getByRole('button', { name: /new game/i });
       await user.click(newGameButton);
       
       // Should return to game setup
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       
-      // Game Settings button should be accessible (not disabled due to false disconnection)
+      // ⚙️ Game Settings button should be accessible (not disabled due to false disconnection)
       // Note: This test may need adjustment based on how the component re-renders after reset
       
       vi.useRealTimers();
@@ -797,7 +810,7 @@ describe('App Component', () => {
         state: mockMidGameState,
         lastSync: new Date()
       };
-      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date() };
+      mockGameStore.connection = { type: 'connected' as const, clientId: 'test-client', since: new Date(), canReset: true };
       // Legacy properties
       mockGameStore.gameId = 'test-game-123';
       mockGameStore.gameState = mockMidGameState;

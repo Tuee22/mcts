@@ -35,7 +35,7 @@ function createDefaultState(): AppState {
   };
 
   return {
-    connection: { type: 'disconnected' },
+    connection: { type: 'disconnected', canReset: true },
     session: { type: 'no-game' as const },
     settings: defaultSettings,
     ui: defaultUI
@@ -105,7 +105,7 @@ describe('State Transitions', () => {
     it('should handle connection loss from any state', () => {
       const connected: AppState = {
         ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() }
+        connection: { type: 'connected', clientId: 'test', since: new Date(), canReset: true }
       };
       
       const newState = stateReducer(connected, {
@@ -133,7 +133,7 @@ describe('State Transitions', () => {
       // In simplified state machine, games are created directly via GAME_CREATED action
       const validState: AppState = {
         ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
+        connection: { type: 'connected', clientId: 'test', since: new Date(), canReset: true },
         session: { type: 'no-game' as const }
       };
       
@@ -218,7 +218,7 @@ describe('State Transitions', () => {
     it('should show panel when no game exists', () => {
       const state: AppState = {
         ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
+        connection: { type: 'connected', clientId: 'test', since: new Date(), canReset: true },
         session: { type: 'no-game' as const }
       };
       
@@ -226,14 +226,13 @@ describe('State Transitions', () => {
       expect(settingsUI.type).toBe('panel-visible');
       if (settingsUI.type === 'panel-visible') {
         expect(settingsUI.canStartGame).toBe(true);
-        expect(settingsUI.isCreating).toBe(false);
       }
     });
 
     it('should show button when game is active', () => {
       const state: AppState = {
         ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
+        connection: { type: 'connected', clientId: 'test', since: new Date(), canReset: true },
         session: {
           type: 'active-game',
           gameId: 'game-123',
@@ -252,7 +251,7 @@ describe('State Transitions', () => {
     it('should disable button when disconnected', () => {
       const state: AppState = {
         ...createDefaultState(),
-        connection: { type: 'disconnected' },
+        connection: { type: 'disconnected', canReset: true },
         session: {
           type: 'active-game',
           gameId: 'game-123',
@@ -273,7 +272,7 @@ describe('State Transitions', () => {
     it('should respect explicit settings expansion', () => {
       const state: AppState = {
         ...createDefaultState(),
-        connection: { type: 'connected', clientId: 'test', since: new Date() },
+        connection: { type: 'connected', clientId: 'test', since: new Date(), canReset: true },
         session: {
           type: 'active-game',
           gameId: 'game-123',
@@ -296,7 +295,7 @@ describe('State Transitions', () => {
       const states: ConnectionState[] = [
         { type: 'disconnected' },
         { type: 'connecting', attemptNumber: 1 },
-        { type: 'connected', clientId: 'test', since: new Date() },
+        { type: 'connected', clientId: 'test', since: new Date(), canReset: true },
         { type: 'reconnecting', lastClientId: 'test', attemptNumber: 2 }
       ];
       

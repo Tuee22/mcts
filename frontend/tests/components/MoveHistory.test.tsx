@@ -21,7 +21,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     canStartGame: vi.fn(() => true && !store.gameId),
     canMakeMove: vi.fn(() => false),
     isGameActive: vi.fn(() => !!store.gameState),
-    getSettingsUI: vi.fn(() => ({ type: 'panel-visible', canStartGame: true, isCreating: false })),
+    getSettingsUI: vi.fn(() => ({ type: 'panel-visible', canStartGame: true })),
     // Legacy methods
     setGameSettings: vi.fn(),
     setError: vi.fn(),
@@ -31,7 +31,12 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
   };
 
   // Create a proper Zustand-style mock that returns the store
-  const useGameStoreMock = vi.fn(() => store);
+  const useGameStoreMock = vi.fn((selector) => {
+    if (typeof selector === 'function') {
+      return selector(store);
+    }
+    return store;
+  });
   // CRITICAL: getState must return the same store object with all methods
   useGameStoreMock.getState = vi.fn(() => store);
   
@@ -359,7 +364,7 @@ describe('MoveHistory Component', () => {
       render(<MoveHistory />);
 
       // Last move should be highlighted as winning move
-      const winningMove = document.querySelector('.winning-move, .game-ending-move');
+      const winningMove = document.querySelector('.winning-move');
       if (winningMove) {
         expect(winningMove).toHaveClass('winning-move') || 
         expect(winningMove).toHaveClass('highlight');
