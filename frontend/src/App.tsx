@@ -273,7 +273,7 @@ function App() {
       <Toaster position="top-center" />
 
       <header className="app-header">
-        <h1 className="app-title">CORRIDORS</h1>
+        <h1 className="app-title">CORRIDORS - Build Test v2</h1>
         <div className="connection-status" data-testid="connection-status">
           <span
             className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}
