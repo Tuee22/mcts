@@ -101,12 +101,12 @@ docker compose exec mcts poetry run pytest tests/backend/core/ -v
 
 **Quick test run:**
 ```bash
-docker compose exec mcts poetry run pytest -q
+docker compose exec mcts poetry run test-python
 ```
 
 **E2E tests (browser-based):**
 ```bash
-docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
+docker compose exec mcts poetry run test-e2e
 ```
 
 **GPU verification (CUDA only):**
@@ -301,18 +301,19 @@ docker compose exec mcts poetry run test-frontend  # Frontend tests only
 
 **Docker Test Commands (Detailed):**
 ```bash
-# Test categories
-docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
-docker compose exec mcts pytest -m "slow"        # Only slow tests  
-docker compose exec mcts pytest -m "integration" # Integration tests
-docker compose exec mcts pytest -m "python"     # Pure Python tests
-docker compose exec mcts pytest -m "cpp"        # C++ binding tests
-docker compose exec mcts pytest -m "performance" # Performance tests
-docker compose exec mcts pytest -m "edge_cases"  # Edge case tests
-docker compose exec mcts pytest -m "e2e"         # End-to-end browser tests
+# Test categories by Poetry scripts
+docker compose exec mcts poetry run test-python     # All Python tests
+docker compose exec mcts poetry run test-frontend   # Frontend tests
+docker compose exec mcts poetry run test-e2e        # E2E browser tests
+docker compose exec mcts poetry run test-benchmarks # Benchmark tests
+
+# Specific pytest markers (when needed)
+docker compose exec mcts pytest -m "not slow"      # Exclude slow tests
+docker compose exec mcts pytest -m "integration"   # Integration tests
+docker compose exec mcts pytest -m "performance"   # Performance tests
 
 # Benchmarking
-docker compose exec mcts pytest --benchmark-only # Run benchmarks
+docker compose exec mcts pytest --benchmark-only    # Run benchmarks
 ```
 
 **Advanced Testing Options:**
@@ -343,7 +344,7 @@ docker compose exec mcts poetry run test-e2e --debug
 # E2E with verbose output
 docker compose exec mcts poetry run test-e2e --verbose
 
-# Direct pytest for advanced options
+# Direct pytest for specific files
 docker compose exec mcts pytest tests/e2e/test_browser_compatibility.py -v
 ```
 
@@ -444,21 +445,20 @@ poetry run test-e2e        # E2E tests only
 This project enforces strict type safety with zero tolerance for `Any`, `cast`, or `type: ignore`.
 
 ```bash
-# Format code
-poetry run black . && poetry run isort .
+# All quality checks should be run inside Docker containers
+docker compose exec mcts poetry run black . && docker compose exec mcts poetry run isort .
 
 # Check formatting
-poetry run black --check .
+docker compose exec mcts poetry run black --check .
 
 # Type checking with strict mode
-poetry run mypy --strict .
+docker compose exec mcts poetry run mypy --strict .
 
 # Run custom type safety checker (no Any, cast, or type: ignore)
-poetry run check-type-safety
-
+docker compose exec mcts poetry run check-type-safety
 
 # Run all type and quality checks
-bash tools/run_type_checks.sh
+docker compose exec mcts bash tools/run_type_checks.sh
 ```
 
 #### Type Safety Enforcement
@@ -558,7 +558,7 @@ npm run ai:verify
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests (`poetry run test`)
+4. Run tests (`docker compose exec mcts poetry run test-all`)
 5. **Run AI safety checks** (`npm run ai:verify`)
 6. Commit your changes (`git commit -m 'Add amazing feature'`)
 7. Push to the branch (`git push origin feature/amazing-feature`)
@@ -597,6 +597,7 @@ npm run ai:verify
 - Check build location: `docker compose exec mcts ls -la /opt/mcts/backend-build/`
 - Rebuild in container: `docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts`
 - Build artifacts are in Docker volumes, not on host filesystem
+- For detailed build validation: See [backend/BUILD_VALIDATION.md](backend/BUILD_VALIDATION.md)
 
 ## License
 

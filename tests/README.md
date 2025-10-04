@@ -30,13 +30,13 @@ cd docker && docker compose up -d
 docker compose exec mcts poetry run test-all
 
 # Run specific test categories
-docker compose exec mcts poetry run test-runner unit        # Unit tests
-docker compose exec mcts poetry run test-runner integration  # Integration tests
-docker compose exec mcts poetry run test-runner e2e          # End-to-end tests
-docker compose exec mcts poetry run test-runner quick        # Fast tests only
+docker compose exec mcts poetry run test-unit        # Unit tests
+docker compose exec mcts poetry run test-integration # Integration tests
+docker compose exec mcts poetry run test-e2e         # End-to-end tests
+docker compose exec mcts poetry run test-quick       # Fast tests only
 
 # Frontend tests
-docker compose exec mcts cd /app/frontend && npm run test
+docker compose exec mcts poetry run test-frontend
 ```
 
 
@@ -163,28 +163,27 @@ Only create synchronous wrappers if:
 
 ### Using Poetry Test Runner
 
-The test runner (`poetry run test-runner`) provides these commands:
+The project provides Poetry test scripts for common test suites:
 
 ```bash
 # Complete test suites
-docker compose exec mcts poetry run test-runner all          # Everything
-docker compose exec mcts poetry run test-runner unit         # Unit tests
-docker compose exec mcts poetry run test-runner integration   # Integration
-docker compose exec mcts poetry run test-runner e2e          # End-to-end
+docker compose exec mcts poetry run test-all         # Everything
+docker compose exec mcts poetry run test-unit        # Unit tests
+docker compose exec mcts poetry run test-integration # Integration
+docker compose exec mcts poetry run test-e2e         # End-to-end
+docker compose exec mcts poetry run test-frontend    # Frontend tests
 
 # Quick feedback
-docker compose exec mcts poetry run test-runner quick        # Fast tests only
-docker compose exec mcts poetry run test-runner connection   # Connection tests
+docker compose exec mcts poetry run test-quick       # Fast tests only
+docker compose exec mcts poetry run test-fast        # Alternative fast tests
 
-# Specific test types
-docker compose exec mcts poetry run test-runner websocket    # WebSocket tests
-docker compose exec mcts poetry run test-runner cors         # CORS tests
-docker compose exec mcts poetry run test-runner performance  # Benchmarks
+# Benchmarks
+docker compose exec mcts poetry run test-benchmarks  # Performance tests
 
-# With options
-docker compose exec mcts poetry run test-runner unit -v --no-slow
-docker compose exec mcts poetry run test-runner e2e --headed --video
-docker compose exec mcts poetry run test-runner all --coverage
+# With pytest markers directly (when needed)
+docker compose exec mcts pytest -m websocket -v     # WebSocket tests
+docker compose exec mcts pytest -m cors -v          # CORS tests
+docker compose exec mcts pytest -m performance -v   # Performance tests
 ```
 
 ### Direct pytest Commands
@@ -199,18 +198,21 @@ docker compose exec mcts pytest tests/integration/ -m "websocket"
 docker compose exec mcts pytest tests/integration/ -m "cors"
 docker compose exec mcts pytest tests/integration/ -m "connection"
 
-# E2E tests (run from e2e directory)
-docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
+# E2E tests
+docker compose exec mcts poetry run test-e2e
 
 # Performance benchmarks
-docker compose exec mcts pytest tests/ -m "performance" --benchmark-only
+docker compose exec mcts poetry run test-benchmarks
 ```
 
 ### Frontend Testing
 
 
 ```bash
-# Run frontend tests (inside container)
+# Run frontend tests using Poetry script (recommended)
+docker compose exec mcts poetry run test-frontend
+
+# Direct npm commands (if needed)
 docker compose exec mcts cd /app/frontend && npm run test          # Interactive
 docker compose exec mcts cd /app/frontend && npm run test:run      # Run once
 docker compose exec mcts cd /app/frontend && npm run test:ui       # Web UI
@@ -297,10 +299,13 @@ docker compose exec mcts cd /app/frontend && vitest --coverage    # Coverage
 
 E2E tests use Playwright with configuration at `tests/e2e/playwright.config.py`.
 
-**Important**: E2E tests must be run from the `tests/e2e/` directory:
+**Important**: Use the Poetry script for E2E tests (handles configuration automatically):
 
 ```bash
-# Correct way
+# Recommended way - handles E2E configuration
+docker compose exec mcts poetry run test-e2e
+
+# Alternative direct method (ensure correct directory)
 docker compose exec mcts bash -c "cd tests/e2e && pytest -m e2e"
 
 # Incorrect - won't find playwright.config.py
@@ -386,7 +391,7 @@ MCTS_API_PORT=8003 poetry run pytest tests/integration/ -v
 
 ```bash
 # Run with browser visible
-poetry run pytest tests/e2e/ -v -s --headed
+docker compose exec mcts poetry run test-e2e --headed
 
 # Use explicit waits
 await page.wait_for_selector('[data-testid="connection-status"]', timeout=10000)
@@ -396,13 +401,13 @@ await page.wait_for_selector('[data-testid="connection-status"]', timeout=10000)
 
 ```bash
 # Run only fast tests during development
-poetry run pytest -m "not slow" -v
+docker compose exec mcts poetry run test-fast
 
 # Profile test execution
-poetry run pytest --durations=10 tests/
+docker compose exec mcts pytest --durations=10 tests/
 
 # Run tests in parallel (careful with shared resources)
-poetry run pytest -n auto tests/backend/
+docker compose exec mcts pytest -n auto tests/backend/
 ```
 
 ### Port Conflicts
@@ -484,8 +489,8 @@ async def test_new_connection_scenario(page: Page, e2e_urls):
     await page.click('[data-testid="start-game"]')
     await expect(page.locator('[data-testid="game-board"]')).to_be_visible()
 
-# Run from e2e directory:
-# docker compose exec mcts bash -c "cd tests/e2e && pytest test_new_feature.py -v"
+# Run using Poetry script (recommended):
+# docker compose exec mcts poetry run test-e2e
 ```
 
 ### Adding Integration Tests
@@ -538,7 +543,7 @@ def test_flaky_scenario():
 Run quarantined tests separately:
 
 ```bash
-poetry run pytest -m quarantine -v
+docker compose exec mcts pytest -m quarantine -v
 ```
 
 ---
