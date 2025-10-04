@@ -322,10 +322,10 @@ class TestBrowserNavigation:
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
         # After New Game, we should be back at game setup screen (not game-container)
-        await expect(app_page.locator('[data-testid="game-container"]')).not_to_be_visible(
-            timeout=5000
-        )
-        
+        await expect(
+            app_page.locator('[data-testid="game-container"]')
+        ).not_to_be_visible(timeout=5000)
+
         # Verify we can interact with settings again (functional test)
         await expect(app_page.locator('[data-testid="game-setup"]')).to_be_visible(
             timeout=5000

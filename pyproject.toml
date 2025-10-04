@@ -69,7 +69,12 @@ test-integration = "tests.utils.subset_runners:run_integration_tests"
 test-benchmarks = "tests.utils.subset_runners:run_benchmark_tests"
 test-python = "tests.utils.subset_runners:run_python_tests"
 test-frontend = "tests.utils.run_frontend_tests:main"
+
+# E2E test runners with validation (ALWAYS use these for e2e tests)
 test-e2e = "tests.utils.subset_runners:run_e2e_tests"
+test-e2e-validate = "tests.utils.e2e_test_runner:main_validate"
+test-e2e-list = "tests.utils.e2e_test_runner:main_list"
+test-e2e-full = "tests.utils.e2e_test_runner:main_run"
 
 # Convenience runners for speed
 test-fast = "tests.utils.subset_runners:run_fast_tests"

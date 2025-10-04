@@ -96,6 +96,7 @@ scons test=1            # Build test executable (local)
 ### Testing
 **IMPORTANT: All tests MUST be run inside Docker containers**
 **IMPORTANT: Integration tests require the unified server, which runs automatically on port 8000 in the Docker container and serves both API and frontend**
+**CRITICAL: E2E tests MUST be run through Poetry commands to ensure all tests are discovered**
 
 ```bash
 # Start Docker services first (this also starts the unified server on port 8000)
@@ -103,6 +104,15 @@ cd docker && docker compose up -d
 
 # Run all tests (inside container) - recommended approach
 docker compose exec mcts poetry run test-all
+
+# E2E Tests - ALWAYS use Poetry commands (ensures complete test discovery)
+docker compose exec mcts poetry run test-e2e           # Run all e2e tests
+docker compose exec mcts poetry run test-e2e-validate  # Validate test discovery only
+docker compose exec mcts poetry run test-e2e-list      # List all tests that will run
+docker compose exec mcts poetry run test-e2e-full      # Run with pre-validation
+
+# ❌ NEVER run e2e tests directly - may miss parametrized tests:
+# docker compose exec mcts pytest tests/e2e/  # DO NOT USE - misses browser variants
 
 # Run specific test categories (inside container)
 docker compose exec mcts pytest -m "not slow"     # Exclude slow tests
@@ -119,6 +129,13 @@ docker compose exec mcts pytest --benchmark-only # Run benchmarks
 # Quick test subsets (useful during development)
 docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fast tests only
 ```
+
+#### E2E Test Execution Notes
+E2E tests are parametrized to run across 3 browsers (chromium, firefox, webkit). With ~111 test functions, this creates ~333 total test cases. The Poetry commands ensure:
+- All browser variants are discovered and run
+- Test count validation prevents missing tests
+- Proper parallel execution settings
+- Comprehensive reporting
 
 #### Frontend Building
 **CRITICAL: All frontend builds MUST output to `/opt/mcts/frontend-build/build` - NEVER to `frontend/build/`**
