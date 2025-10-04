@@ -24,7 +24,7 @@ You may stage changes with `git add` but must stop before committing. Only creat
 ### Volume-Based Architecture
 - **Build artifacts stay in Docker volumes**: `backend_build`, `frontend_build`
 - **Host filesystem remains clean**: No `.so`, `build/`, or `node_modules/` on host
-- **Hot reload via container**: `docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts`
+- **Hot reload via container**: `docker compose exec mcts poetry run backend-build`
 - **Separation of concerns**: Source files (bind mount) vs artifacts (volumes)
 
 ### Excluded from Git and Docker Context
@@ -70,18 +70,27 @@ docker compose exec mcts rm -rf /opt/mcts/backend-build/*.so  # Force C++ rebuil
 docker compose restart mcts  # Restart to trigger rebuilds
 
 # Hot reload (development)
-docker compose exec mcts cd /app/backend/core && scons target=/opt/mcts/backend-build/_corridors_mcts  # Rebuild C++ extension to volume
+docker compose exec mcts poetry run backend-build  # Rebuild C++ extension to volume
 ```
 
 ### Building C++ Components
+**IMPORTANT: All backend builds MUST be run inside Docker containers using Poetry scripts**
+
 ```bash
-# Build C++ shared library
+# Backend build management (using Poetry scripts - recommended)
+docker compose exec mcts poetry run backend-build      # Standard optimized build
+docker compose exec mcts poetry run backend-debug      # Debug build with symbols
+docker compose exec mcts poetry run backend-profile    # Profile build with gprof
+docker compose exec mcts poetry run backend-sanitize   # Build with AddressSanitizer
+docker compose exec mcts poetry run backend-test       # Build test executable
+docker compose exec mcts poetry run backend-clean      # Clean build artifacts
+docker compose exec mcts poetry run backend-rebuild    # Clean and rebuild
+
+# Direct SCons commands (fallback, if needed)
 cd backend/core
-scons                    # Standard build
-scons debug=1           # Debug build with symbols
-scons test=1            # Build test executable
-scons profile=1         # Profile build with gprof
-scons sanitize=1        # Build with AddressSanitizer
+scons target=/opt/mcts/backend-build/_corridors_mcts   # Standard build
+scons target=/opt/mcts/backend-build/_corridors_mcts debug=1    # Debug build
+scons test=1            # Build test executable (local)
 ```
 
 ### Testing

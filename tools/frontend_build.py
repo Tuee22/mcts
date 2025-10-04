@@ -77,12 +77,80 @@ class FrontendBuildManager:
 
         return success
 
+    def prepare_build_environment(self) -> bool:
+        """Copy necessary files to build directory and install dependencies."""
+        print("📋 Preparing build environment...")
+
+        # Files to copy
+        files_to_copy = [
+            ("package.json", self.frontend_dir / "package.json"),
+            ("tsconfig.json", self.frontend_dir / "tsconfig.json"),
+        ]
+
+        # Directories to copy
+        dirs_to_copy = [
+            ("src", self.frontend_dir / "src"),
+            ("public", self.frontend_dir / "public"),
+        ]
+
+        # Copy individual files
+        for dest_name, source in files_to_copy:
+            if not source.exists():
+                print(f"❌ Source file not found: {source}")
+                return False
+
+            dest = self.build_target / dest_name
+            if not dest.exists() or source.stat().st_mtime > dest.stat().st_mtime:
+                print(f"📄 Copying {source} → {dest}")
+                shutil.copy2(source, dest)
+            else:
+                print(f"✅ {dest_name} is up to date")
+
+        # Copy directories
+        for dest_name, source in dirs_to_copy:
+            if not source.exists():
+                print(f"❌ Source directory not found: {source}")
+                return False
+
+            dest = self.build_target / dest_name
+            if dest.exists():
+                print(f"🗑️  Removing old {dest_name} directory")
+                shutil.rmtree(dest)
+
+            print(f"📁 Copying {source} → {dest}")
+            shutil.copytree(source, dest)
+
+        # Install dependencies if needed
+        node_modules = self.build_target / "node_modules"
+        package_json = self.build_target / "package.json"
+
+        if not node_modules.exists() or (
+            package_json.exists()
+            and package_json.stat().st_mtime > node_modules.stat().st_mtime
+        ):
+            print("📦 Installing npm dependencies...")
+            success = self.run_command(
+                ["npm", "install", "--no-audit", "--no-fund"],
+                "Installing dependencies",
+                cwd=self.build_target,
+            )
+            if not success:
+                return False
+        else:
+            print("✅ npm dependencies are up to date")
+
+        return True
+
     def build(self, production: bool = True) -> bool:
         """Build the frontend application."""
         if not self.validate_environment():
             return False
 
         print(f"🏗️  Building frontend to {self.build_output}")
+
+        # Prepare build environment (copy files, install deps)
+        if not self.prepare_build_environment():
+            return False
 
         # Change to build target directory
         os.chdir(self.build_target)

@@ -18,7 +18,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN set -eux; if [ "$VARIANT" = "cuda" ] && [ "$TARGETARCH" != "amd64" ]; then \
       echo "Error: CUDA variant requires amd64 architecture (got ${TARGETARCH})" >&2; exit 1; fi
 
-# Environment variables
+# All environment variables consolidated in one place
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -27,14 +27,16 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=false \
     POETRY_NO_INTERACTION=1 \
     POETRY_HOME=/usr/local \
-    CI=1 \
     PATH="/usr/local/bin:${PATH}" \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 \
     PYTHONPATH="/app/backend/python:/opt/mcts/backend-build" \
     PYTHONDONTWRITEBYTECODE=1 \
     NPM_CONFIG_YES=true \
     NODE_PATH="/opt/mcts/frontend-build/node_modules" \
-    DOCKER_CONTAINER=1
+    DOCKER_CONTAINER=1 \
+    CI=false \
+    GENERATE_SOURCEMAP=false \
+    BUILD_PATH=/opt/mcts/frontend-build/build
 
 WORKDIR /app
 
@@ -97,43 +99,24 @@ RUN poetry install --no-root --with dev
 # Install Playwright system dependencies as root using official command
 RUN poetry run playwright install-deps
 
-# Build frontend during image construction (outside /app)
-WORKDIR /opt/mcts/frontend-build
-ENV CI=false
-ENV GENERATE_SOURCEMAP=false
-ENV BUILD_PATH=/opt/mcts/frontend-build/build
-# Copy frontend source files for building
-COPY frontend/package.json frontend/tsconfig.json ./
-COPY frontend/src ./src
-COPY frontend/public ./public
-# Install dependencies and build using Poetry frontend-build command
-# Note: npm install used instead of npm ci because package-lock.json is intentionally excluded
-# This ensures cross-platform compatibil1ity and .dockerignore prevents artifacts from entering build context
-RUN npm install --no-audit --no-fund
-
-# Use Poetry frontend-build command for consistent build management
-WORKDIR /app
-RUN poetry run frontend-build
-
 # Copy source code to /app (git-versioned files only)
 COPY . /app
 
-# Install the root package (for scripts) as root
-WORKDIR /app
+# Install the root package (for scripts)
 RUN poetry install --with dev
 
-# Build C++ backend during image construction (to /opt/mcts/backend-build)
-WORKDIR /app/backend/core
+# Build frontend using Poetry script (handles all file operations)
+RUN poetry run frontend-build
 
+# Build C++ backend during image construction (to /opt/mcts/backend-build)
 # Verify user permissions and prepare build environment
 RUN echo "=== Permission Check ===" && id && whoami && \
     echo "=== Build Directory Setup ===" && ls -la /opt/mcts/backend-build/
 
-# Build C++ extension to external directory
-RUN scons target=/opt/mcts/backend-build/_corridors_mcts
+# Build C++ extension to external directory using Poetry backend-build script
+RUN poetry run backend-build
 
 # Verify builds completed successfully
-WORKDIR /app
 RUN ls -la /opt/mcts/frontend-build/build/index.html && echo "✅ Frontend build completed"
 RUN python -c "import sys; sys.path.insert(0, '/opt/mcts/backend-build'); import _corridors_mcts; print('✅ Backend build completed:', _corridors_mcts.__file__)"
 

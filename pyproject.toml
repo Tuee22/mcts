@@ -91,6 +91,15 @@ frontend-build-check = "tools.frontend_build:check"
 frontend-build-clean = "tools.frontend_build:clean"
 frontend-serve = "tools.frontend_build:serve"
 
+# Backend build management - enforces /opt/mcts/backend-build target location
+backend-build = "tools.backend_build:build"
+backend-clean = "tools.backend_build:clean"
+backend-rebuild = "tools.backend_build:rebuild"
+backend-debug = "tools.backend_build:debug"
+backend-profile = "tools.backend_build:profile"
+backend-sanitize = "tools.backend_build:sanitize"
+backend-test = "tools.backend_build:test"
+
 
 [tool.black]
 line-length = 88
