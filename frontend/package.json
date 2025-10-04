@@ -22,7 +22,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "BUILD_PATH=/opt/mcts/frontend-build/build react-scripts build",
     "test": "cd /app/frontend && NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest --config /app/frontend/vitest.config.mjs",
     "test:ui": "cd /app/frontend && NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest --ui --config /app/frontend/vitest.config.mjs",
     "test:run": "cd /app/frontend && NODE_PATH=/opt/mcts/frontend-build/node_modules /opt/mcts/frontend-build/node_modules/.bin/vitest run --config /app/frontend/vitest.config.mjs",

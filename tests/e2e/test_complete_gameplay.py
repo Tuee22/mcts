@@ -60,7 +60,7 @@ class TestCompleteGameplay:
         # Wait for game to be created (functional approach)
         game_container = page.locator('[data-testid="game-container"]')
         await expect(game_container).to_be_visible(timeout=10000)
-        
+
         # Wait for the game board to be ready
         actual_board = page.locator(".game-board")
         await expect(actual_board).to_be_visible(timeout=10000)

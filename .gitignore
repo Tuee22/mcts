@@ -128,11 +128,12 @@ yarn-error.log*
 .pnpm-store/
 
 # React build outputs - ZERO TOLERANCE
+# All builds MUST go to /opt/mcts/frontend-build/build (inside Docker volumes)
 **/build/
 **/dist/
 **/.next/
 **/out/
-frontend/build/
+frontend/build/  # Prevent accidental local builds - use BUILD_PATH=/opt/mcts/frontend-build/build
 frontend/dist/
 
 # Package lock files (keep package.json, ignore locks for cross-platform compatibility)

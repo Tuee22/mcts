@@ -101,14 +101,19 @@ RUN poetry run playwright install-deps
 WORKDIR /opt/mcts/frontend-build
 ENV CI=false
 ENV GENERATE_SOURCEMAP=false
+ENV BUILD_PATH=/opt/mcts/frontend-build/build
 # Copy frontend source files for building
 COPY frontend/package.json frontend/tsconfig.json ./
 COPY frontend/src ./src
 COPY frontend/public ./public
-# Install dependencies and build to current directory
+# Install dependencies and build using Poetry frontend-build command
 # Note: npm install used instead of npm ci because package-lock.json is intentionally excluded
-# This ensures cross-platform compatibility and .dockerignore prevents artifacts from entering build context
-RUN npm install --no-audit --no-fund && npm run build
+# This ensures cross-platform compatibil1ity and .dockerignore prevents artifacts from entering build context
+RUN npm install --no-audit --no-fund
+
+# Use Poetry frontend-build command for consistent build management
+WORKDIR /app
+RUN poetry run frontend-build
 
 # Copy source code to /app (git-versioned files only)
 COPY . /app

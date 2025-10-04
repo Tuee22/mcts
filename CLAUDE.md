@@ -111,6 +111,41 @@ docker compose exec mcts pytest --benchmark-only # Run benchmarks
 docker compose exec mcts poetry run test-all --skip-e2e --skip-benchmarks  # Fast tests only
 ```
 
+#### Frontend Building
+**CRITICAL: All frontend builds MUST output to `/opt/mcts/frontend-build/build` - NEVER to `frontend/build/`**
+
+**Use Poetry commands for all frontend build operations:**
+
+```bash
+# Start Docker services first
+cd docker && docker compose up -d
+
+# Build frontend (RECOMMENDED - uses Poetry build manager)
+docker compose exec mcts poetry run frontend-build                 # Production build
+docker compose exec mcts poetry run frontend-build --dev           # Development build with source maps
+
+# Validate build locations and diagnose issues
+docker compose exec mcts poetry run frontend-build-check           # Check for incorrect build locations
+
+# Clean up incorrect build locations
+docker compose exec mcts poetry run frontend-build-clean           # Remove wrong build directories
+
+# Serve built frontend for testing
+docker compose exec mcts poetry run frontend-serve                 # Serve on port 3000
+docker compose exec mcts poetry run frontend-serve --port 8080     # Serve on custom port
+
+# FALLBACK: Direct npm build (not recommended)
+docker compose exec mcts cd /opt/mcts/frontend-build && npm run build  # Uses BUILD_PATH from package.json
+```
+
+**Build Path Enforcement:**
+- Poetry `frontend-build` command enforces `/opt/mcts/frontend-build/build` location
+- Environment validation ensures Docker container and correct directories
+- Automatic cleanup detection and warnings for wrong build locations  
+- Backend serves from `/opt/mcts/frontend-build/build` (line 221 in server.py)
+- `frontend/build/` is blocked by .gitignore as additional safety net
+- Multiple layers: Poetry script validation + BUILD_PATH + .gitignore
+
 #### Frontend Testing
 **ZERO NPX POLICY**: All commands use direct package names or npm scripts - npx is completely prohibited
 **NO JEST POLICY**: Vitest-only testing stack - Jest is completely prohibited

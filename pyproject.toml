@@ -85,6 +85,12 @@ setup-playwright = "tools.setup_playwright:main"
 server = "backend.api.server:main"
 server-dev = "backend.api.server:dev"
 
+# Frontend build management - enforces /opt/mcts/frontend-build/build location
+frontend-build = "tools.frontend_build:build"
+frontend-build-check = "tools.frontend_build:check"
+frontend-build-clean = "tools.frontend_build:clean"
+frontend-serve = "tools.frontend_build:serve"
+
 
 [tool.black]
 line-length = 88

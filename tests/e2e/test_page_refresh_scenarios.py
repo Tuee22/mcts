@@ -51,7 +51,7 @@ class TestPageRefreshScenarios:
         # Connection may initially be disconnected but settings should still be visible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         # Try to wait for connection, but if it fails, verify app is still functional
         try:
@@ -106,7 +106,7 @@ class TestPageRefreshScenarios:
         # Connection may initially be disconnected but settings should still be visible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:
@@ -176,7 +176,7 @@ class TestPageRefreshScenarios:
         # Connection may initially be disconnected but settings should still be visible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         try:
             await expect(connection_text).to_have_text("Connected", timeout=10000)
@@ -191,7 +191,7 @@ class TestPageRefreshScenarios:
         # The key functionality test: Settings should be visible and app should be in a valid state
         start_button = page.locator('[data-testid="start-game-button"]')
         await expect(start_button).to_be_visible()  # Button should be visible
-        
+
         # If connection is restored, button should be enabled; if not, it should be disabled (both are valid)
         button_text = await start_button.text_content() or ""
         if button_text == "Start Game":
@@ -200,7 +200,7 @@ class TestPageRefreshScenarios:
         elif button_text == "Disconnected":
             await expect(start_button).to_be_disabled()
             print("ℹ️ Still disconnected - Start Game button correctly disabled")
-            
+
             # Connection warning should be visible when disconnected (expected behavior)
             connection_warning = page.locator('[data-testid="connection-warning"]')
             await expect(connection_warning).to_be_visible()
@@ -249,7 +249,7 @@ class TestPageRefreshScenarios:
         # After refresh, settings panel should be accessible (functional: no-game state)
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:
@@ -278,10 +278,10 @@ class TestPageRefreshScenarios:
         else:
             print("ℹ️ Settings reset to defaults after refresh")
 
-        # Regardless, settings should be functional - button should be visible and in correct state  
+        # Regardless, settings should be functional - button should be visible and in correct state
         start_button = page.locator('[data-testid="start-game-button"]')
         await expect(start_button).to_be_visible()
-        
+
         # Button state depends on connection status (both enabled and disabled are valid)
         button_text = await start_button.text_content() or ""
         if button_text == "Start Game":
@@ -289,7 +289,9 @@ class TestPageRefreshScenarios:
             print("✅ Connection restored - settings fully functional")
         elif button_text == "Disconnected":
             await expect(start_button).to_be_disabled()
-            print("ℹ️ Still disconnected - settings visible but game start disabled (correct behavior)")
+            print(
+                "ℹ️ Still disconnected - settings visible but game start disabled (correct behavior)"
+            )
 
     async def test_multiple_refresh_cycles_stability(
         self, page: Page, e2e_urls: Dict[str, str]
@@ -322,14 +324,16 @@ class TestPageRefreshScenarios:
             except AssertionError:
                 print(f"ℹ️ Cycle {cycle + 1}: Disconnected (acceptable)")
                 # When disconnected, app should still be functional
-                await handle_settings_interaction(page) 
+                await handle_settings_interaction(page)
                 start_button = page.locator('[data-testid="start-game-button"]')
                 await expect(start_button).to_be_visible()
                 button_text = await start_button.text_content() or ""
                 if button_text == "Disconnected":
                     await expect(start_button).to_be_disabled()
                     # Connection warning expected when disconnected
-                    connection_warning = page.locator('[data-testid="connection-warning"]')
+                    connection_warning = page.locator(
+                        '[data-testid="connection-warning"]'
+                    )
                     await expect(connection_warning).to_be_visible()
                     print(f"✅ Cycle {cycle + 1}: App functional even when disconnected")
 
@@ -359,7 +363,7 @@ class TestPageRefreshScenarios:
         # Should return to normal state - settings panel should be accessible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:
@@ -405,7 +409,7 @@ class TestPageRefreshScenarios:
         # Should reconnect - settings panel should be accessible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:
@@ -426,7 +430,7 @@ class TestPageRefreshScenarios:
         # Connection should re-establish - settings panel should be accessible
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:
@@ -477,7 +481,7 @@ class TestPageRefreshScenarios:
         # Settings panel should be accessible after refresh
         settings_heading = page.locator("h2", has_text="Game Settings")
         await expect(settings_heading).to_be_visible(timeout=5000)
-        
+
         # Connection should eventually be re-established OR we should be able to use the app
         connection_text = page.locator('[data-testid="connection-text"]')
         try:

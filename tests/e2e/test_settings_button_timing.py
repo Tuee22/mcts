@@ -339,15 +339,17 @@ class TestSettingsButtonEdgeCases:
         """Test Settings button with safe page interactions that don't break state."""
 
         await page.goto("http://localhost:8000")
-        
+
         # Wait for initial connection
-        await expect(page.locator('[data-testid="connection-text"]')).to_have_text("Connected", timeout=10000)
+        await expect(page.locator('[data-testid="connection-text"]')).to_have_text(
+            "Connected", timeout=10000
+        )
 
         # Safe interactions that shouldn't break the functional state
         safe_interactions: List[Callable[[], Awaitable[None]]] = [
             lambda: page.keyboard.press("Escape"),  # Safe - won't change state
-            lambda: page.keyboard.press("Tab"),     # Safe - just changes focus
-            lambda: page.mouse.click(100, 100),    # Safe - click empty area
+            lambda: page.keyboard.press("Tab"),  # Safe - just changes focus
+            lambda: page.mouse.click(100, 100),  # Safe - click empty area
         ]
 
         for i in range(6):  # Reduced iterations
@@ -364,7 +366,7 @@ class TestSettingsButtonEdgeCases:
             # Verify settings are still accessible - should be settings panel by default
             settings_panel = page.locator("text=Game Settings")
             await expect(settings_panel).to_be_visible(timeout=2000)
-            
+
             start_button = page.locator('[data-testid="start-game-button"]')
             await expect(start_button).to_be_enabled()
 
@@ -393,12 +395,14 @@ class TestSettingsButtonEdgeCases:
         ]
 
         # Wait for initial connection
-        await expect(page.locator('[data-testid="connection-text"]')).to_have_text("Connected", timeout=10000)
-        
+        await expect(page.locator('[data-testid="connection-text"]')).to_have_text(
+            "Connected", timeout=10000
+        )
+
         # Start game first and wait for proper state transition
         start_button = page.locator('[data-testid="start-game-button"]')
         await start_button.click()
-        
+
         # Wait for game creation to complete
         game_container = page.locator('[data-testid="game-container"]')
         await expect(game_container).to_be_visible(timeout=10000)
@@ -423,12 +427,14 @@ class TestSettingsButtonEdgeCases:
         await page.goto("http://localhost:8000")
 
         # Wait for initial connection and verify settings available
-        await expect(page.locator('[data-testid="connection-text"]')).to_have_text("Connected", timeout=10000)
-        
+        await expect(page.locator('[data-testid="connection-text"]')).to_have_text(
+            "Connected", timeout=10000
+        )
+
         # Start game and wait for proper state transition
         start_button = page.locator('[data-testid="start-game-button"]')
         await start_button.click()
-        
+
         # Wait for game to be created properly
         game_container = page.locator('[data-testid="game-container"]')
         await expect(game_container).to_be_visible(timeout=10000)
@@ -448,7 +454,7 @@ class TestSettingsButtonEdgeCases:
             await page.evaluate("window.nonExistentFunction()")
         except Exception:
             pass  # Expected to fail
-            
+
         # Settings should still be accessible
         await expect(settings_toggle).to_be_visible(timeout=2000)
 

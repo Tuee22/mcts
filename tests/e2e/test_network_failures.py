@@ -2,10 +2,15 @@
 
 import asyncio
 import time
-from typing import Dict, List
+from typing import Dict, List, TypeGuard
 
 import pytest
-from playwright.async_api import Page, Route, expect
+from playwright.async_api import Page, Route, expect, JsonValue
+
+
+def is_response_dict(obj: JsonValue) -> TypeGuard[Dict[str, JsonValue]]:
+    """Type guard to check if JsonValue is a response dict."""
+    return isinstance(obj, dict) and "status" in obj
 
 
 @pytest.mark.e2e
@@ -79,13 +84,14 @@ async def test_server_error_responses(page: Page, e2e_urls: Dict[str, str]) -> N
     # Intercept requests and return 500 error - use exact URL pattern
     health_url = e2e_urls["backend"] + "/health"
     print(f"Setting up route interception for: {health_url}")
-    
+
     await page.route(
         f"{health_url}**", lambda route: route.fulfill(status=500, body="Server Error")
     )
 
     # Make request that should get 500 error (use page.evaluate to trigger route interception)
-    response_info = await page.evaluate(f"""
+    response_info = await page.evaluate(
+        f"""
         async () => {{
             try {{
                 const response = await fetch('{health_url}');
@@ -102,10 +108,14 @@ async def test_server_error_responses(page: Page, e2e_urls: Dict[str, str]) -> N
                 }};
             }}
         }}
-    """)
-    
-    print(f"Response status: {response_info['status']}, URL: {response_info.get('url', 'N/A')}")
-    assert response_info['status'] == 500
+    """
+    )
+
+    assert is_response_dict(response_info)
+    print(
+        f"Response status: {response_info['status']}, URL: {response_info.get('url', 'N/A')}"
+    )
+    assert response_info["status"] == 500
     print("✅ 500 error response handled correctly")
 
     # Remove the route and verify normal operation
@@ -115,7 +125,8 @@ async def test_server_error_responses(page: Page, e2e_urls: Dict[str, str]) -> N
     await asyncio.sleep(0.1)
 
     # Test normal operation (also using page.evaluate)
-    normal_response_info = await page.evaluate(f"""
+    normal_response_info = await page.evaluate(
+        f"""
         async () => {{
             try {{
                 const response = await fetch('{health_url}');
@@ -132,9 +143,11 @@ async def test_server_error_responses(page: Page, e2e_urls: Dict[str, str]) -> N
                 }};
             }}
         }}
-    """)
-    
-    assert normal_response_info['ok']
+    """
+    )
+
+    assert is_response_dict(normal_response_info)
+    assert normal_response_info["ok"]
     print("✅ Normal operation restored after removing 500 error route")
 
 

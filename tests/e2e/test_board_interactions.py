@@ -58,7 +58,7 @@ class TestBoardInteractions:
         # Wait for legal moves to be highlighted or any game cells to be ready
         game_cells = page.locator(".game-cell")
         await expect(game_cells.first).to_be_visible(timeout=5000)
-        
+
         legal_cell_count = await legal_cells.count()
 
         if legal_cell_count > 0:
@@ -74,12 +74,12 @@ class TestBoardInteractions:
             print("✅ Player piece still visible after move")
         else:
             print("ℹ️ No legal move cells found - testing basic cell interaction")
-            # Test basic cell interaction 
+            # Test basic cell interaction
             first_cell = game_cells.first
             if await first_cell.count() > 0:
                 await first_cell.click()
                 print("✅ Basic cell interaction tested")
-        
+
         print("✅ Click cell to move piece test completed")
 
     async def test_drag_piece_to_new_position(
@@ -106,58 +106,58 @@ class TestBoardInteractions:
         )
 
         # Try to interact with a game cell to test basic responsiveness
-        game_cells = async_page.locator(".game-cell")
+        game_cells = page.locator(".game-cell")
         cell_count = await game_cells.count()
         if cell_count > 0:
             await game_cells.first.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Basic cell interaction working")
 
         print("✅ Drag piece test completed (simplified for click-based gameplay)")
 
     async def test_place_horizontal_wall(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test placing horizontal walls on the board.
 
         Verifies wall placement mode activation and wall positioning.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Wait for game board to load
-        game_board = async_page.locator(".game-board")
+        game_board = page.locator(".game-board")
         await expect(game_board).to_be_visible(timeout=10000)
         print("✅ Game board is visible")
 
         # Check walls remaining display using correct selector pattern
-        walls_display = async_page.locator(".walls-remaining")
+        walls_display = page.locator(".walls-remaining")
         await expect(walls_display).to_be_visible(timeout=5000)
         print("✅ Walls remaining display is visible")
 
         # Activate wall placement mode using correct button selector
-        wall_mode_button = async_page.locator('button:has-text("Place Wall")')
+        wall_mode_button = page.locator('button:has-text("Place Wall")')
         await expect(wall_mode_button).to_be_visible(timeout=5000)
         await wall_mode_button.click()
-        await async_page.wait_for_timeout(1000)
+        await page.wait_for_timeout(1000)
         print("✅ Wall placement mode activated")
 
         # Wait for horizontal button to appear and click it
-        horizontal_button = async_page.locator('button:has-text("Horizontal")')
+        horizontal_button = page.locator('button:has-text("Horizontal")')
         if await horizontal_button.count() > 0:
             await horizontal_button.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Horizontal wall mode selected")
         else:
             print("ℹ️ Default horizontal mode or button not found")
 
         # Look for wall elements on the board (the actual wall slots/positions)
         # In the real React component, walls are rendered dynamically based on legal moves
-        legal_wall_elements = async_page.locator(".wall.legal, .wall-slot.legal")
+        legal_wall_elements = page.locator(".wall.legal, .wall-slot.legal")
         wall_count = await legal_wall_elements.count()
 
         if wall_count > 0:
@@ -165,55 +165,55 @@ class TestBoardInteractions:
             # Try to click on first legal wall position
             first_wall = legal_wall_elements.first
             await first_wall.click(force=True)
-            await async_page.wait_for_timeout(1000)
+            await page.wait_for_timeout(1000)
             print("✅ Wall placement attempted")
         else:
             print("ℹ️ No wall positions found - may need different selectors or timing")
             # Alternative: test the wall mode toggle worked
-            place_pawn_button = async_page.locator('button:has-text("Place Pawn")')
+            place_pawn_button = page.locator('button:has-text("Place Pawn")')
             if await place_pawn_button.count() > 0:
                 print("✅ Wall placement mode is active (button shows 'Place Pawn')")
 
         print("✅ Horizontal wall placement test completed")
 
     async def test_place_vertical_wall(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test placing vertical walls on the board.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Activate wall placement mode using correct button selector
-        wall_mode_button = async_page.locator(".place-wall-btn")
+        wall_mode_button = page.locator(".place-wall-btn")
         if await wall_mode_button.count() > 0:
             await wall_mode_button.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Wall placement mode activated")
 
             # Set to vertical mode
-            vertical_button = async_page.locator(".vertical-btn")
+            vertical_button = page.locator(".vertical-btn")
             if await vertical_button.count() > 0:
                 await vertical_button.click()
-                await async_page.wait_for_timeout(300)
+                await page.wait_for_timeout(300)
                 print("✅ Vertical wall mode selected")
 
             # Check for vertical wall slots
-            wall_slots = async_page.locator(".wall-slot.vertical")
+            wall_slots = page.locator(".wall-slot.vertical")
             wall_slot_count = await wall_slots.count()
             if wall_slot_count > 0:
                 print(f"✅ Found {wall_slot_count} vertical wall slots")
 
                 # Try to place a wall on the first legal slot by targeting a specific wall ID
-                first_vertical_wall = async_page.locator('[data-wall-id="v-0"]')
+                first_vertical_wall = page.locator('[data-wall-id="v-0"]')
                 if await first_vertical_wall.count() > 0:
                     # Use force click to bypass the interception issue
                     await first_vertical_wall.click(force=True)
-                    await async_page.wait_for_timeout(500)
+                    await page.wait_for_timeout(500)
                     print("✅ Vertical wall placement attempted")
                 else:
                     print("ℹ️ No legal vertical wall positions available")
@@ -225,27 +225,27 @@ class TestBoardInteractions:
         print("✅ Vertical wall placement test completed")
 
     async def test_illegal_move_rejection(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test that illegal moves are properly rejected with feedback.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Verify player pieces are visible
-        player1_piece = async_page.locator(".player.player-0")
-        player2_piece = async_page.locator(".player.player-1")
+        player1_piece = page.locator(".player.player-0")
+        player2_piece = page.locator(".player.player-1")
         await expect(player1_piece).to_be_visible()
         await expect(player2_piece).to_be_visible()
         print("✅ Both players are visible on the board")
 
         # Test clicking on non-legal cells
-        all_cells = async_page.locator(".game-cell")
-        illegal_cells = async_page.locator(".game-cell:not(.legal)")
+        all_cells = page.locator(".game-cell")
+        illegal_cells = page.locator(".game-cell:not(.legal)")
 
         all_cell_count = await all_cells.count()
         illegal_cell_count = await illegal_cells.count()
@@ -257,7 +257,7 @@ class TestBoardInteractions:
         if illegal_cell_count > 0:
             # Try clicking on an illegal move (non-legal cell)
             await illegal_cells.first.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
 
             # Player pieces should still be visible (no crash/error)
             await expect(player1_piece).to_be_visible()
@@ -269,42 +269,42 @@ class TestBoardInteractions:
         print("✅ Illegal move rejection test completed")
 
     async def test_wall_blocks_opponent_path(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test that walls properly block opponent movement.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Verify both players are visible
-        player1_piece = async_page.locator(".player.player-0")
-        player2_piece = async_page.locator(".player.player-1")
+        player1_piece = page.locator(".player.player-0")
+        player2_piece = page.locator(".player.player-1")
         await expect(player1_piece).to_be_visible()
         await expect(player2_piece).to_be_visible()
         print("✅ Both players are visible on the board")
 
         # Test wall placement functionality
-        wall_mode_button = async_page.locator(".place-wall-btn")
+        wall_mode_button = page.locator(".place-wall-btn")
         if await wall_mode_button.count() > 0:
             await wall_mode_button.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Wall placement mode activated")
 
             # Check if wall slots are available
-            wall_slots = async_page.locator(".wall-slot")
+            wall_slots = page.locator(".wall-slot")
             slot_count = await wall_slots.count()
             if slot_count > 0:
                 print(f"✅ Found {slot_count} wall slots")
 
                 # Test interaction with first horizontal wall slot
-                first_horizontal_wall = async_page.locator('[data-wall-id="h-0"]')
+                first_horizontal_wall = page.locator('[data-wall-id="h-0"]')
                 if await first_horizontal_wall.count() > 0:
                     await first_horizontal_wall.click(force=True)
-                    await async_page.wait_for_timeout(500)
+                    await page.wait_for_timeout(500)
                     print("✅ Wall slot interaction tested")
                 else:
                     print("ℹ️ No legal wall slots available")
@@ -316,50 +316,50 @@ class TestBoardInteractions:
         print("✅ Wall blocking path test completed")
 
     async def test_wall_intersection_rules(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test wall intersection rules - walls cannot overlap or cross.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Test wall intersection functionality
-        wall_mode_button = async_page.locator(".place-wall-btn")
+        wall_mode_button = page.locator(".place-wall-btn")
         if await wall_mode_button.count() > 0:
             await wall_mode_button.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Wall placement mode activated")
 
             # Test horizontal wall first
-            horizontal_button = async_page.locator(".horizontal-btn")
+            horizontal_button = page.locator(".horizontal-btn")
             if await horizontal_button.count() > 0:
                 await horizontal_button.click()
-                await async_page.wait_for_timeout(300)
+                await page.wait_for_timeout(300)
                 print("✅ Horizontal wall mode selected")
 
                 # Try to place a horizontal wall using specific wall ID
-                first_horizontal_wall = async_page.locator('[data-wall-id="h-0"]')
+                first_horizontal_wall = page.locator('[data-wall-id="h-0"]')
                 if await first_horizontal_wall.count() > 0:
                     await first_horizontal_wall.click(force=True)
-                    await async_page.wait_for_timeout(500)
+                    await page.wait_for_timeout(500)
                     print("✅ Horizontal wall placed")
 
             # Test vertical wall mode
-            vertical_button = async_page.locator(".vertical-btn")
+            vertical_button = page.locator(".vertical-btn")
             if await vertical_button.count() > 0:
                 await vertical_button.click()
-                await async_page.wait_for_timeout(300)
+                await page.wait_for_timeout(300)
                 print("✅ Vertical wall mode selected")
 
                 # Check for legal vertical wall positions using specific wall ID
-                first_vertical_wall = async_page.locator('[data-wall-id="v-0"]')
+                first_vertical_wall = page.locator('[data-wall-id="v-0"]')
                 if await first_vertical_wall.count() > 0:
                     await first_vertical_wall.click(force=True)
-                    await async_page.wait_for_timeout(500)
+                    await page.wait_for_timeout(500)
                     print("✅ Vertical wall interaction tested")
         else:
             print("ℹ️ Wall placement button not found")
@@ -367,19 +367,19 @@ class TestBoardInteractions:
         print("✅ Wall intersection rules test completed")
 
     async def test_legal_move_highlighting(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test that legal moves are highlighted when it's the player's turn.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Check for legal move highlighting using correct selectors
-        legal_moves = async_page.locator(".game-cell.legal")
+        legal_moves = page.locator(".game-cell.legal")
         legal_count = await legal_moves.count()
 
         if legal_count > 0:
@@ -388,12 +388,12 @@ class TestBoardInteractions:
             # Test hover interaction on a legal move
             first_legal = legal_moves.first
             await first_legal.hover()
-            await async_page.wait_for_timeout(300)
+            await page.wait_for_timeout(300)
             print("✅ Legal move hover interaction working")
 
             # Test clicking on a legal move
             await first_legal.click()
-            await async_page.wait_for_timeout(500)
+            await page.wait_for_timeout(500)
             print("✅ Legal move click interaction working")
         else:
             print(
@@ -401,7 +401,7 @@ class TestBoardInteractions:
             )
 
             # Check for any game cells
-            all_cells = async_page.locator(".game-cell")
+            all_cells = page.locator(".game-cell")
             cell_count = await all_cells.count()
             print(f"ℹ️ Found {cell_count} total game cells")
 
