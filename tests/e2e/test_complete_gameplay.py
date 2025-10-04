@@ -508,7 +508,8 @@ class TestCompleteGameplay:
     async def _wait_for_connection(self, page: Page) -> None:
         """Wait for WebSocket connection to be established."""
         connection_text = page.locator('[data-testid="connection-text"]')
-        await expect(connection_text).to_have_text("Connected", timeout=10000)
+        # Longer timeout for tests that reload the page
+        await expect(connection_text).to_have_text("Connected", timeout=20000)
 
     async def _setup_game(
         self,

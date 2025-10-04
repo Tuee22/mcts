@@ -32,6 +32,16 @@
 
 .settings-group {
   margin-bottom: 25px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure time/difficulty buttons don't interfere with start button */
+.time-buttons,
+.difficulty-buttons,
+.size-buttons {
+  position: relative;
+  z-index: 1;
 }
 
 .settings-group label {
@@ -90,6 +100,8 @@
 .size-buttons {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
 }
 
 .difficulty-btn,
@@ -105,6 +117,8 @@
   color: #ff9900;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 44px; /* Touch target size */
+  min-width: 44px; /* Touch target size */
 }
 
 .difficulty-btn:hover,
@@ -126,13 +140,21 @@
 .settings-actions {
   display: flex;
   gap: 15px;
-  margin-top: 30px;
+  margin-top: 40px; /* Increased margin to prevent overlap */
+  padding-top: 10px; /* Additional padding */
+  position: relative;
+  z-index: 30; /* Higher than any other buttons */
+  clear: both;
+  isolation: isolate; /* Create new stacking context */
 }
 
 .start-game {
   flex: 2;
   background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
   box-shadow: 0 4px 0 #008800;
+  position: relative;
+  z-index: 40; /* Even higher z-index */
+  min-height: 44px; /* Touch target size */
 }
 
 .start-game:hover {
@@ -198,6 +220,7 @@
   background: rgba(128, 128, 128, 0.1) !important;
   border-color: #666 !important;
   color: #666 !important;
+  pointer-events: none; /* Prevent disabled buttons from intercepting clicks */
 }
 
 .start-game:disabled {

@@ -5,11 +5,11 @@ import time
 from typing import Dict, List, TypeGuard
 
 import pytest
-from playwright.async_api import Page, Route, expect, JsonValue
+from playwright.async_api import Page, Route, expect
 
 
-def is_response_dict(obj: JsonValue) -> TypeGuard[Dict[str, JsonValue]]:
-    """Type guard to check if JsonValue is a response dict."""
+def is_response_dict(obj: object) -> TypeGuard[Dict[str, object]]:
+    """Type guard to check if object is a response dict."""
     return isinstance(obj, dict) and "status" in obj
 
 

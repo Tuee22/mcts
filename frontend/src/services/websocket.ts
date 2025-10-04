@@ -7,9 +7,25 @@ class WebSocketService {
   private currentGameId: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private shouldReconnect = true;
+  private connectionMonitor: NodeJS.Timeout | null = null;
+  private connectionMutex = false;
 
   connect(url?: string) {
     console.log('WebSocket connect called with URL:', url);
+
+    // Prevent concurrent connection attempts
+    if (this.connectionMutex) {
+      console.log('Connection attempt blocked by mutex');
+      return;
+    }
+    this.connectionMutex = true;
+
+    this.shouldReconnect = true;
+    
+    // Start connection monitoring if not already running
+    this.startConnectionMonitoring();
 
     // Close any existing connection first (including game-specific ones)
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -94,17 +110,31 @@ class WebSocketService {
     if (!this.socket) return;
 
     this.socket.onopen = () => {
-      useGameStore.getState().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: 'ws-client' });
+      console.log('WebSocket onopen event fired');
+      // Don't set connection state here - wait for server confirmation message
       this.reconnectAttempts = 0;
+      this.connectionMutex = false; // Release mutex on successful connection
     };
 
     this.socket.onclose = () => {
       useGameStore.getState().dispatch({ type: 'CONNECTION_LOST' });
+      
+      // Attempt to reconnect if we should (not manually disconnected)
+      if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 5000); // Exponential backoff, max 5s
+        console.log(`WebSocket closed, attempting reconnect in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+        
+        this.reconnectTimeout = setTimeout(() => {
+          this.reconnectAttempts++;
+          this.connect();
+        }, delay);
+      }
     };
 
     this.socket.onerror = (error: any) => {
       console.error('WebSocket connection error:', error);
       this.reconnectAttempts++;
+      this.connectionMutex = false; // Release mutex on connection error
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         useGameStore.getState().dispatch({ type: 'CONNECTION_LOST', error: 'Max reconnection attempts reached' });
@@ -119,7 +149,11 @@ class WebSocketService {
         switch (data.type) {
           case 'connect':
             // Connection confirmed from server
-            useGameStore.getState().dispatch({ type: 'CONNECTION_ESTABLISHED', clientId: data.clientId || 'ws-client' });
+            console.log('Received connection confirmation from server');
+            useGameStore.getState().dispatch({ 
+              type: 'CONNECTION_ESTABLISHED', 
+              clientId: data.data?.connection_id || data.clientId || 'ws-client' 
+            });
             break;
           case 'pong':
             // Handle ping/pong for keepalive
@@ -516,7 +550,35 @@ class WebSocketService {
     }));
   }
 
+  private startConnectionMonitoring() {
+    // Only start if not already running
+    if (this.connectionMonitor !== null) {
+      return;
+    }
+    
+    this.connectionMonitor = setInterval(() => {
+      // Check if we should be connected but aren't
+      if (this.shouldReconnect && !this.isConnected() && !this.connectionMutex) {
+        console.log('Connection monitor detected disconnected state, attempting reconnection...');
+        this.connect();
+      }
+    }, 1000); // Check every 1 second for faster reconnection
+  }
+  
+  private stopConnectionMonitoring() {
+    if (this.connectionMonitor) {
+      clearInterval(this.connectionMonitor);
+      this.connectionMonitor = null;
+    }
+  }
+
   disconnect() {
+    this.shouldReconnect = false;
+    this.stopConnectionMonitoring();
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     if (this.socket && typeof this.socket.close === 'function') {
       this.socket.close();
       this.socket = null;

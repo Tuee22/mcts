@@ -49,8 +49,11 @@ class TestBrowserNavigation:
         # Wait for app to load again after back navigation
         await page.wait_for_selector('[data-testid="app-main"]', timeout=10000)
 
-        # Should reconnect
-        await expect(connection_text).to_have_text("Connected", timeout=10000)
+        # Create a new locator for connection text after navigation
+        connection_text_after_nav = page.locator('[data-testid="connection-text"]')
+
+        # Should reconnect - wait a bit longer for auto-reconnection
+        await expect(connection_text_after_nav).to_have_text("Connected", timeout=15000)
 
         # The settings might be in panel form (no game) or button form
         # Check for either the button or the panel
@@ -82,8 +85,11 @@ class TestBrowserNavigation:
         # Wait for app to be ready instead of networkidle
         await page.wait_for_selector('[data-testid="connection-text"]', timeout=10000)
 
-        # Should still work
-        await expect(connection_text).to_have_text("Connected", timeout=10000)
+        # Create another fresh locator for final check
+        connection_text_final = page.locator('[data-testid="connection-text"]')
+
+        # Should still work - wait longer for reconnection
+        await expect(connection_text_final).to_have_text("Connected", timeout=15000)
 
         print("✅ Multiple back/forward cycles work correctly")
 

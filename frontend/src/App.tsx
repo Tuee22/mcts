@@ -58,15 +58,99 @@ function App() {
       }
     });
     
+    // Initial connection
     wsService.connect();
     dispatch({ type: 'CONNECTION_START' });
+
+    // Handle page visibility changes to reconnect after browser navigation
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Check if this is likely from browser navigation
+        const navigationTime = sessionStorage.getItem('ws-navigation-time');
+        const timeSinceNavigation = navigationTime ? Date.now() - parseInt(navigationTime) : Infinity;
+        
+        // If navigation was recent (within 5 seconds), attempt immediate reconnection
+        if (timeSinceNavigation < 5000) {
+          console.log('Page became visible after recent navigation, attempting immediate reconnection...');
+          const currentlyConnected = useGameStore.getState().isConnected();
+          if (!currentlyConnected) {
+            wsService.connect();
+            dispatch({ type: 'CONNECTION_START' });
+          }
+          sessionStorage.removeItem('ws-navigation-time');
+        } else {
+          // Normal visibility change, small delay
+          setTimeout(() => {
+            const currentlyConnected = useGameStore.getState().isConnected();
+            if (!currentlyConnected) {
+              console.log('Page became visible, attempting WebSocket reconnection...');
+              wsService.connect();
+              dispatch({ type: 'CONNECTION_START' });
+            }
+          }, 100);
+        }
+      }
+    };
+
+    // Handle page focus to reconnect
+    const handleFocus = () => {
+      setTimeout(() => {
+        const currentlyConnected = useGameStore.getState().isConnected();
+        if (!currentlyConnected) {
+          console.log('Page focused, attempting WebSocket reconnection...');
+          wsService.connect();
+          dispatch({ type: 'CONNECTION_START' });
+        }
+      }, 100);
+    };
+
+    // Handle browser back/forward navigation
+    const handlePopState = () => {
+      console.log('Browser navigation detected (popstate), attempting WebSocket reconnection...');
+      setTimeout(() => {
+        const currentlyConnected = useGameStore.getState().isConnected();
+        if (!currentlyConnected) {
+          wsService.connect();
+          dispatch({ type: 'CONNECTION_START' });
+        }
+      }, 200);
+    };
+
+    // Handle page show event (triggered on browser back/forward)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      console.log('Page show event detected, attempting WebSocket reconnection...', { persisted: event.persisted });
+      // Immediate reconnection for browser navigation (no delay)
+      const currentlyConnected = useGameStore.getState().isConnected();
+      if (!currentlyConnected) {
+        wsService.connect();
+        dispatch({ type: 'CONNECTION_START' });
+      }
+    };
+
+    // Handle page hide event for clean disconnect
+    const handlePageHide = () => {
+      console.log('Page hide event detected, preserving connection state...');
+      // Don't disconnect, just note that navigation is happening
+      sessionStorage.setItem('ws-navigation-time', Date.now().toString());
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('pagehide', handlePageHide);
     
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('pagehide', handlePageHide);
       wsService.disconnect();
       dispatch({ type: 'CONNECTION_LOST' });
       cleanupTabCoordinator();
     };
-  }, [dispatch]);
+  }, [dispatch]); // Removed isConnected to prevent reconnection loop
 
   // Handle notifications
   const notifications = useGameStore((store) => store.ui.notifications);

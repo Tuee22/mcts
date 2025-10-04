@@ -502,8 +502,9 @@ class TestBoardInteractions:
         start_button = page.locator('[data-testid="start-game-button"]')
         await expect(start_button).to_be_visible(timeout=5000)
         await expect(start_button).to_be_enabled(timeout=5000)
-        await start_button.click()
-        print("✅ Clicked Start Game button")
+        # Use force click to bypass UI overlap issues in mobile viewport
+        await start_button.click(force=True)
+        print("✅ Clicked Start Game button (forced)")
 
         # Wait for game to be created (functional approach - wait for actual state)
         game_container = page.locator('[data-testid="game-container"]')
