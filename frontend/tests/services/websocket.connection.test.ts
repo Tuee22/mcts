@@ -162,50 +162,9 @@ describe('WebSocket Service Connection Tests', () => {
       expect(wsService.isConnected()).toBe(true);
     });
 
-    it.skip('should handle connection failure', async () => {
-      // NOTE: Mock WebSocket constructor spy is not working correctly with vi.stubGlobal
-      // This test is skipped due to mock integration issues
-    });
-
-    it.skip('should handle multiple connection attempts', async () => {
-      // NOTE: Mock WebSocket instance tracking is not working correctly
-      // This test is skipped due to mock integration issues
-    });
-  });
-
-  describe('Message handling', () => {
-    it.skip('should send messages when connected', () => {
-      // NOTE: Current WebSocket service doesn't implement sendMessage method
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should queue messages when disconnected', async () => {
-      // NOTE: Current WebSocket service doesn't implement sendMessage method
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should handle incoming messages', () => {
-      // NOTE: Current WebSocket service doesn't implement onMessage event handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should handle malformed incoming messages', () => {
-      // NOTE: Current WebSocket service doesn't implement onMessage/onError event handlers
-      // This test is skipped as it tests non-existent API methods
-    });
   });
 
   describe('Reconnection logic', () => {
-    it.skip('should attempt reconnection after disconnect', async () => {
-      // NOTE: Current WebSocket service may not implement automatic reconnection
-      // Mock constructor spy is not working correctly to verify reconnection attempts
-      // This test is skipped due to mock integration issues
-    });
-
-    it.skip('should back off exponentially on repeated failures', async () => {
-      // NOTE: Mock WebSocket constructor spy is not working correctly with vi.stubGlobal
-      // This test is skipped due to mock integration issues
-    });
 
     it('should stop reconnecting after max attempts', async () => {
       const failingConstructor = vi.fn((url: string) => {
@@ -224,83 +183,6 @@ describe('WebSocket Service Connection Tests', () => {
 
       // Should eventually stop trying
       expect(wsService.isConnected()).toBe(false);
-    });
-  });
-
-  describe('Game operation methods', () => {
-    it.skip('should create game with correct message format', () => {
-      // NOTE: Current WebSocket service uses REST API (fetch), not WebSocket messages
-      // createGame() makes HTTP POST to /games, not WebSocket messages
-      // This test is skipped as it tests non-existent message-based API
-    });
-
-    it.skip('should make move with correct message format', () => {
-      // NOTE: Current WebSocket service uses REST API (fetch), not WebSocket messages
-      // makeMove() makes HTTP POST to /games/{id}/moves, not WebSocket messages
-      // This test is skipped as it tests non-existent message-based API
-    });
-
-    it.skip('should join game with correct message format', () => {
-      // NOTE: Current WebSocket service joinGame sends WebSocket message but expects different format
-      // This test is skipped as it tests incorrect message format expectations
-    });
-
-    it.skip('should leave game with correct message format', () => {
-      // NOTE: Current WebSocket service doesn't implement leaveGame method
-      // This test is skipped as it tests non-existent API methods
-    });
-  });
-
-  describe('Connection state events', () => {
-    it.skip('should emit connection events', async () => {
-      // NOTE: Current WebSocket service doesn't implement onConnect/onDisconnect event handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should provide connection state information', async () => {
-      // NOTE: Current WebSocket service doesn't implement getConnectionState method
-      // This test is skipped as it tests non-existent API methods
-    });
-  });
-
-  describe('Error handling', () => {
-    it.skip('should handle WebSocket send errors', async () => {
-      // NOTE: Current WebSocket service doesn't implement sendMessage/onError methods
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should handle connection errors gracefully', async () => {
-      // NOTE: Current WebSocket service doesn't implement onError event handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-  });
-
-  describe('Message correlation', () => {
-    it.skip('should correlate responses with requests', () => {
-      // NOTE: Current WebSocket service createGame doesn't accept response/timeout handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should handle timeout for uncorrelated requests', async () => {
-      // NOTE: Current WebSocket service createGame doesn't accept response/timeout handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should ignore responses without correlation', () => {
-      // NOTE: Current WebSocket service doesn't implement onMessage handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-  });
-
-  describe('Cleanup and resource management', () => {
-    it.skip('should clean up event handlers on disconnect', async () => {
-      // NOTE: Current WebSocket service doesn't implement onMessage handlers
-      // This test is skipped as it tests non-existent API methods
-    });
-
-    it.skip('should clear message queue on explicit disconnect', () => {
-      // NOTE: Current WebSocket service doesn't implement sendMessage or message queuing
-      // This test is skipped as it tests non-existent API methods
     });
   });
 });
