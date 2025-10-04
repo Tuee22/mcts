@@ -321,9 +321,15 @@ class TestBrowserNavigation:
         # The key test is that connection remains stable after tab switching
         await expect(connection_text).to_have_text("Connected", timeout=10000)
 
+        # After New Game, we should be back at game setup screen (not game-container)
+        await expect(app_page.locator('[data-testid="game-container"]')).not_to_be_visible(
+            timeout=5000
+        )
+        
         # Verify we can interact with settings again (functional test)
-        settings_button_again = app_page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button_again).to_be_enabled(timeout=5000)
+        await expect(app_page.locator('[data-testid="game-setup"]')).to_be_visible(
+            timeout=5000
+        )
 
         print("✅ App remains functional after tab switching")
 

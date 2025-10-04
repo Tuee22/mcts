@@ -481,15 +481,16 @@ describe('WebSocket Service Enhanced Tests', () => {
     });
 
     it('should handle multiple connection attempts', () => {
-      // Test that connect can be called multiple times
+      // Test that connect prevents duplicate connections
       wsService.connect();
       const connectionCountAfter1 = (global.WebSocket as any).mock.calls.length;
 
+      // Second connect should be ignored if first is still connecting/connected
       wsService.connect();
       const connectionCountAfter2 = (global.WebSocket as any).mock.calls.length;
 
-      // Should create new connections each time
-      expect(connectionCountAfter2).toBeGreaterThan(connectionCountAfter1);
+      // Should NOT create new connections if one is already in progress
+      expect(connectionCountAfter2).toBe(connectionCountAfter1);
     });
   });
 

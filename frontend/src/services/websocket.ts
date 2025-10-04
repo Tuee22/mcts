@@ -10,17 +10,33 @@ class WebSocketService {
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private shouldReconnect = true;
   private connectionMonitor: NodeJS.Timeout | null = null;
-  private connectionMutex = false;
+
+  private isConnecting(): boolean {
+    return this.socket?.readyState === WebSocket.CONNECTING || false;
+  }
+  
+  private isClosing(): boolean {
+    return this.socket?.readyState === WebSocket.CLOSING || false;
+  }
 
   connect(url?: string) {
     console.log('WebSocket connect called with URL:', url);
 
-    // Prevent concurrent connection attempts
-    if (this.connectionMutex) {
-      console.log('Connection attempt blocked by mutex');
+    // If already connecting or connected, skip
+    if (this.socket && (
+      this.socket.readyState === WebSocket.CONNECTING ||
+      this.socket.readyState === WebSocket.OPEN
+    )) {
+      console.log('Connection already in progress or established');
       return;
     }
-    this.connectionMutex = true;
+    
+    // If closing, wait for it to finish
+    if (this.socket && this.socket.readyState === WebSocket.CLOSING) {
+      console.log('Previous connection is closing, deferring new connection');
+      setTimeout(() => this.connect(url), 100);
+      return;
+    }
 
     this.shouldReconnect = true;
     
@@ -113,7 +129,6 @@ class WebSocketService {
       console.log('WebSocket onopen event fired');
       // Don't set connection state here - wait for server confirmation message
       this.reconnectAttempts = 0;
-      this.connectionMutex = false; // Release mutex on successful connection
     };
 
     this.socket.onclose = () => {
@@ -134,7 +149,6 @@ class WebSocketService {
     this.socket.onerror = (error: any) => {
       console.error('WebSocket connection error:', error);
       this.reconnectAttempts++;
-      this.connectionMutex = false; // Release mutex on connection error
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         useGameStore.getState().dispatch({ type: 'CONNECTION_LOST', error: 'Max reconnection attempts reached' });
@@ -558,7 +572,7 @@ class WebSocketService {
     
     this.connectionMonitor = setInterval(() => {
       // Check if we should be connected but aren't
-      if (this.shouldReconnect && !this.isConnected() && !this.connectionMutex) {
+      if (this.shouldReconnect && !this.isConnecting() && !this.isConnected()) {
         console.log('Connection monitor detected disconnected state, attempting reconnection...');
         this.connect();
       }
@@ -617,6 +631,23 @@ class WebSocketService {
     } catch (error) {
       console.error('Error fetching game state:', error);
     }
+  }
+
+  resetConnection() {
+    // Force a fresh connection by clearing all state and reconnecting
+    console.log('Forcing fresh WebSocket connection...');
+    this.reconnectAttempts = 0; // Reset reconnect attempts
+    this.shouldReconnect = true; // Ensure we want to reconnect
+    
+    // Clear any existing timeouts
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
+    // Disconnect and immediately reconnect
+    this.disconnect();
+    this.connect();
   }
 
   resetGameConnection() {

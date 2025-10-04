@@ -28,19 +28,14 @@ function App() {
     // Initialize functional tab coordinator
     initializeTabCoordinator((result: TabCoordinationResult) => {
       if (result.shouldShowConflictWarning && result.conflictMessage) {
-        // Handle multi-tab conflict functionally
-        if (!result.isPrimary) {
-          dispatch({
-            type: 'CONNECTION_LOST',
-            error: 'Multiple tabs open - this tab is inactive'
-          });
-        }
+        // Handle multi-tab conflict functionally - but don't force disconnect
+        // All tabs maintain their WebSocket connections
         
         dispatch({
           type: 'NOTIFICATION_ADDED',
           notification: {
             id: result.isPrimary ? 'primary-tab-info' : 'multi-tab-conflict',
-            type: result.isPrimary ? 'warning' : 'error',
+            type: result.isPrimary ? 'warning' : 'warning', // Changed error to warning for secondary tabs
             message: result.conflictMessage,
             timestamp: new Date()
           }
@@ -134,11 +129,26 @@ function App() {
       sessionStorage.setItem('ws-navigation-time', Date.now().toString());
     };
 
+    // Handle window load event for page reloads
+    const handleWindowLoad = () => {
+      console.log('Window load event detected, ensuring WebSocket connection...');
+      // Force a fresh connection on page reload
+      setTimeout(() => {
+        const currentlyConnected = useGameStore.getState().isConnected();
+        if (!currentlyConnected) {
+          console.log('Page loaded but not connected, forcing fresh connection...');
+          wsService.resetConnection();
+          dispatch({ type: 'CONNECTION_START' });
+        }
+      }, 100);
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('pageshow', handlePageShow);
     window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('load', handleWindowLoad);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -146,6 +156,7 @@ function App() {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('load', handleWindowLoad);
       wsService.disconnect();
       dispatch({ type: 'CONNECTION_LOST' });
       cleanupTabCoordinator();
