@@ -135,7 +135,7 @@ describe('settingsVisibility utilities', () => {
 
   describe('getToggleButtonTitle', () => {
     it('should return appropriate title when connected', () => {
-      expect(getToggleButtonTitle(true)).toBe('⚙️ Game Settings');
+      expect(getToggleButtonTitle(true)).toBe('Game Settings');
     });
 
     it('should return appropriate title when disconnected', () => {

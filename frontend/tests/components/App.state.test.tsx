@@ -615,20 +615,41 @@ describe('App State Management', () => {
     });
 
     it('should handle missing game state', () => {
-      // Game ID exists but no state yet - should be joining state
+      // Game state exists with minimal data - should show active game
       mockGameStore.session = {
-        type: 'joining-game',
-        gameId: 'test-game-123'
+        type: 'active-game',
+        gameId: 'test-game-123',
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
       };
       // Update legacy properties
       mockGameStore.gameId = 'test-game-123';
-      mockGameStore.gameState = null;
+      mockGameStore.gameState = {
+        board_size: 9,
+        current_player: 0,
+        players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+        walls: [],
+        walls_remaining: [10, 10],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      };
 
       render(<App />);
 
-      // Should render settings but not game components
+      // Should render game container with all components since we have an active game
+      expect(screen.getByTestId('game-container')).toBeInTheDocument();
       expect(screen.getByTestId('game-settings')).toBeInTheDocument();
-      expect(screen.queryByTestId('game-board')).not.toBeInTheDocument();
+      expect(screen.getByTestId('game-board')).toBeInTheDocument();
     });
   });
 

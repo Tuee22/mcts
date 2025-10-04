@@ -87,7 +87,7 @@ describe('Multi-Tab E2E Mirror Tests', () => {
     });
 
     // When disconnected with no game, settings should be visible as PANEL (not button)
-    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('Game Settings')).toBeInTheDocument();
     expect(screen.queryByTestId('settings-toggle-button')).not.toBeInTheDocument();
     
     // Start Game button should be disabled when disconnected
@@ -112,7 +112,7 @@ describe('Multi-Tab E2E Mirror Tests', () => {
     });
     
     // Settings should still be panel, not button (no game active)
-    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('Game Settings')).toBeInTheDocument();
     expect(screen.queryByTestId('settings-toggle-button')).not.toBeInTheDocument();
     
     // Now Start Game button should be enabled
@@ -148,7 +148,7 @@ describe('Multi-Tab E2E Mirror Tests', () => {
       expect(screen.getByTestId('settings-toggle-button')).toBeInTheDocument();
     });
     
-    expect(screen.queryByText('⚙️ Game Settings')).not.toBeInTheDocument(); // Panel should be hidden
+    expect(screen.queryByText('Game Settings')).not.toBeInTheDocument(); // Panel should be hidden
     
     // This is the key test: when game is active, e2e tests expect the button
     const settingsButton = screen.getByTestId('settings-toggle-button');
@@ -161,7 +161,7 @@ describe('Multi-Tab E2E Mirror Tests', () => {
     
     // After clicking button, panel should appear
     await waitFor(() => {
-      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
     });
     
     console.log('✅ Multi-tab settings UI behavior correctly reproduced');
@@ -191,7 +191,7 @@ describe('Multi-Tab E2E Mirror Tests', () => {
     // At this point, no game is active, so settings should be PANEL
     // This is where the e2e test fails - it expects a button but gets a panel
     
-    const settingsPanel = screen.queryByText('⚙️ Game Settings');
+    const settingsPanel = screen.queryByText('Game Settings');
     const settingsButton = screen.queryByTestId('settings-toggle-button');
     
     // The e2e test assumes settings-toggle-button exists at this point, but it shouldn't

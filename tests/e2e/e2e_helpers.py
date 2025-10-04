@@ -55,7 +55,7 @@ async def wait_for_game_settings_available(page: Page, timeout: int = 5000) -> b
         await page.wait_for_function(
             """() => {
                 const toggleButton = document.querySelector('[data-testid="settings-toggle-button"]');
-                const settingsPanel = document.querySelector('[data-testid="game-settings"], .game-settings');
+                const settingsPanel = document.querySelector('[data-testid="game-settings-panel"]');
                 const gameSettingsText = Array.from(document.querySelectorAll('*')).find(el => el.textContent?.includes('Game Settings'));
                 return toggleButton || settingsPanel || gameSettingsText;
             }""",

@@ -179,8 +179,17 @@ describe('NewGameButton Flow Tests', () => {
       session: { 
         type: 'active-game',
         gameId: 'active-game-123',
-        state: null,
-        createdAt: Date.now()
+        state: {
+          board_size: 9,
+          current_player: 0,
+          players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+          walls: [],
+          walls_remaining: [10, 10],
+          legal_moves: [],
+          winner: null,
+          move_history: []
+        },
+        lastSync: new Date()
       },
       settings: { 
         gameSettings: { 
@@ -200,7 +209,16 @@ describe('NewGameButton Flow Tests', () => {
       
       // Legacy compatibility
       gameId: 'active-game-123',
-      gameState: null,
+      gameState: {
+        board_size: 9,
+        current_player: 0,
+        players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+        walls: [],
+        walls_remaining: [10, 10],
+        legal_moves: [],
+        winner: null,
+        move_history: []
+      },
       gameSettings: {
         mode: 'human_vs_human' as const,
         ai_difficulty: 'medium' as const,
@@ -213,12 +231,22 @@ describe('NewGameButton Flow Tests', () => {
       selectedHistoryIndex: null
     });
     
-    // Update function mocks
-    mockGameStore.isConnected.mockReturnValue(true);
-    mockGameStore.getCurrentGameId.mockReturnValue('active-game-123');
-    mockGameStore.getCurrentGameState.mockReturnValue(null);
-    mockGameStore.canStartGame.mockReturnValue(false);
-    mockGameStore.isGameActive.mockReturnValue(false);
+    // Update function mocks - ensure all functions exist and are set correctly
+    mockGameStore.dispatch = vi.fn();
+    mockGameStore.isConnected = vi.fn(() => true);
+    mockGameStore.getCurrentGameId = vi.fn(() => 'active-game-123');
+    mockGameStore.getCurrentGameState = vi.fn(() => ({
+      board_size: 9,
+      current_player: 0,
+      players: [{ x: 4, y: 0 }, { x: 4, y: 8 }],
+      walls: [],
+      walls_remaining: [10, 10],
+      legal_moves: [],
+      winner: null,
+      move_history: []
+    }));
+    mockGameStore.canStartGame = vi.fn(() => false);
+    mockGameStore.isGameActive = vi.fn(() => true);
   });
 
   describe('Button visibility and state', () => {
@@ -795,9 +823,9 @@ describe('NewGameButton Flow Tests', () => {
     it('should provide clear feedback when disabled', () => {
       Object.assign(mockGameStore, {
         connection: {
-      type: 'disconnected' as const,
-      canReset: true
-    }
+          type: 'disconnected' as const,
+          canReset: true
+        }
       });
       mockGameStore.isConnected.mockReturnValue(false);
 
@@ -808,4 +836,3 @@ describe('NewGameButton Flow Tests', () => {
       expect(button).toHaveAttribute('title', 'Connect to server to start a new game');
     });
   });
-});

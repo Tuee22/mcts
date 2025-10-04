@@ -196,9 +196,13 @@ class TestRaceConditions:
         game_setup = page.locator('[data-testid="game-setup"]')
         await expect(game_setup).to_be_visible()
 
-        # Settings should be functional
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button).to_be_enabled()
+        # Settings panel should be visible (functional: no-game state shows panel)
+        settings_panel = page.locator("text=Game Settings")
+        await expect(settings_panel).to_be_visible()
+
+        # Start Game button should be enabled
+        start_button = page.locator('[data-testid="start-game-button"]')
+        await expect(start_button).to_be_enabled()
 
         print("✅ New Game during reconnection handled correctly")
 
@@ -315,9 +319,13 @@ class TestRaceConditions:
         game_setup = page.locator('[data-testid="game-setup"]')
         await expect(game_setup).to_be_visible()
 
+        # Settings panel should be visible (functional: no-game state shows panel)
+        settings_panel = page.locator("text=Game Settings")
+        await expect(settings_panel).to_be_visible()
+
         # Should be able to create new game
-        settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
-        await expect(settings_button).to_be_enabled()
+        start_button = page.locator('[data-testid="start-game-button"]')
+        await expect(start_button).to_be_enabled()
 
         print("✅ Concurrent New Game clicks handled correctly")
 

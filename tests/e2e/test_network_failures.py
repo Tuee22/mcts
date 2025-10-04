@@ -76,24 +76,65 @@ async def test_server_error_responses(page: Page, e2e_urls: Dict[str, str]) -> N
     await page.goto(e2e_urls["frontend"])
     await page.wait_for_load_state("networkidle")
 
-    # Intercept requests and return 500 error
+    # Intercept requests and return 500 error - use exact URL pattern
+    health_url = e2e_urls["backend"] + "/health"
+    print(f"Setting up route interception for: {health_url}")
+    
     await page.route(
-        "**/health", lambda route: route.fulfill(status=500, body="Server Error")
+        f"{health_url}**", lambda route: route.fulfill(status=500, body="Server Error")
     )
 
-    # Make request that should get 500 error
-    response = await page.request.get(e2e_urls["backend"] + "/health")
-    assert response.status == 500
+    # Make request that should get 500 error (use page.evaluate to trigger route interception)
+    response_info = await page.evaluate(f"""
+        async () => {{
+            try {{
+                const response = await fetch('{health_url}');
+                return {{
+                    status: response.status,
+                    ok: response.ok,
+                    url: response.url
+                }};
+            }} catch (error) {{
+                return {{
+                    status: -1,
+                    ok: false,
+                    error: error.message
+                }};
+            }}
+        }}
+    """)
+    
+    print(f"Response status: {response_info['status']}, URL: {response_info.get('url', 'N/A')}")
+    assert response_info['status'] == 500
     print("✅ 500 error response handled correctly")
 
     # Remove the route and verify normal operation
-    await page.unroute("**/health")
+    await page.unroute(f"{health_url}**")
 
     # Wait a moment for route to be fully removed
     await asyncio.sleep(0.1)
 
-    normal_response = await page.request.get(e2e_urls["backend"] + "/health")
-    assert normal_response.ok
+    # Test normal operation (also using page.evaluate)
+    normal_response_info = await page.evaluate(f"""
+        async () => {{
+            try {{
+                const response = await fetch('{health_url}');
+                return {{
+                    status: response.status,
+                    ok: response.ok,
+                    url: response.url
+                }};
+            }} catch (error) {{
+                return {{
+                    status: -1,
+                    ok: false,
+                    error: error.message
+                }};
+            }}
+        }}
+    """)
+    
+    assert normal_response_info['ok']
     print("✅ Normal operation restored after removing 500 error route")
 
 
@@ -137,7 +178,7 @@ async def test_partial_response_handling(page: Page, e2e_urls: Dict[str, str]) -
 
     # Intercept and return incomplete JSON
     await page.route(
-        "**/health",
+        "**/health**",
         lambda route: route.fulfill(
             status=200,
             headers={"Content-Type": "application/json"},
@@ -154,7 +195,7 @@ async def test_partial_response_handling(page: Page, e2e_urls: Dict[str, str]) -
         print(f"✅ Malformed response handled correctly: {type(e).__name__}")
 
     # Clean up
-    await page.unroute("**/health")
+    await page.unroute("**/health**")
 
 
 @pytest.mark.e2e
@@ -227,8 +268,8 @@ async def test_concurrent_request_failures(
     await page.wait_for_load_state("networkidle")
 
     # Set up routes to fail different endpoints
-    await page.route("**/health", lambda route: route.fulfill(status=503))
-    await page.route("**/games", lambda route: route.fulfill(status=502))
+    await page.route("**/health**", lambda route: route.fulfill(status=503))
+    await page.route("**/games**", lambda route: route.fulfill(status=502))
 
     # Make multiple concurrent requests
     tasks = []
@@ -248,8 +289,8 @@ async def test_concurrent_request_failures(
     print(f"✅ Handled {error_count} concurrent failures appropriately")
 
     # Clean up
-    await page.unroute("**/health")
-    await page.unroute("**/games")
+    await page.unroute("**/health**")
+    await page.unroute("**/games**")
 
 
 @pytest.mark.e2e
@@ -265,7 +306,7 @@ async def test_network_recovery_patterns(page: Page, e2e_urls: Dict[str, str]) -
     print("✅ Phase 1: Normal operation confirmed")
 
     # Phase 2: Network failure
-    await page.route("**/health", lambda route: route.abort())
+    await page.route("**/health**", lambda route: route.abort())
     try:
         await page.request.get(e2e_urls["backend"] + "/health")
         print("⚠️  Request succeeded during failure simulation")
@@ -273,7 +314,7 @@ async def test_network_recovery_patterns(page: Page, e2e_urls: Dict[str, str]) -
         print("✅ Phase 2: Network failure simulation successful")
 
     # Phase 3: Recovery
-    await page.unroute("**/health")
+    await page.unroute("**/health**")
     await asyncio.sleep(0.5)  # Brief recovery delay
 
     response3 = await page.request.get(e2e_urls["backend"] + "/health")

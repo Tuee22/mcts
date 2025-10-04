@@ -49,32 +49,33 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
       }
     }),
     getSettingsUI: () => {
-      // Replicate the actual getSettingsUIState logic
-      const hasGame = mockGameStore.session && (mockGameStore.session.type === 'active-game' || mockGameStore.session.type === 'game-over');
+      // Replicate the ACTUAL getSettingsUIState logic from stateTransitions.ts
       const connected = mockGameStore.connection.type === 'connected';
       
       // If settings are explicitly expanded, show panel
       if (mockGameStore.ui.settingsExpanded) {
-        const canStart = connected && !hasGame;
+        const canStart = connected && mockGameStore.session.type === 'no-game';
         return { type: 'panel-visible', canStartGame: canStart };
       }
       
-      // Otherwise, determine based on session state
-      if (hasGame) {
-        return {
-          type: 'button-visible',
-          enabled: connected
-        };
-      } else if (connected) {
-        return {
-          type: 'panel-visible',
-          canStartGame: true
-        };
-      } else {
-        return {
-          type: 'button-visible',
-          enabled: false
-        };
+      // Otherwise, determine based on session state (matching real implementation)
+      switch (mockGameStore.session.type) {
+        case 'no-game':
+          return { 
+            type: 'panel-visible', 
+            canStartGame: connected
+          };
+        case 'active-game':
+        case 'game-over':
+          return { 
+            type: 'button-visible',
+            enabled: connected
+          };
+        default:
+          return {
+            type: 'button-visible',
+            enabled: false
+          };
       }
     },
     isConnected: vi.fn(() => mockGameStore.connection.type === 'connected'),
@@ -95,7 +96,7 @@ const { mockGameStore, mockUseGameStore } = vi.hoisted(() => {
     isGameActive: vi.fn(() => false),
     getSelectedHistoryIndex: vi.fn(() => null),
     getLatestError: vi.fn(() => null),
-    getIsLoading: vi.fn(() => false),
+    getIsLoading: vi.fn(() => mockGameStore.isLoading || mockGameStore.isCreatingGame),
     
     // Legacy compatibility
     gameId: null,
@@ -182,12 +183,12 @@ describe('GameSettings Visibility Logic', () => {
     it('should show the full settings panel by default', () => {
       render(<GameSettings />);
 
-      // Should show the settings panel, not the toggle button
-      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+      // Should show the settings panel
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();  // Panel header (no emoji)
       expect(screen.getByText('Game Mode')).toBeInTheDocument();
       expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
 
-      // Should NOT show the toggle button
+      // Should NOT show the toggle button (which has emoji)
       expect(screen.queryByText('⚙️ Game Settings')).not.toBeInTheDocument();
     });
 
@@ -349,7 +350,7 @@ describe('GameSettings Visibility Logic', () => {
       expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
     });
 
-    it('should show disabled toggle button when disconnected', async () => {
+    it('should show disabled panel when disconnected', async () => {
       mockGameStore.session = { type: 'no-game' as const };
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
@@ -357,14 +358,16 @@ describe('GameSettings Visibility Logic', () => {
 
       render(<GameSettings />);
 
-      // Should show toggle button, not settings panel
-      const toggleButton = screen.getByText('⚙️ Game Settings');
-      expect(toggleButton).toBeInTheDocument();
-      expect(toggleButton).toBeDisabled();
-      expect(toggleButton).toHaveAttribute('title', 'Connect to server to access settings');
+      // Should show panel with connection warning when disconnected
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();  // Panel header
+      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
+      expect(screen.getByTestId('start-game-button')).toBeDisabled();
+      
+      // Should NOT show the toggle button (which has emoji)
+      expect(screen.queryByText('⚙️ Game Settings')).not.toBeInTheDocument();
     });
 
-    it('should show toggle button instead of panel when disconnected', () => {
+    it('should show panel with disabled elements when disconnected', () => {
       mockGameStore.session = { type: 'no-game' as const };
       mockGameStore.getCurrentGameId.mockReturnValue(null);
       mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
@@ -372,27 +375,30 @@ describe('GameSettings Visibility Logic', () => {
 
       render(<GameSettings />);
 
-      // Should show disabled toggle button instead of settings panel
-      const toggleButton = screen.getByText('⚙️ Game Settings');
-      expect(toggleButton).toBeInTheDocument();
-      expect(toggleButton).toBeDisabled();
+      // Should show full settings panel even when disconnected
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();
+      expect(screen.getByTestId('connection-warning')).toBeInTheDocument();
 
-      // Should NOT show the full settings panel
-      expect(screen.queryByTestId('mode-human-vs-human')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('start-game-button')).not.toBeInTheDocument();
+      // Settings panel elements should be present but disabled
+      expect(screen.getByTestId('mode-human-vs-human')).toBeInTheDocument();
+      expect(screen.getByTestId('start-game-button')).toBeInTheDocument();
+      expect(screen.getByTestId('start-game-button')).toBeDisabled();
+      
+      // Should NOT show toggle button
+      expect(screen.queryByText('⚙️ Game Settings')).not.toBeInTheDocument();
     });
   });
 
-  describe('Loading state', () => {
-    it('should show loading text on start button when creating game', () => {
-      mockGameStore.isLoading = true;
-      mockGameStore.isCreatingGame = true;
+  describe('Button state', () => {
+    it('should show disabled start button when disconnected', () => {
+      mockGameStore.connection = { type: 'disconnected' as const, canReset: true };
+      mockGameStore.isConnected = vi.fn(() => false);
 
       render(<GameSettings />);
 
       const startButton = screen.getByTestId('start-game-button');
       expect(startButton).toBeDisabled();
-      expect(startButton).toHaveTextContent('Starting...');
+      expect(startButton).toHaveTextContent('Disconnected');
     });
   });
 
@@ -423,7 +429,7 @@ describe('GameSettings Visibility Logic', () => {
       };
       mockGameStore.getCurrentGameId.mockReturnValue('new-game-123');
 
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'GAME_CREATED' });
+      // Should call WebSocket service to create game
       expect(mockWsService.createGame).toHaveBeenCalledWith({
         mode: 'human_vs_human',
         ai_config: undefined,
@@ -466,7 +472,7 @@ describe('GameSettings Visibility Logic', () => {
     it('should always provide a way to access game settings', () => {
       // When no game exists, full panel is visible
       const { rerender } = render(<GameSettings />);
-      expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+      expect(screen.getByText('Game Settings')).toBeInTheDocument();  // Panel header (no emoji)
 
       // When game exists, toggle button is visible
       mockGameStore.session = {

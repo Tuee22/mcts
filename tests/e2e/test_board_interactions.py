@@ -27,7 +27,7 @@ class TestBoardInteractions:
     """Tests for user interactions with the game board."""
 
     async def test_click_cell_to_move_piece(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test clicking on board cells to move pieces.
@@ -36,34 +36,35 @@ class TestBoardInteractions:
         while clicking on illegal cells does not.
         """
         # Setup game
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Wait for game board to load
-        game_board = async_page.locator(".game-board")
+        game_board = page.locator(".game-board")
         await expect(game_board).to_be_visible(timeout=10000)
         print("✅ Game board is visible")
 
         # Get initial player position
-        player1_piece = async_page.locator(".player.player-0")
+        player1_piece = page.locator(".player.player-0")
         # Verify player piece is visible with longer timeout
         await expect(player1_piece).to_be_visible(timeout=10000)
         print("✅ Player 1 piece is visible on the board")
 
-        # Test clicking on legal move cells
-        legal_cells = async_page.locator(".game-cell.legal")
-        # Wait for legal moves to be calculated
-        await async_page.wait_for_timeout(2000)
+        # Test clicking on legal move cells (wait for them to appear)
+        legal_cells = page.locator(".game-cell.legal")
+        # Wait for legal moves to be highlighted or any game cells to be ready
+        game_cells = page.locator(".game-cell")
+        await expect(game_cells.first).to_be_visible(timeout=5000)
+        
         legal_cell_count = await legal_cells.count()
 
         if legal_cell_count > 0:
             # Click on the first legal move
             first_legal_cell = legal_cells.first
             await first_legal_cell.click()
-            await async_page.wait_for_timeout(2000)  # Give time for move to process
             print(
                 f"✅ Clicked on legal move cell (found {legal_cell_count} legal moves)"
             )
@@ -72,32 +73,31 @@ class TestBoardInteractions:
             await expect(player1_piece).to_be_visible()
             print("✅ Player piece still visible after move")
         else:
-            print("ℹ️ No legal move cells found - checking if any cells are clickable")
-            # Fallback: try clicking on a cell near the center
-            fallback_cell = async_page.locator(".game-cell").first
-            if await fallback_cell.count() > 0:
-                await fallback_cell.click()
-                await async_page.wait_for_timeout(1000)
+            print("ℹ️ No legal move cells found - testing basic cell interaction")
+            # Test basic cell interaction 
+            first_cell = game_cells.first
+            if await first_cell.count() > 0:
+                await first_cell.click()
                 print("✅ Basic cell interaction tested")
-        # Test completed successfully
+        
         print("✅ Click cell to move piece test completed")
 
     async def test_drag_piece_to_new_position(
-        self, async_page: Page, e2e_urls: Dict[str, str]
+        self, page: Page, e2e_urls: Dict[str, str]
     ) -> None:
         """
         Test dragging pieces to new positions (if supported).
 
         Some implementations may support drag-and-drop for moving pieces.
         """
-        await async_page.goto(e2e_urls["frontend"])
-        await async_page.wait_for_load_state("networkidle")
-        await self._wait_for_connection(async_page)
-        await self._setup_game(async_page, mode="human_vs_human", board_size=5)
-        await self._start_game(async_page)
+        await page.goto(e2e_urls["frontend"])
+        await page.wait_for_load_state("networkidle")
+        await self._wait_for_connection(page)
+        await self._setup_game(page, mode="human_vs_human", board_size=5)
+        await self._start_game(page)
 
         # Verify player piece is visible
-        player1_piece = async_page.locator(".player.player-0")
+        player1_piece = page.locator(".player.player-0")
         await expect(player1_piece).to_be_visible()
 
         # Check basic drag and drop capability (most games use click-to-move)
@@ -461,21 +461,16 @@ class TestBoardInteractions:
     async def _wait_for_connection(self, page: Page) -> None:
         """Wait for WebSocket connection."""
         connection_text = page.locator('[data-testid="connection-text"]')
-        if await connection_text.count() > 0:
-            await expect(connection_text).to_have_text("Connected", timeout=10000)
-        else:
-            await page.wait_for_timeout(2000)
+        await expect(connection_text).to_have_text("Connected", timeout=10000)
 
     async def _setup_game(
         self, page: Page, mode: str = "human_vs_human", board_size: int = 9
     ) -> None:
         """Configure game settings using the React app."""
         # Settings panel should be visible by default when no game is active
-        # Wait for the settings panel to be visible
         await expect(page.locator('h2:has-text("Game Settings")')).to_be_visible(
             timeout=5000
         )
-        await page.wait_for_timeout(500)
 
         # Select mode using data-testid
         if mode == "human_vs_human":
@@ -487,7 +482,6 @@ class TestBoardInteractions:
 
         if await mode_button.count() > 0:
             await mode_button.click()
-            await page.wait_for_timeout(500)
             print(f"✅ Selected mode: {mode}")
 
         # Select board size (look for board size buttons with more specific selector)
@@ -496,7 +490,6 @@ class TestBoardInteractions:
         )
         if await size_button.count() > 0:
             await size_button.click()
-            await page.wait_for_timeout(500)
             print(f"✅ Selected board size: {board_size}x{board_size}")
         else:
             print(f"ℹ️ Board size {board_size} button not found, using default")
@@ -510,59 +503,9 @@ class TestBoardInteractions:
         await expect(start_button).to_be_visible(timeout=5000)
         await expect(start_button).to_be_enabled(timeout=5000)
         await start_button.click()
-        await page.wait_for_timeout(2000)
         print("✅ Clicked Start Game button")
 
-        # Wait longer for WebSocket connection to stabilize and game to be created
-        # The backend logs show WebSocket connection issues that need time to resolve
-        await page.wait_for_timeout(5000)
-
-        # Check if game was created by looking for game container or any game elements
+        # Wait for game to be created (functional approach - wait for actual state)
         game_container = page.locator('[data-testid="game-container"]')
-        game_board = page.locator(".game-board, [data-testid='game-board']")
-        game_setup = page.locator('[data-testid="game-setup"]')
-
-        # If still in setup, the WebSocket didn't work - use API fallback
-        if await game_setup.count() > 0:
-            print(
-                "⚠️ Still in game-setup, WebSocket game creation failed - using API fallback"
-            )
-            # Try to force create a game via direct API call
-            result = await page.evaluate(
-                """
-                async () => {
-                    try {
-                        const response = await fetch('/games', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                player1_name: 'Player 1',
-                                player2_name: 'Player 2',
-                                player1_type: 'human',
-                                player2_type: 'human',
-                                settings: { board_size: 5 }
-                            })
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            return { success: true, game_id: data.game_id };
-                        }
-                        return { success: false, error: 'API failed' };
-                    } catch (e) {
-                        return { success: false, error: e.toString() };
-                    }
-                }
-            """
-            )
-            if result and isinstance(result, dict) and result.get("success"):
-                game_id = result.get("game_id")
-                print(f"✅ Game created via API: {game_id}")
-                await page.wait_for_timeout(3000)  # Let React update
-
-        # Now check for game elements
-        if await game_container.count() > 0:
-            print("✅ Game container appeared - game started successfully")
-        elif await game_board.count() > 0:
-            print("✅ Game board is visible - game started")
-        else:
-            print("⚠️ No game elements found, but continuing with test")
+        await expect(game_container).to_be_visible(timeout=10000)
+        print("✅ Game container appeared - game started successfully")

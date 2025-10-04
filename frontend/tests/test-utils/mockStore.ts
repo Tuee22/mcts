@@ -114,12 +114,19 @@ export function createMockGameStore() {
                      state.session.type === 'game-over';
       const connected = state.connection.type === 'connected';
       
-      if (hasGame) {
-        return { type: 'button-visible' as const, enabled: connected };
-      } else if (connected) {
-        return { type: 'panel-visible' as const, canStartGame: true };
+      // If settings are explicitly expanded, show panel
+      if (state.ui.settingsExpanded) {
+        const canStart = connected && !hasGame;
+        return { type: 'panel-visible', canStartGame: canStart };
+      }
+      
+      // Otherwise, determine based on session state
+      // For no game, always show panel (with disabled controls if disconnected)
+      if (!hasGame) {
+        return { type: 'panel-visible' as const, canStartGame: connected };
       } else {
-        return { type: 'button-visible' as const, enabled: false };
+        // For active game, show toggle button
+        return { type: 'button-visible' as const, enabled: connected };
       }
     }),
     
@@ -276,6 +283,10 @@ export function createMockGameStore() {
           };
           break;
           
+        case 'SETTINGS_TOGGLED':
+          state.ui.settingsExpanded = !state.ui.settingsExpanded;
+          break;
+          
         default:
           // For unhandled actions in tests, just log
           console.warn('Unhandled action in mock store:', action.type);
@@ -343,4 +354,24 @@ export function createMockUseGameStore() {
   useGameStore.subscribe = store.subscribe;
   
   return { mockStore: store, useGameStore };
+}
+
+/**
+ * Creates a proper GameState object matching the actual type definition
+ */
+export function createMockGameState(overrides: Partial<GameState> = {}): GameState {
+  return {
+    board_size: 9,
+    current_player: 0,
+    players: [
+      { row: 8, col: 4 },
+      { row: 0, col: 4 }
+    ],
+    walls: [],
+    walls_remaining: [10, 10],
+    legal_moves: [],
+    winner: null,
+    move_history: [],
+    ...overrides
+  };
 }

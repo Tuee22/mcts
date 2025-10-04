@@ -214,7 +214,7 @@ describe('App Component', () => {
     it('renders main app structure correctly', () => {
       render(<App />);
 
-      expect(screen.getByText('CORRIDORS')).toBeInTheDocument();
+      expect(screen.getByText('CORRIDORS - Build Test v2')).toBeInTheDocument();
       expect(screen.getByTestId('connection-status')).toBeInTheDocument();
       expect(screen.getByTestId('app-main')).toBeInTheDocument();
       expect(screen.getByText('© 2024 Corridors MCTS - Retro Gaming Edition')).toBeInTheDocument();

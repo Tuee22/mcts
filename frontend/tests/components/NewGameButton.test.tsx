@@ -248,7 +248,7 @@ describe('New Game Button Tests', () => {
       await user.click(newGameButton);
       await user.click(newGameButton);
       
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       
       // Connection should remain stable
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
@@ -342,7 +342,7 @@ describe('New Game Button Tests', () => {
         await user.click(newGameButton);
       }
       
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       
       // Should still show connected
       expect(screen.getByTestId('connection-text')).toHaveTextContent('Connected');
@@ -372,7 +372,7 @@ describe('New Game Button Tests', () => {
       await user.click(newGameButton);
       
       // Dispatch should be called
-      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_CLICKED' });
+      expect(mockGameStore.dispatch).toHaveBeenCalledWith({ type: 'NEW_GAME_REQUESTED' });
       
       // Reset function should preserve connection state
       // This test documents what should happen vs what currently happens

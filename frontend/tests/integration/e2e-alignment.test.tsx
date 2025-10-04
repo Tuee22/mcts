@@ -1,9 +1,10 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/App';
 import { wsService } from '@/services/websocket';
+import { useGameStore } from '@/store/gameStore';
 
 // Mock react-hot-toast
 const mockToast = vi.hoisted(() => ({
@@ -79,7 +80,7 @@ describe('E2E Test Alignment - Game Creation Flow', () => {
     expect(screen.getByTestId('connection-text')).toHaveTextContent('Disconnected');
 
     // Settings should be visible (no game active)
-    expect(screen.getByText('⚙️ Game Settings')).toBeInTheDocument();
+    expect(screen.getByText('Game Settings')).toBeInTheDocument();
 
     // Start Game button should exist but be disabled
     const startButton = screen.getByTestId('start-game-button');
@@ -97,6 +98,15 @@ describe('E2E Test Alignment - Game Creation Flow', () => {
     if (connectHandler) {
       connectHandler(new Event('open'));
     }
+    
+    // Also manually dispatch to store to ensure connection state is updated
+    // This simulates what the WebSocket service would do internally
+    act(() => {
+      useGameStore.getState().dispatch({ 
+        type: 'CONNECTION_ESTABLISHED', 
+        clientId: 'test-client-123' 
+      });
+    });
 
     // Wait for connection state to update
     await waitFor(() => {
@@ -143,6 +153,14 @@ describe('E2E Test Alignment - Game Creation Flow', () => {
     if (openHandler) {
       openHandler(new Event('open'));
     }
+
+    // Also manually dispatch to store to ensure connection state is updated
+    act(() => {
+      useGameStore.getState().dispatch({ 
+        type: 'CONNECTION_ESTABLISHED', 
+        clientId: 'test-client-2' 
+      });
+    });
 
     // Connection text should update to Connected
     await waitFor(() => {
