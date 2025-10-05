@@ -33,6 +33,12 @@ BROWSER_LAUNCH_ARGS: Dict[str, List[str]] = {
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
+        "--disable-gpu",
+        "--disable-software-rasterizer",
+        "--disable-blink-features=AutomationControlled",
+        "--no-first-run",
+        "--disable-extensions",
+        "--disable-default-apps",
     ],
     "firefox": [],  # Firefox doesn't need special container args
     "webkit": [],  # Webkit doesn't need special container args

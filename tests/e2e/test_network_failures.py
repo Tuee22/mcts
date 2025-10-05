@@ -313,24 +313,31 @@ async def test_network_recovery_patterns(page: Page, e2e_urls: Dict[str, str]) -
     await page.goto(e2e_urls["frontend"])
     await page.wait_for_load_state("networkidle")
 
+    # Get browser name for webkit-specific handling
+    browser_name = page.context.browser.browser_type.name
+
     # Phase 1: Working state
-    response1 = await page.request.get(e2e_urls["backend"] + "/health")
+    response1 = await page.request.get(e2e_urls["backend"] + "/health", timeout=60000)
     assert response1.ok
     print("✅ Phase 1: Normal operation confirmed")
 
     # Phase 2: Network failure
     await page.route("**/health**", lambda route: route.abort())
     try:
-        await page.request.get(e2e_urls["backend"] + "/health")
+        # Use longer timeout for webkit
+        timeout = 60000 if browser_name == "webkit" else 30000
+        await page.request.get(e2e_urls["backend"] + "/health", timeout=timeout)
         print("⚠️  Request succeeded during failure simulation")
     except Exception:
         print("✅ Phase 2: Network failure simulation successful")
 
     # Phase 3: Recovery
     await page.unroute("**/health**")
-    await asyncio.sleep(0.5)  # Brief recovery delay
+    # Longer recovery delay for webkit
+    recovery_delay = 1.0 if browser_name == "webkit" else 0.5
+    await asyncio.sleep(recovery_delay)
 
-    response3 = await page.request.get(e2e_urls["backend"] + "/health")
+    response3 = await page.request.get(e2e_urls["backend"] + "/health", timeout=60000)
     assert response3.ok
     print("✅ Phase 3: Network recovery successful")
 
