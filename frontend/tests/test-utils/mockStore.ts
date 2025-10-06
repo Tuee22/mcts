@@ -181,14 +181,13 @@ export function createMockGameStore() {
         case 'CONNECTION_LOST':
           state.connection = { type: 'disconnected', canReset: true };
           state.isConnected = false;
-          if (action.error) {
-            state.ui.notifications.push({
-              id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(),
-              type: 'error',
-              message: action.error,
-              timestamp: new Date()
-            });
-          }
+          // Always add error notification to match real store behavior
+          state.ui.notifications.push({
+            id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(),
+            type: 'error',
+            message: action.error || 'Connection lost',
+            timestamp: new Date()
+          });
           break;
           
         case 'GAME_CREATED':

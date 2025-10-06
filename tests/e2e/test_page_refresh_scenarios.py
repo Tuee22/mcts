@@ -45,23 +45,34 @@ class TestPageRefreshScenarios:
 
         # Refresh the page
         await page.reload()
-        await page.wait_for_load_state("networkidle")
+
+        # WebKit-specific: Wait longer for page to fully load after refresh
+        await page.wait_for_load_state("networkidle", timeout=15000)
+        await page.wait_for_timeout(1000)  # Extra wait for WebKit
+
+        # Re-query elements after refresh (important for WebKit)
+        connection_text = page.locator('[data-testid="connection-text"]')
+        settings_heading = page.locator("h2", has_text="Game Settings")
 
         # After refresh, settings panel should be accessible (functional: no-game state)
         # Connection may initially be disconnected but settings should still be visible
-        settings_heading = page.locator("h2", has_text="Game Settings")
-        await expect(settings_heading).to_be_visible(timeout=5000)
+        await expect(settings_heading).to_be_visible(timeout=8000)  # Increased timeout
 
         # Connection should eventually be re-established OR we should be able to use the app
         # Try to wait for connection, but if it fails, verify app is still functional
         try:
-            await expect(connection_text).to_have_text("Connected", timeout=10000)
+            # WebKit needs more time for WebSocket reconnection
+            await expect(connection_text).to_have_text("Connected", timeout=15000)
             print("✅ Connection restored after page refresh")
         except AssertionError:
             print("ℹ️ Connection not restored immediately, checking app functionality")
             # If connection isn't restored, settings should still be accessible
+            # Re-query start button after refresh
             start_button = page.locator('[data-testid="start-game-button"]')
-            await expect(start_button).to_be_visible()
+            await expect(start_button).to_be_visible(timeout=5000)
+            await expect(start_button).to_be_enabled(
+                timeout=3000
+            )  # Ensure it's functional
             print("✅ App functional after refresh even if connection not restored")
 
     async def test_game_state_persistence_across_refresh(
@@ -97,7 +108,13 @@ class TestPageRefreshScenarios:
 
         # Refresh the page
         await page.reload()
-        await page.wait_for_load_state("networkidle")
+
+        # WebKit-specific: Wait longer for page to fully load after refresh
+        await page.wait_for_load_state("networkidle", timeout=15000)
+        await page.wait_for_timeout(1000)  # Extra wait for WebKit
+
+        # Re-query elements after refresh (important for WebKit)
+        game_container = page.locator('[data-testid="game-container"]')
 
         # Check what happens to the game state after refresh
         # This might show game setup or persist the game depending on implementation
