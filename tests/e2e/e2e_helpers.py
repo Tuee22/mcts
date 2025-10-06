@@ -1,9 +1,107 @@
 """Helper functions for E2E tests."""
 
 from playwright.async_api import Page, expect
+from tests.e2e.async_fixtures import get_browser_wait_time
 
 # Centralized selectors to avoid duplication and ensure consistency
 SETTINGS_BUTTON_SELECTOR = '[data-testid="settings-toggle-button"]'
+
+
+def get_browser_name_from_page(page: Page) -> str:
+    """Extract browser name from page context for wait calculations."""
+    browser_name = page.context.browser.browser_type.name
+    return browser_name
+
+
+async def ensure_element_ready_for_interaction(
+    page: Page, selector: str, interaction_type: str = "click"
+) -> None:
+    """
+    Ensure an element is ready for interaction with browser-specific stability checks.
+
+    Args:
+        page: Playwright page object
+        selector: Element selector to check
+        interaction_type: Type of interaction ("click", "drag", "touch")
+    """
+    browser_name = get_browser_name_from_page(page)
+    element = page.locator(selector)
+
+    # Wait for element to be visible and enabled
+    await expect(element).to_be_visible(timeout=5000)
+    await expect(element).to_be_enabled(timeout=5000)
+
+    # Browser-specific stability checks
+    if browser_name == "firefox":
+        # Firefox needs extra time for DOM stabilization
+        await page.wait_for_timeout(get_browser_wait_time(browser_name, 200))
+
+        # Ensure element is in viewport for Firefox
+        await page.evaluate(f"document.querySelector('{selector}')?.scrollIntoView()")
+        await page.wait_for_timeout(100)
+
+    elif browser_name == "webkit":
+        # WebKit needs viewport and touch readiness checks
+        await page.evaluate(f"document.querySelector('{selector}')?.scrollIntoView()")
+
+        # For touch interactions on WebKit, ensure touch events are ready
+        if interaction_type == "touch":
+            await page.wait_for_timeout(get_browser_wait_time(browser_name, 300))
+
+        # Check element is not covered by other elements
+        is_clickable = await page.evaluate(
+            """
+            (selector) => {
+                const elem = document.querySelector(selector);
+                if (!elem) return false;
+                const rect = elem.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const elementAtPoint = document.elementFromPoint(centerX, centerY);
+                return elementAtPoint === elem || elem.contains(elementAtPoint);
+            }
+            """,
+            selector,
+        )
+
+        if not is_clickable:
+            # Wait a bit more and scroll if needed
+            await page.wait_for_timeout(200)
+            await page.evaluate(
+                f"document.querySelector('{selector}')?.scrollIntoView()"
+            )
+
+    # Final stability wait for all browsers
+    base_wait = 100 if interaction_type == "click" else 200
+    await page.wait_for_timeout(get_browser_wait_time(browser_name, base_wait))
+
+
+async def wait_for_stable_connection(page: Page, timeout: int = 10000) -> None:
+    """
+    Wait for WebSocket connection to be stable with browser-specific handling.
+
+    Args:
+        page: Playwright page object
+        timeout: Maximum time to wait in milliseconds
+    """
+    browser_name = get_browser_name_from_page(page)
+
+    # Firefox needs more time for WebSocket connections to stabilize
+    if browser_name == "firefox":
+        timeout = int(timeout * 1.5)
+
+    # Wait for connection text to appear
+    connection_selector = '[data-testid="connection-text"]'
+    await expect(page.locator(connection_selector)).to_be_visible(timeout=timeout)
+
+    # Wait for "Connected" status specifically
+    await expect(page.locator(connection_selector)).to_have_text(
+        "Connected", timeout=timeout
+    )
+
+    # Additional stability wait for network operations
+    stability_wait = get_browser_wait_time(browser_name, 500)
+    await page.wait_for_timeout(stability_wait)
 
 
 async def handle_settings_interaction(
@@ -24,8 +122,10 @@ async def handle_settings_interaction(
     settings_button = page.locator(SETTINGS_BUTTON_SELECTOR)
     settings_panel = page.locator("text=Game Settings").first
 
-    # WebKit-specific: Add extra wait time for elements to be ready
-    await page.wait_for_timeout(300)
+    # Browser-aware initial wait time for elements to be ready
+    browser_name = get_browser_name_from_page(page)
+    initial_wait = get_browser_wait_time(browser_name, 300)
+    await page.wait_for_timeout(initial_wait)
 
     # Try up to 3 times with exponential backoff for WebKit
     for attempt in range(3):
@@ -56,9 +156,10 @@ async def handle_settings_interaction(
 
                 if is_clickable:
                     await settings_button.click()
-                    await page.wait_for_timeout(
-                        600 + attempt * 200
-                    )  # Progressive delay
+                    # Browser-aware progressive delay
+                    base_delay = 600 + attempt * 200
+                    progressive_delay = get_browser_wait_time(browser_name, base_delay)
+                    await page.wait_for_timeout(progressive_delay)
 
                     # Verify the settings panel opened
                     panel_opened = await settings_panel.count() > 0
@@ -70,14 +171,16 @@ async def handle_settings_interaction(
                         continue
                 else:
                     print(f"⚠️ Settings button not clickable, waiting longer...")
-                    await page.wait_for_timeout(500 * (attempt + 1))
+                    wait_time = get_browser_wait_time(browser_name, 500 * (attempt + 1))
+                    await page.wait_for_timeout(wait_time)
                     continue
 
             except Exception as e:
                 print(
                     f"⚠️ Settings button interaction failed (attempt {attempt + 1}): {e}"
                 )
-                await page.wait_for_timeout(500 * (attempt + 1))
+                wait_time = get_browser_wait_time(browser_name, 500 * (attempt + 1))
+                await page.wait_for_timeout(wait_time)
                 continue
 
         elif await settings_panel.count() > 0:
@@ -85,8 +188,9 @@ async def handle_settings_interaction(
             print("✅ Settings panel is already visible")
             break
         else:
-            # WebKit fallback: Try waiting longer for elements to appear
-            wait_time = 1000 * (attempt + 1)
+            # Browser-aware fallback: Try waiting longer for elements to appear
+            base_wait = 1000 * (attempt + 1)
+            wait_time = get_browser_wait_time(browser_name, base_wait)
             print(f"⚠️ No settings UI found, waiting {wait_time}ms...")
             await page.wait_for_timeout(wait_time)
             continue

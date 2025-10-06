@@ -40,8 +40,20 @@ BROWSER_LAUNCH_ARGS: Dict[str, List[str]] = {
         "--disable-extensions",
         "--disable-default-apps",
     ],
-    "firefox": [],  # Firefox doesn't need special container args
-    "webkit": [],  # Webkit doesn't need special container args
+    "firefox": [
+        "--width=1280",
+        "--height=720",
+        "--no-first-run",
+        "--disable-default-browser-check",
+    ],
+    "webkit": [],  # WebKit has minimal supported arguments
+}
+
+# Browser-specific wait multipliers for timing adjustments
+BROWSER_WAIT_MULTIPLIERS: Dict[str, float] = {
+    "chromium": 1.0,  # Baseline speed
+    "firefox": 1.5,  # Firefox needs more time for DOM updates
+    "webkit": 1.2,  # WebKit needs slightly more time for viewport stabilization
 }
 
 # Base mobile context configuration (without browser-specific flags)
@@ -51,6 +63,12 @@ MOBILE_CONTEXT_BASE = {
     "has_touch": True,  # Touch events work in all browsers
     "device_scale_factor": 2,  # 2x pixel density for retina displays
 }
+
+
+def get_browser_wait_time(browser_name: str, base_time_ms: int) -> int:
+    """Calculate browser-specific wait time based on browser performance characteristics."""
+    multiplier = BROWSER_WAIT_MULTIPLIERS.get(browser_name, 1.0)
+    return int(base_time_ms * multiplier)
 
 
 @pytest_asyncio.fixture(scope="function", params=["chromium", "firefox", "webkit"])

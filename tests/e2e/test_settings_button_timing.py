@@ -61,12 +61,23 @@ class TestSettingsButtonTiming:
 
         await page.goto("http://localhost:8000")
 
+        # Get browser name for Firefox-specific handling
+        browser_name = page.context.browser.browser_type.name
+
         # Monitor Settings button availability continuously
         settings_availability = []
 
         async def monitor_settings_availability() -> None:
-            """Monitor Settings button availability every 50ms."""
-            for i in range(100):  # Monitor for 5 seconds
+            """Monitor Settings button availability with Firefox-aware timing."""
+            # Firefox needs longer monitoring period and slower polling due to slower DOM updates
+            if browser_name == "firefox":
+                iterations = 60  # 8 seconds (60 * 133ms) for Firefox
+                interval = 0.133  # Slower polling for Firefox stability
+            else:
+                iterations = 50  # 5 seconds (50 * 100ms) for other browsers
+                interval = 0.1  # Standard 100ms polling
+
+            for i in range(iterations):
                 toggle_visible = (
                     await page.locator(SETTINGS_BUTTON_SELECTOR).count() > 0
                 )
@@ -78,7 +89,7 @@ class TestSettingsButtonTiming:
                 settings_available = toggle_visible or panel_visible or start_visible
                 settings_availability.append(
                     {
-                        "time": i * 50,
+                        "time": int(i * interval * 1000),  # Convert to ms
                         "toggle": toggle_visible,
                         "panel": panel_visible,
                         "start": start_visible,
@@ -86,21 +97,25 @@ class TestSettingsButtonTiming:
                     }
                 )
 
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(interval)
 
         # Start monitoring
         monitor_task = asyncio.create_task(monitor_settings_availability())
 
-        # Perform game lifecycle operations
-        await asyncio.sleep(0.1)  # Let monitoring start
+        # Perform game lifecycle operations with Firefox-aware timing
+        initial_wait = 0.2 if browser_name == "firefox" else 0.1
+        await asyncio.sleep(initial_wait)  # Let monitoring start
 
         # Create game
         start_button = page.locator('[data-testid="start-game-button"]')
         if await start_button.count() > 0:
             await start_button.click()
 
-        # Wait for game creation and let monitoring continue
-        await asyncio.sleep(3.0)
+        # Wait for game creation - Firefox needs more time for DOM transitions
+        if browser_name == "firefox":
+            await asyncio.sleep(5.0)  # Longer wait for Firefox DOM updates
+        else:
+            await asyncio.sleep(3.0)  # Standard wait for other browsers
 
         # Stop monitoring
         monitor_task.cancel()

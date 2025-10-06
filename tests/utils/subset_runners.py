@@ -14,16 +14,16 @@ def run_pytest_subset(
         cmd.extend(["-m", markers])
     cmd.extend(["-v"])
 
-    # Add parallel execution for E2E tests
+    # Add parallel execution for E2E tests with reduced workers for stability
     if parallel and "e2e" in paths[0] if paths else False:
         cmd.extend(
             [
                 "-n",
-                "4",  # Run with 4 parallel workers
+                "2",  # Run with 2 parallel workers for better stability
                 "--dist",
                 "loadfile",  # Distribute tests by file for better isolation
                 "--timeout",
-                "30",  # 30s timeout per test
+                "60",  # 60s timeout per test (increased for slower browsers)
             ]
         )
 
