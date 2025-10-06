@@ -20,7 +20,7 @@ T = TypeVar("T")
 
 
 # Type-safe test result structures
-class TestResult(NamedTuple):
+class InfrastructureResult(NamedTuple):
     """Structured test result with no Any types."""
 
     name: str
@@ -31,14 +31,14 @@ class TestResult(NamedTuple):
     timestamp: datetime
 
 
-class TestMetrics:
+class InfrastructureMetrics:
     """Test metrics collector - for observability, not skip decisions."""
 
     def __init__(self, metrics_file: Path) -> None:
         self.metrics_file = metrics_file
-        self.results: List[TestResult] = []
+        self.results: List[InfrastructureResult] = []
 
-    def record(self, result: TestResult) -> None:
+    def record(self, result: InfrastructureResult) -> None:
         """Record test result for analysis."""
         self.results.append(result)
         self._persist()
@@ -58,7 +58,7 @@ class TestMetrics:
         ]
         self.metrics_file.write_text(json.dumps(data, indent=2))
 
-    def get_slowest_tests(self, count: int = 10) -> List[TestResult]:
+    def get_slowest_tests(self, count: int = 10) -> List[InfrastructureResult]:
         """Get slowest tests for optimization analysis."""
         return sorted(self.results, key=lambda r: r.duration_ms, reverse=True)[:count]
 
@@ -70,7 +70,7 @@ class TestMetrics:
         return failed_count / len(self.results)
 
 
-class TestInfrastructureError(Exception):
+class InfrastructureError(Exception):
     """Infrastructure failures are not test failures."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None) -> None:
@@ -88,7 +88,7 @@ async def with_timeout(coro: Awaitable[T], timeout: float, operation_name: str) 
     try:
         return await asyncio.wait_for(coro, timeout=timeout)
     except asyncio.TimeoutError as e:
-        raise TestInfrastructureError(
+        raise InfrastructureError(
             f"Operation '{operation_name}' exceeded {timeout}s timeout. "
             f"This indicates a test quality issue that needs fixing."
         ) from e

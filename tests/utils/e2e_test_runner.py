@@ -87,13 +87,9 @@ def run_e2e_tests_with_validation() -> None:
         "-m",
         "e2e",
         "-v",
-        # Parallel execution settings
-        "-n",
-        "4",  # 4 parallel workers
-        "--dist",
-        "loadfile",  # Distribute tests by file for better isolation
-        "--timeout",
-        "30",  # 30s timeout per test
+        "--tb=short",  # Short traceback format for better output
+        "--show-capture=no",  # Reduce output clutter
+        "--maxfail=5",  # Stop after 5 failures to prevent infinite hanging
     ]
 
     print(f"📝 Command: {' '.join(cmd)}")

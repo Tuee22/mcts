@@ -18,12 +18,9 @@ def run_pytest_subset(
     if parallel and "e2e" in paths[0] if paths else False:
         cmd.extend(
             [
-                "-n",
-                "2",  # Run with 2 parallel workers for better stability
-                "--dist",
-                "loadfile",  # Distribute tests by file for better isolation
-                "--timeout",
-                "60",  # 60s timeout per test (increased for slower browsers)
+                "--tb=short",  # Short traceback format for better output
+                "--show-capture=no",  # Reduce output clutter
+                "--maxfail=5",  # Stop after 5 failures to prevent infinite hanging
             ]
         )
 

@@ -20,7 +20,7 @@ T = TypeVar("T")
 TestStatus = Literal["passed", "failed", "timeout", "skipped"]
 BrowserType = Literal["chromium", "firefox", "webkit"]
 
-class TestResult(NamedTuple):
+class InfrastructureResult(NamedTuple):
     """Structured test result with no Any types."""
 
     name: str
@@ -30,23 +30,23 @@ class TestResult(NamedTuple):
     browser: BrowserType
     timestamp: datetime
 
-class TestMetrics:
+class InfrastructureMetrics:
     """Test metrics collector - for observability, not skip decisions."""
 
     def __init__(self, metrics_file: Path) -> None:
         self.metrics_file: Path
-        self.results: List[TestResult]
-    def record(self, result: TestResult) -> None:
+        self.results: List[InfrastructureResult]
+    def record(self, result: InfrastructureResult) -> None:
         """Record test result for analysis."""
         ...
     def _persist(self) -> None:
         """Save metrics to JSON file."""
         ...
-    def get_slowest_tests(self, count: int = 10) -> List[TestResult]:
+    def get_slowest_tests(self, count: int = 10) -> List[InfrastructureResult]:
         """Get slowest tests for optimization analysis."""
         ...
 
-class TestInfrastructureError(Exception):
+class InfrastructureError(Exception):
     """Infrastructure failures are not test failures."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None) -> None:

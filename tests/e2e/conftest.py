@@ -29,7 +29,7 @@ from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import Timeout as RequestsTimeout
 from pathlib import Path
 
-from tests.e2e.test_infrastructure import TestMetrics, TestResult
+from tests.e2e.test_infrastructure import InfrastructureMetrics, InfrastructureResult
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
@@ -243,7 +243,7 @@ async def isolated_page(browser: Browser) -> AsyncGenerator[Page, None]:
 @pytest.fixture
 def test_metrics(request: FixtureRequest) -> Generator[object, None, None]:
     """Track metrics without affecting test results."""
-    metrics = TestMetrics(Path("test_metrics.json"))
+    metrics = InfrastructureMetrics(Path("test_metrics.json"))
     start_time = datetime.now()
 
     yield metrics
@@ -291,7 +291,7 @@ def test_metrics(request: FixtureRequest) -> Generator[object, None, None]:
     else:
         status = "passed"  # Default fallback
 
-    result = TestResult(
+    result = InfrastructureResult(
         name=node.name,
         status=status,
         duration_ms=duration,
